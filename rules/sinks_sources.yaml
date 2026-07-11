@@ -1,0 +1,252 @@
+# Static sink/source patterns used to shortlist candidate functions before
+# handing them (plus CPG-derived context) to the LLM.
+#
+# These patterns are intentionally coarse -- their only job is *recall*
+# ("this call might be dangerous, go build full context around it"). The
+# actual precision/judgment call ("is this exploitable given who calls it
+# and what reaches it") is left to the LLM, which sees the real code, the
+# call graph, and the data-flow paths, not just a regex hit.
+#
+# `pattern` is a Java/Scala-flavoured regex matched against a call's
+# callee name (for sinks) or an identifier/call name (for sources).
+
+python:
+  sinks:
+    - pattern: "os\\.system|subprocess\\.(call|run|Popen|check_output|check_call)|popen"
+      cwe: "CWE-78"
+      category: "OS Command Injection"
+    - pattern: "^(eval|exec)$|compile"
+      cwe: "CWE-95"
+      category: "Code Injection"
+    - pattern: "pickle\\.loads?|yaml\\.load$|marshal\\.loads?"
+      cwe: "CWE-502"
+      category: "Insecure Deserialization"
+    - pattern: "\\.execute$|\\.executemany$|\\.raw$|cursor\\.execute"
+      cwe: "CWE-89"
+      category: "SQL Injection"
+    - pattern: "^open$|os\\.path\\.join|send_file|sendfile"
+      cwe: "CWE-22"
+      category: "Path Traversal"
+    - pattern: "requests\\.(get|post|put|delete)|urlopen|urllib\\.request"
+      cwe: "CWE-918"
+      category: "Server-Side Request Forgery"
+    - pattern: "render_template_string|Template\\("
+      cwe: "CWE-1336"
+      category: "Server-Side Template Injection"
+    - pattern: "\\.format$|f['\"]"
+      cwe: "CWE-74"
+      category: "String formatting into a sink (context dependent)"
+  sources:
+    - pattern: "request\\.(args|form|json|values|data|files|headers|cookies|get_json)"
+      category: "HTTP request input (Flask/Django/FastAPI style)"
+    - pattern: "^input$|sys\\.argv|sys\\.stdin"
+      category: "CLI / stdin input"
+    - pattern: "os\\.environ|getenv"
+      category: "Environment variable"
+
+javascript:
+  sinks:
+    - pattern: "child_process\\.(exec|execSync|spawn|spawnSync)"
+      cwe: "CWE-78"
+      category: "OS Command Injection"
+    - pattern: "^eval$|new Function|vm\\.runIn"
+      cwe: "CWE-95"
+      category: "Code Injection"
+    - pattern: "\\.query$|\\.execute$|sequelize\\.query"
+      cwe: "CWE-89"
+      category: "SQL Injection"
+    - pattern: "innerHTML|outerHTML|document\\.write|dangerouslySetInnerHTML"
+      cwe: "CWE-79"
+      category: "Cross-Site Scripting"
+    - pattern: "fs\\.(readFile|writeFile|unlink|createReadStream|createWriteStream)"
+      cwe: "CWE-22"
+      category: "Path Traversal"
+    - pattern: "JSON\\.parse|deserialize|node-serialize"
+      cwe: "CWE-502"
+      category: "Insecure Deserialization"
+    - pattern: "fetch\\(|axios\\.(get|post)|http\\.request|https\\.request"
+      cwe: "CWE-918"
+      category: "Server-Side Request Forgery"
+  sources:
+    - pattern: "req\\.(query|params|body|headers|cookies)"
+      category: "HTTP request input (Express-style)"
+    - pattern: "process\\.env"
+      category: "Environment variable"
+    - pattern: "location\\.(search|hash|href)|document\\.URL"
+      category: "Browser-controlled input"
+
+typescript:
+  sinks:
+    - pattern: "child_process\\.(exec|execSync|spawn|spawnSync)"
+      cwe: "CWE-78"
+      category: "OS Command Injection"
+    - pattern: "^eval$|new Function"
+      cwe: "CWE-95"
+      category: "Code Injection"
+    - pattern: "\\.query$|\\.execute$|createQueryBuilder"
+      cwe: "CWE-89"
+      category: "SQL Injection"
+    - pattern: "innerHTML|bypassSecurityTrust"
+      cwe: "CWE-79"
+      category: "Cross-Site Scripting"
+    - pattern: "fs\\.(readFile|writeFile|unlink)"
+      cwe: "CWE-22"
+      category: "Path Traversal"
+  sources:
+    - pattern: "req\\.(query|params|body|headers|cookies)"
+      category: "HTTP request input"
+    - pattern: "process\\.env"
+      category: "Environment variable"
+
+java:
+  sinks:
+    - pattern: "Runtime\\.getRuntime|ProcessBuilder"
+      cwe: "CWE-78"
+      category: "OS Command Injection"
+    - pattern: "executeQuery|executeUpdate|createStatement|createQuery"
+      cwe: "CWE-89"
+      category: "SQL Injection"
+    - pattern: "readObject|XMLDecoder"
+      cwe: "CWE-502"
+      category: "Insecure Deserialization"
+    - pattern: "\\.eval$|ScriptEngine"
+      cwe: "CWE-95"
+      category: "Code Injection"
+    - pattern: "new File\\(|Paths\\.get|FileInputStream|FileOutputStream"
+      cwe: "CWE-22"
+      category: "Path Traversal"
+    - pattern: "DocumentBuilderFactory|SAXParserFactory|XMLInputFactory"
+      cwe: "CWE-611"
+      category: "XML External Entity"
+  sources:
+    - pattern: "getParameter|getHeader|getCookies|getQueryString|getInputStream"
+      category: "HttpServletRequest input"
+    - pattern: "System\\.getenv"
+      category: "Environment variable"
+
+go:
+  sinks:
+    - pattern: "exec\\.Command"
+      cwe: "CWE-78"
+      category: "OS Command Injection"
+    - pattern: "\\.Query$|\\.Exec$|db\\.Query|db\\.Exec"
+      cwe: "CWE-89"
+      category: "SQL Injection"
+    - pattern: "os\\.Open|ioutil\\.ReadFile|filepath\\.Join"
+      cwe: "CWE-22"
+      category: "Path Traversal"
+    - pattern: "template\\.HTML|template\\.JS"
+      cwe: "CWE-79"
+      category: "Cross-Site Scripting"
+    - pattern: "gob\\.NewDecoder|json\\.Unmarshal"
+      cwe: "CWE-502"
+      category: "Insecure Deserialization (context dependent)"
+  sources:
+    - pattern: "r\\.URL\\.Query|r\\.FormValue|r\\.Header\\.Get"
+      category: "net/http request input"
+    - pattern: "os\\.Getenv"
+      category: "Environment variable"
+
+php:
+  sinks:
+    - pattern: "^(exec|shell_exec|system|passthru|popen|proc_open)$"
+      cwe: "CWE-78"
+      category: "OS Command Injection"
+    - pattern: "mysqli_query|->query$|PDO::query|->exec$"
+      cwe: "CWE-89"
+      category: "SQL Injection"
+    - pattern: "^(eval|assert|create_function)$"
+      cwe: "CWE-95"
+      category: "Code Injection"
+    - pattern: "^(include|include_once|require|require_once)$"
+      cwe: "CWE-98"
+      category: "Local/Remote File Inclusion"
+    - pattern: "unserialize"
+      cwe: "CWE-502"
+      category: "Insecure Deserialization"
+    - pattern: "^(fopen|file_get_contents|readfile)$"
+      cwe: "CWE-22"
+      category: "Path Traversal"
+  sources:
+    - pattern: "\\$_(GET|POST|REQUEST|COOKIE|SERVER|FILES)"
+      category: "HTTP superglobal input"
+
+ruby:
+  sinks:
+    - pattern: "system|\\`|Kernel\\.exec|IO\\.popen"
+      cwe: "CWE-78"
+      category: "OS Command Injection"
+    - pattern: "\\.where\\(|find_by_sql|ActiveRecord::Base\\.connection\\.execute"
+      cwe: "CWE-89"
+      category: "SQL Injection"
+    - pattern: "^eval$|instance_eval|class_eval"
+      cwe: "CWE-95"
+      category: "Code Injection"
+    - pattern: "Marshal\\.load|YAML\\.load$"
+      cwe: "CWE-502"
+      category: "Insecure Deserialization"
+    - pattern: "File\\.open|File\\.read|send_file"
+      cwe: "CWE-22"
+      category: "Path Traversal"
+  sources:
+    - pattern: "params\\[|request\\.(query_parameters|headers|cookies)"
+      category: "Rails request input"
+    - pattern: "ENV\\["
+      category: "Environment variable"
+
+csharp:
+  sinks:
+    - pattern: "Process\\.Start"
+      cwe: "CWE-78"
+      category: "OS Command Injection"
+    - pattern: "SqlCommand|ExecuteReader|ExecuteNonQuery|ExecuteScalar"
+      cwe: "CWE-89"
+      category: "SQL Injection"
+    - pattern: "BinaryFormatter|XmlSerializer\\.Deserialize"
+      cwe: "CWE-502"
+      category: "Insecure Deserialization"
+    - pattern: "File\\.Open|File\\.ReadAllText|Path\\.Combine"
+      cwe: "CWE-22"
+      category: "Path Traversal"
+  sources:
+    - pattern: "Request\\.(Query|Form|Headers|Cookies)"
+      category: "ASP.NET request input"
+    - pattern: "Environment\\.GetEnvironmentVariable"
+      category: "Environment variable"
+
+c:
+  sinks:
+    - pattern: "^(system|popen|execl|execlp|execle|execv|execvp)$"
+      cwe: "CWE-78"
+      category: "OS Command Injection"
+    - pattern: "^(strcpy|strcat|sprintf|gets|memcpy)$"
+      cwe: "CWE-120"
+      category: "Buffer Overflow"
+    - pattern: "^(fopen|open)$"
+      cwe: "CWE-22"
+      category: "Path Traversal"
+    - pattern: "^(malloc|free|realloc)$"
+      cwe: "CWE-416"
+      category: "Memory Management (use-after-free / double-free candidates)"
+  sources:
+    - pattern: "^(getenv|argv)$"
+      category: "Environment / CLI input"
+    - pattern: "^(recv|read|fgets|scanf)$"
+      category: "Network / stdin input"
+
+cpp:
+  sinks:
+    - pattern: "^(system|popen|execl|execlp)$"
+      cwe: "CWE-78"
+      category: "OS Command Injection"
+    - pattern: "^(strcpy|strcat|sprintf|memcpy)$"
+      cwe: "CWE-120"
+      category: "Buffer Overflow"
+    - pattern: "^(new|delete)$"
+      cwe: "CWE-416"
+      category: "Memory Management (use-after-free / double-free candidates)"
+  sources:
+    - pattern: "^(getenv|argv)$"
+      category: "Environment / CLI input"
+    - pattern: "^(recv|read)$"
+      category: "Network input"
