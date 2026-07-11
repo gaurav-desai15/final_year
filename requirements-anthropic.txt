@@ -1,0 +1,3 @@
+# Only needed if you opt into the paid Claude backend (--provider anthropic).
+# The default (free, local Ollama) backend doesn't need this at all.
+anthropic>=0.40.0

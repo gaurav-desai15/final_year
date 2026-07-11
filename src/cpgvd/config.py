@@ -14,6 +14,12 @@ DEFAULT_MODEL = os.environ.get("CPGVD_MODEL", "claude-opus-4-8")
 DEFAULT_JOERN_SERVER_HOST = "127.0.0.1"
 DEFAULT_JOERN_SERVER_PORT = int(os.environ.get("CPGVD_JOERN_PORT", "8080"))
 
+# "ollama" (default) is free and local -- no API key, no per-token cost.
+# "anthropic" is paid and needs ANTHROPIC_API_KEY; opt in with --provider anthropic.
+DEFAULT_LLM_PROVIDER = os.environ.get("CPGVD_LLM_PROVIDER", "ollama")
+DEFAULT_OLLAMA_HOST = os.environ.get("CPGVD_OLLAMA_HOST", "http://localhost:11434")
+DEFAULT_OLLAMA_MODEL = os.environ.get("CPGVD_OLLAMA_MODEL", "qwen2.5-coder:7b")
+
 
 @dataclass
 class Config:
@@ -28,11 +34,15 @@ class Config:
     keep_cpg: bool = False
 
     # LLM
-    model: str = DEFAULT_MODEL
+    llm_provider: str = DEFAULT_LLM_PROVIDER  # "ollama" (free, local) or "anthropic" (paid)
+    model: str = DEFAULT_MODEL  # used when llm_provider == "anthropic"
+    ollama_host: str = DEFAULT_OLLAMA_HOST
+    ollama_model: str = DEFAULT_OLLAMA_MODEL
+    ollama_timeout_s: float = float(os.environ.get("CPGVD_OLLAMA_TIMEOUT", "300"))
     max_context_chars: int = int(os.environ.get("CPGVD_MAX_CONTEXT_CHARS", "12000"))
     max_findings_per_context: int = 5
     llm_concurrency: int = int(os.environ.get("CPGVD_LLM_CONCURRENCY", "4"))
-    effort: str = os.environ.get("CPGVD_EFFORT", "high")
+    effort: str = os.environ.get("CPGVD_EFFORT", "high")  # anthropic only
 
     # Analysis scope
     max_contexts: int = int(os.environ.get("CPGVD_MAX_CONTEXTS", "200"))

@@ -9,8 +9,8 @@ description = "CPG-based, context-aware vulnerability detector: clones a repo, b
 requires-python = ">=3.10"
 readme = "README.md"
 dependencies = [
-    "anthropic>=0.40.0",
     "cpgqls-client>=0.0.9",
+    "requests>=2.31.0",
     "click>=8.1.7",
     "pydantic>=2.6.0",
     "PyYAML>=6.0.1",
@@ -20,9 +20,17 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Installs anthropic too, so the full test suite (including AnthropicProvider)
+# runs -- it's still never required at runtime unless --provider anthropic is used.
 dev = [
     "pytest>=8.0.0",
     "pytest-mock>=3.14.0",
+    "anthropic>=0.40.0",
+]
+# Only needed if you opt into the paid Claude backend (--provider anthropic).
+# The default (free, local Ollama) backend doesn't need this at all.
+anthropic = [
+    "anthropic>=0.40.0",
 ]
 
 [project.scripts]

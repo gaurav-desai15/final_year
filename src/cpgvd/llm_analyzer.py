@@ -1,12 +1,17 @@
-"""Context-aware vulnerability detection using Claude.
+"""Context-aware vulnerability detection using an LLM.
 
 This is the "reasoning" half of the pipeline. Where the CPG-side code
 (`context_extractor.py`) only has coarse, syntactic sink/source pattern
 matching, this module hands the *actual* code, the *actual* call graph
-neighborhood, and any *actual* CPG data-flow paths to Claude, and asks it
+neighborhood, and any *actual* CPG data-flow paths to an LLM, and asks it
 to judge whether that combination constitutes a real, exploitable
 vulnerability -- the kind of judgment call that needs to see how a
 function is really used, not just what it contains.
+
+The LLM backend is pluggable (see `llm_providers.py`): by default this
+runs against a free, local Ollama model, with an optional paid Claude API
+backend for higher-quality analysis. Neither the prompt nor the
+finding-parsing logic below cares which one is behind `complete_json`.
 """
 
 from __future__ import annotations
@@ -18,9 +23,8 @@ import threading
 import uuid
 from dataclasses import dataclass
 
-import anthropic
-
 from .config import Config
+from .llm_providers import BaseProvider, LlmProviderError, build_provider
 from .models import Confidence, Finding, FunctionContext, Severity
 
 logger = logging.getLogger(__name__)
@@ -68,6 +72,9 @@ appears. Specifically:
   rather than inventing a cross-function justification.
 - If you find nothing worth reporting, return an empty `findings` array. \
   Do not pad output with low-value findings to seem thorough.
+
+Respond with JSON only, matching the given schema exactly -- no prose \
+before or after the JSON object.
 
 Line numbers in findings must be absolute file line numbers (matching the \
 line numbers shown next to the target function's code, not 1-indexed \
@@ -124,44 +131,59 @@ class AnalyzerUsage:
     output_tokens: int = 0
 
 
+def _extract_json_object(text: str) -> str:
+    """Best-effort cleanup of an LLM's JSON response.
+
+    Structured-output modes (Anthropic's `output_config.format`, Ollama's
+    `format: <schema>`) should already return clean JSON, but local models
+    in particular sometimes wrap it in a markdown code fence or add a
+    stray sentence -- strip that instead of failing the whole context.
+    """
+    text = text.strip()
+    if text.startswith("```"):
+        text = text.strip("`")
+        if text.lower().startswith("json"):
+            text = text[4:]
+        text = text.strip()
+    if not text.startswith("{"):
+        start, end = text.find("{"), text.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            text = text[start : end + 1]
+    return text
+
+
 class LlmAnalyzer:
-    def __init__(self, config: Config, client: anthropic.Anthropic | None = None):
+    def __init__(self, config: Config, provider: BaseProvider | None = None):
         self.config = config
-        self.client = client or anthropic.Anthropic()
+        self.provider = provider or build_provider(config)
         self.usage = AnalyzerUsage()
         self._usage_lock = threading.Lock()
 
     def analyze_context(self, context: FunctionContext) -> list[Finding]:
         user_text = context.to_prompt_text(max_related_chars=self.config.max_context_chars)
 
-        response = self.client.messages.create(
-            model=self.config.model,
-            max_tokens=4096,
-            system=[{"type": "text", "text": SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
-            thinking={"type": "adaptive"},
-            output_config={"effort": self.config.effort, "format": {"type": "json_schema", "schema": RESPONSE_SCHEMA}},
-            messages=[{"role": "user", "content": user_text}],
-        )
+        result = self.provider.complete_json(SYSTEM_PROMPT, user_text, RESPONSE_SCHEMA)
 
         with self._usage_lock:
             self.usage.calls += 1
-            self.usage.input_tokens += response.usage.input_tokens
-            self.usage.output_tokens += response.usage.output_tokens
+            self.usage.input_tokens += result.input_tokens
+            self.usage.output_tokens += result.output_tokens
 
-        if response.stop_reason == "refusal":
+        if result.refused:
             logger.warning("Model refused to analyze context %s", context.context_id)
             return []
 
-        text = next((b.text for b in response.content if b.type == "text"), None)
-        if not text:
-            logger.warning("No text content in response for context %s (stop_reason=%s)", context.context_id, response.stop_reason)
+        if not result.text:
+            logger.warning("No text content in response for context %s", context.context_id)
             return []
 
         try:
-            parsed = json.loads(text)
+            parsed = json.loads(_extract_json_object(result.text))
         except json.JSONDecodeError:
             logger.exception("Failed to parse LLM JSON output for context %s", context.context_id)
             return []
+
+        model_name = self.config.ollama_model if self.config.llm_provider == "ollama" else self.config.model
 
         findings = []
         for item in parsed.get("findings", []):
@@ -182,7 +204,7 @@ class LlmAnalyzer:
                     context_reasoning=item.get("context_reasoning", ""),
                     data_flow_summary=item.get("data_flow_summary", ""),
                     suggested_fix=item.get("suggested_fix", ""),
-                    model=self.config.model,
+                    model=model_name,
                 )
             )
         return findings
@@ -200,8 +222,8 @@ class LlmAnalyzer:
     def _safe_analyze(self, context: FunctionContext) -> list[Finding]:
         try:
             return self.analyze_context(context)
-        except anthropic.APIStatusError:
-            logger.exception("Anthropic API error analyzing context %s", context.context_id)
+        except LlmProviderError:
+            logger.exception("LLM provider error analyzing context %s", context.context_id)
             return []
         except Exception:  # noqa: BLE001 - never let one bad context kill the whole run
             logger.exception("Unexpected error analyzing context %s", context.context_id)

@@ -16,6 +16,7 @@ from .context_extractor import ContextExtractor
 from .cpg_client import CpgClient
 from .joern_runner import JoernServer, check_joern_available, parse_repo_to_cpg
 from .llm_analyzer import LlmAnalyzer
+from .llm_providers import check_ollama_available
 from .models import AnalysisReport, RunStats
 from .repo_manager import RepoManager
 from .report import write_report
@@ -42,7 +43,13 @@ def main() -> None:
 @click.option("--language", default=None, help="Force a language instead of auto-detecting (e.g. python, javascript, java).")
 @click.option("--ref", default=None, help="Branch, tag, or commit to check out.")
 @click.option("--output-dir", default=None, type=click.Path(path_type=Path), help="Where to write reports.")
-@click.option("--model", default=None, help="Claude model ID to use.")
+@click.option(
+    "--provider",
+    type=click.Choice(["ollama", "anthropic"]),
+    default=None,
+    help="LLM backend: 'ollama' (free, local, default) or 'anthropic' (paid, needs ANTHROPIC_API_KEY).",
+)
+@click.option("--model", default=None, help="Model ID for the selected provider (Ollama tag or Claude model ID).")
 @click.option("--rules", "rules_path", default=None, type=click.Path(exists=True, path_type=Path), help="Custom sinks_sources.yaml.")
 @click.option("--max-contexts", default=None, type=int, help="Cap on how many candidate functions get sent to the LLM.")
 @click.option("--no-dataflow", is_flag=True, help="Skip Joern dataflow queries (faster, less precise).")
@@ -54,6 +61,7 @@ def analyze(
     language: str | None,
     ref: str | None,
     output_dir: Path | None,
+    provider: str | None,
     model: str | None,
     rules_path: Path | None,
     max_contexts: int | None,
@@ -69,14 +77,26 @@ def analyze(
     config = Config()
     if output_dir:
         config.output_dir = output_dir
+    if provider:
+        config.llm_provider = provider
     if model:
-        config.model = model
+        if config.llm_provider == "ollama":
+            config.ollama_model = model
+        else:
+            config.model = model
     if max_contexts:
         config.max_contexts = max_contexts
     if keep_cpg:
         config.keep_cpg = True
 
+    active_model = config.ollama_model if config.llm_provider == "ollama" else config.model
+
     check_joern_available(config)
+    if config.llm_provider == "ollama":
+        check_ollama_available(config)
+        console.print(f"[bold]Using free local LLM via Ollama:[/bold] {active_model}")
+    else:
+        console.print(f"[bold]Using Claude API (paid):[/bold] {active_model}")
 
     repo_manager = RepoManager(config.work_dir)
     console.print(f"[bold]Acquiring[/bold] {repo}...")
@@ -143,7 +163,7 @@ def analyze(
                 contexts.append(context)
             stats.candidate_contexts_analyzed = len(contexts)
 
-        console.print(f"[bold]Analyzing {len(contexts)} candidate functions with {config.model}...[/bold]")
+        console.print(f"[bold]Analyzing {len(contexts)} candidate functions with {active_model}...[/bold]")
         analyzer = LlmAnalyzer(config)
         findings = analyzer.analyze_many(contexts)
         stats.llm_calls = analyzer.usage.calls
@@ -161,7 +181,7 @@ def analyze(
         repo=repo_info.source,
         commit_sha=repo_info.commit_sha,
         languages=repo_info.languages or [lang],
-        model=config.model,
+        model=active_model,
         findings=findings,
         stats=stats,
     )

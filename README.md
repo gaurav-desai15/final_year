@@ -3,7 +3,7 @@
 Takes a repository (a GitHub URL or a local path), builds a **Code
 Property Graph (CPG)** of it with [Joern](https://joern.io), walks that
 graph to assemble real call-graph and data-flow **context** around
-candidate vulnerable code, and asks **Claude** to judge whether that
+candidate vulnerable code, and asks an **LLM** to judge whether that
 context actually constitutes an exploitable vulnerability — not just
 whether a dangerous-looking function name appears somewhere.
 
@@ -13,8 +13,13 @@ information a single-function scanner doesn't have and a CPG does.
 
 ```
 repo URL/path -> clone -> joern-parse -> CPG -> CPGQL context extraction
-   -> Claude (per-function, with call graph + dataflow context) -> report
+   -> LLM (per-function, with call graph + dataflow context) -> report
 ```
+
+**This is completely free by default.** The LLM step runs against a local
+[Ollama](https://ollama.com) model — no API key, no per-token billing,
+everything runs on your machine. A paid Claude API backend is available
+as an opt-in (`--provider anthropic`) for higher-quality analysis.
 
 See [`docs/architecture.md`](docs/architecture.md) for the full pipeline
 diagram and design rationale.
@@ -25,8 +30,14 @@ diagram and design rationale.
 - [Joern](https://joern.io) (`joern-parse` and `joern` on `PATH`, or set
   `JOERN_HOME`) — install with `./scripts/setup_joern.sh`, which needs a
   JDK 11+.
-- An Anthropic API key (`ANTHROPIC_API_KEY`), or an `ant auth login`
-  profile — see the [Claude API docs](https://platform.claude.com/docs).
+- [Ollama](https://ollama.com) running locally — install with
+  `./scripts/setup_ollama.sh`, which pulls the default model
+  (`qwen2.5-coder:7b`, ~4.7GB, works fine on 8GB+ RAM; pass a smaller tag
+  like `qwen2.5-coder:1.5b` for lighter hardware). **Free, no account
+  needed.**
+- *(Optional, paid)* An Anthropic API key (`ANTHROPIC_API_KEY`) if you want
+  to use `--provider anthropic` instead — see the
+  [Claude API docs](https://platform.claude.com/docs).
 
 ## Install
 
@@ -36,13 +47,17 @@ pip install -e .
 ./scripts/setup_joern.sh                 # installs Joern under ~/bin/joern
 export JOERN_HOME="$HOME/bin/joern"
 export PATH="$JOERN_HOME:$PATH"
-cp .env.example .env                     # fill in ANTHROPIC_API_KEY if not using `ant auth login`
+./scripts/setup_ollama.sh                # installs Ollama + pulls the default free model
+cp .env.example .env                     # defaults are already free (Ollama); edit if you want Claude
 ```
+
+To use the paid Claude backend instead, additionally run
+`pip install -e ".[anthropic]"` and set `ANTHROPIC_API_KEY`.
 
 ## Usage
 
 ```bash
-# Analyze a GitHub repo
+# Analyze a GitHub repo (free, local LLM by default)
 cpgvd analyze https://github.com/owner/repo
 
 # Analyze a specific branch/tag/commit
@@ -54,16 +69,20 @@ cpgvd analyze ./my-project --language python --no-dataflow
 
 # Try it on the bundled vulnerable example app
 cpgvd analyze ./examples/vulnerable_app/python --language python
+
+# Opt into the paid Claude API backend instead of the free local model
+cpgvd analyze ./my-project --provider anthropic --model claude-opus-4-8
 ```
 
 Output goes to `cpgvd_output/` by default: `report.md` (human-readable),
 `report.json` (full structured data), and `report.sarif` (for GitHub code
 scanning / other SARIF-consuming tooling). Override with `--output-dir`.
 
-Run `cpgvd analyze --help` for the full option list (model override,
-concurrency via `CPGVD_LLM_CONCURRENCY`, `--max-contexts` to cap LLM spend
-on huge repos, `--keep-repo` / `--keep-cpg` to inspect intermediates,
-`--rules` for a custom sink/source YAML).
+Run `cpgvd analyze --help` for the full option list (`--provider`/`--model`
+to choose the LLM backend, concurrency via `CPGVD_LLM_CONCURRENCY`,
+`--max-contexts` to cap how many functions get analyzed on huge repos,
+`--keep-repo` / `--keep-cpg` to inspect intermediates, `--rules` for a
+custom sink/source YAML).
 
 ## How a finding gets made
 
@@ -80,11 +99,13 @@ on huge repos, `--keep-repo` / `--keep-cpg` to inspect intermediates,
    1-hop callers and callees, the file's imports, and any concrete
    `reachableByFlows` taint paths Joern's dataflow engine found from a
    plausible source to the matched sink.
-6. Each context is sent to Claude (`llm_analyzer.py`) with a system prompt
-   that explicitly instructs it to use the caller/callee/dataflow evidence
-   — not just the sink pattern — to decide whether this is real,
-   explain *why the context mattered*, and return structured JSON
-   (severity, confidence, CWE, description, suggested fix).
+6. Each context is sent to the LLM (`llm_analyzer.py`, via a free local
+   Ollama model by default or the paid Claude API with `--provider
+   anthropic`) with a system prompt that explicitly instructs it to use
+   the caller/callee/dataflow evidence — not just the sink pattern — to
+   decide whether this is real, explain *why the context mattered*, and
+   return structured JSON (severity, confidence, CWE, description,
+   suggested fix).
 7. Findings are aggregated into `report.py`'s Markdown/JSON/SARIF output.
 
 ## Project layout
@@ -98,7 +119,8 @@ src/cpgvd/
   cpg_client.py           CPGQL query execution + JSON result parsing
   context_extractor.py     CPG -> FunctionContext (sinks, sources, call graph, dataflow)
   rules.py                 loads rules/sinks_sources.yaml
-  llm_analyzer.py         Claude-based vulnerability judgment
+  llm_providers.py        Ollama (free) / Claude (paid) backends behind one interface
+  llm_analyzer.py         provider-agnostic vulnerability judgment + prompt/schema
   models.py               shared pydantic data models
   report.py               Markdown / JSON / SARIF rendering
 rules/sinks_sources.yaml  sink & source regex rules per language
@@ -106,9 +128,10 @@ examples/vulnerable_app/  small worked examples (Flask + Express) with
                            both a safe and an unsafe call site for the
                            same sink function, to demonstrate why context
                            matters
-tests/                    unit tests (no live Joern/Anthropic calls needed —
-                           the CPG and LLM clients are mocked)
+tests/                    unit tests (no live Joern/Ollama/Anthropic calls
+                           needed — the CPG and LLM clients are mocked)
 scripts/setup_joern.sh    installs Joern
+scripts/setup_ollama.sh   installs the free local LLM backend
 docs/architecture.md      pipeline diagram + design rationale
 ```
 
@@ -119,8 +142,9 @@ pip install -e ".[dev]"
 pytest tests/ -v
 ```
 
-Tests mock both the Joern CPGQL client and the Anthropic client, so the
-full suite runs without either Joern or a live API key.
+Tests mock the Joern CPGQL client and both LLM providers, so the full
+suite runs without live Joern, a running Ollama server, or an Anthropic
+API key.
 
 ## Notes & limitations
 
@@ -134,3 +158,11 @@ full suite runs without either Joern or a live API key.
   varies slightly across Joern's language frontends; this project reads
   source text directly off disk by line range instead of trusting those
   properties, to stay robust across languages and Joern versions.
+- The free local model is meaningfully weaker than Claude at nuanced
+  context judgment (e.g. "is this caller's validation actually sufficient
+  to neutralize this taint path?"). Expect more false positives/negatives
+  than `--provider anthropic`. For coursework/demo purposes it's a solid
+  free option; for anything higher-stakes, the paid backend is worth it.
+- A single local Ollama instance handling several concurrent requests
+  (`CPGVD_LLM_CONCURRENCY`, default 4) can be slow on CPU-only machines —
+  lower it (e.g. `CPGVD_LLM_CONCURRENCY=1`) if requests start timing out.

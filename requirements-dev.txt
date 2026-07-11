@@ -1,3 +1,6 @@
 -r requirements.txt
 pytest>=8.0.0
 pytest-mock>=3.14.0
+# Installs anthropic too, so the full test suite (including AnthropicProvider)
+# runs -- it's still never required at runtime unless --provider anthropic is used.
+-r requirements-anthropic.txt

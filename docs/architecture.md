@@ -35,10 +35,16 @@
                          │ FunctionContext[] (code + callers + callees +
                          │ imports + matched patterns + dataflow paths)
                          v
-                 ┌────────────────┐
-                 │  LlmAnalyzer   │  one Claude call per FunctionContext,
-                 │ llm_analyzer.py│  structured-output JSON, concurrent pool
-                 └───────┬────────┘
+                 ┌──────────────────────┐
+                 │  LlmAnalyzer          │  one LLM call per FunctionContext,
+                 │ llm_analyzer.py       │  structured-output JSON, concurrent pool
+                 └──────────┬────────────┘
+                             │ delegates to
+                             v
+                 ┌──────────────────────┐
+                 │  OllamaProvider (free)│  or  AnthropicProvider (paid)
+                 │  llm_providers.py      │  -- same complete_json() interface
+                 └──────────┬────────────┘
                          │ Finding[]
                          v
                  ┌────────────────┐
@@ -56,9 +62,20 @@ exists at all in the graph. None of that tells you whether the finding is
 attacker-controlled by the time it gets here? Did an intervening caller
 already validate it? Is the "sink" actually dangerous in this usage, or is
 it a parameterized/safe API shape that just happens to share a name with a
-dangerous one? That's the part handed to Claude, with enough concrete
+dangerous one? That's the part handed to the LLM, with enough concrete
 evidence (real code, real call sites, real dataflow paths) to make the
 call defensibly rather than guessing from a bare function in isolation.
+
+**LLM backend is a pluggable interface, not baked-in.** `llm_analyzer.py`
+only knows about `BaseProvider.complete_json(system, user, schema) ->
+LlmResult` (`llm_providers.py`) -- it builds the prompt and JSON schema
+once and doesn't care whether the answer came from a free local Ollama
+model or the paid Claude API. This is what makes the free-by-default
+setup possible without forking the analysis logic: `OllamaProvider` talks
+to `http://localhost:11434/api/chat` (Ollama's own structured-output
+support, `format: <json schema>`), `AnthropicProvider` talks to the Claude
+API (`output_config.format`) with adaptive thinking and prompt caching.
+Both funnel into the same finding-parsing code in `LlmAnalyzer`.
 
 **Sink/source matching happens in Python, not Scala.** The regex rules in
 `rules/sinks_sources.yaml` only need to run once over a flat list of calls
@@ -84,10 +101,14 @@ matched patterns, which is often enough for the LLM to reason well.
 
 `LlmAnalyzer.analyze_many` runs contexts through a bounded thread pool
 (`CPGVD_LLM_CONCURRENCY`, default 4) since each context is analyzed
-independently. The Anthropic system prompt is marked with
-`cache_control: {"type": "ephemeral"}` since it's identical across every
-call in a run, so repeated analysis of the same repo (or a re-run after a
-small diff) benefits from prompt caching.
+independently. Against the default free Ollama backend this is bounded
+mainly by local hardware (a single CPU-bound Ollama instance may want a
+lower concurrency, e.g. `CPGVD_LLM_CONCURRENCY=1`); against the paid
+Claude backend it's bounded by API rate limits, and the system prompt is
+marked with `cache_control: {"type": "ephemeral"}` since it's identical
+across every call in a run, so repeated analysis of the same repo (or a
+re-run after a small diff) benefits from prompt caching and costs less on
+subsequent runs.
 
 ## Extending sink/source coverage
 
