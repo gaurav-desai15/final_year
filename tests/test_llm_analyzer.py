@@ -1,5 +1,5 @@
 from cpgvd.config import Config
-from cpgvd.llm_analyzer import LlmAnalyzer, _extract_json_object
+from cpgvd.llm_analyzer import LlmAnalyzer, _clean_vulnerability_type, _extract_json_object
 from cpgvd.llm_providers import LlmResult
 from cpgvd.models import FunctionContext
 
@@ -124,6 +124,30 @@ def test_analyze_many_aggregates_across_contexts():
 
     assert len(findings) == 2
     assert analyzer.usage.calls == 2
+
+
+def test_analyze_context_strips_cwe_suffix_embedded_in_vulnerability_type():
+    """Regression test: a real Ollama/qwen2.5-coder run put the CWE id
+    inside vulnerability_type despite the separate `cwe` field, producing
+    a doubled "OS Command Injection (CWE-78) (CWE-78)" in the report once
+    report.py appended `cwe` on its own."""
+    payload = dict(FINDING_PAYLOAD)
+    payload["vulnerability_type"] = "OS Command Injection (CWE-78)"
+    payload["cwe"] = "CWE-78"
+    provider = FakeProvider([result_with_findings([payload])])
+    analyzer = LlmAnalyzer(Config(), provider=provider)
+
+    findings = analyzer.analyze_context(make_context())
+
+    assert findings[0].vulnerability_type == "OS Command Injection"
+    assert findings[0].cwe == "CWE-78"
+
+
+def test_clean_vulnerability_type_strips_trailing_cwe():
+    assert _clean_vulnerability_type("SQL Injection (CWE-89)") == "SQL Injection"
+    assert _clean_vulnerability_type("SQL Injection (cwe-89)") == "SQL Injection"
+    assert _clean_vulnerability_type("SQL Injection") == "SQL Injection"
+    assert _clean_vulnerability_type("Path Traversal (CWE-22) and more") == "Path Traversal (CWE-22) and more"
 
 
 def test_extract_json_object_strips_fence_and_prose():

@@ -19,6 +19,7 @@ from __future__ import annotations
 import concurrent.futures
 import json
 import logging
+import re
 import threading
 import uuid
 from dataclasses import dataclass
@@ -83,7 +84,13 @@ relative to the snippet)."""
 _FINDING_ITEM_SCHEMA = {
     "type": "object",
     "properties": {
-        "vulnerability_type": {"type": "string", "description": "Short human name, e.g. 'SQL Injection'"},
+        "vulnerability_type": {
+            "type": "string",
+            "description": (
+                "Short human name only, e.g. 'SQL Injection'. Do NOT include a CWE "
+                "identifier here -- put that in the separate `cwe` field."
+            ),
+        },
         "cwe": {"type": "string", "description": "CWE identifier, e.g. 'CWE-89', or empty string if not applicable"},
         "severity": {"type": "string", "enum": ["critical", "high", "medium", "low", "info"]},
         "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
@@ -129,6 +136,20 @@ class AnalyzerUsage:
     calls: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
+
+
+_CWE_SUFFIX_RE = re.compile(r"\s*\(cwe-\d+\)\s*$", re.IGNORECASE)
+
+
+def _clean_vulnerability_type(vulnerability_type: str) -> str:
+    """Strip a trailing "(CWE-N)" from `vulnerability_type`.
+
+    Local models sometimes embed the CWE id here despite the schema
+    instructing them to use the separate `cwe` field instead, producing a
+    doubled "SQL Injection (CWE-89) (CWE-89)" once report.py appends the
+    `cwe` field on its own -- observed on a real Ollama/qwen2.5-coder run.
+    """
+    return _CWE_SUFFIX_RE.sub("", vulnerability_type).strip()
 
 
 def _extract_json_object(text: str) -> str:
@@ -187,6 +208,7 @@ class LlmAnalyzer:
 
         findings = []
         for item in parsed.get("findings", []):
+            vulnerability_type = _clean_vulnerability_type(item["vulnerability_type"])
             findings.append(
                 Finding(
                     id=str(uuid.uuid4()),
@@ -195,11 +217,11 @@ class LlmAnalyzer:
                     start_line=item.get("start_line") or context.start_line,
                     end_line=item.get("end_line") or context.end_line,
                     function=context.full_name,
-                    vulnerability_type=item["vulnerability_type"],
+                    vulnerability_type=vulnerability_type,
                     cwe=item.get("cwe", ""),
                     severity=Severity(item["severity"]),
                     confidence=Confidence(item["confidence"]),
-                    title=item.get("title") or item["vulnerability_type"],
+                    title=item.get("title") or vulnerability_type,
                     description=item["description"],
                     context_reasoning=item.get("context_reasoning", ""),
                     data_flow_summary=item.get("data_flow_summary", ""),
