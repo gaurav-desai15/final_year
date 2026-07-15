@@ -20,6 +20,7 @@
 #
 #   Better judgment (16GB+ RAM) -- recommended upgrade:
 #     ./scripts/setup_ollama.sh qwen2.5-coder:14b   # safe drop-in, clearly better than 7b
+#     ./scripts/setup_ollama.sh deepseek-coder-v2:16b # MoE, ~2.4B active -> near-7b speed, more knowledge
 #     ./scripts/setup_ollama.sh gpt-oss:20b         # reasoning model, best at the exploitability call
 #     ./scripts/setup_ollama.sh qwen3:14b           # reasoning + code, thinking mode
 #

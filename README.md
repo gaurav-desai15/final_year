@@ -110,6 +110,7 @@ auth?", which are reasoning problems, not code-completion problems.
 | `qwen2.5-coder:3b`, `llama3.2:3b` | ~2GB / 8GB | Lighter than default; use only if 7b is too heavy. Expect more misses. |
 | **`qwen2.5-coder:7b`** (default) | ~4.7GB / 8GB | Good baseline, decent code reasoning. |
 | **`qwen2.5-coder:14b`** | ~9GB / 16GB | Safe drop-in upgrade, clearly better judgment than 7b. |
+| `deepseek-coder-v2:16b` | ~9GB / 16GB | Mixture-of-experts (~2.4B active) — nearly 7b speed with more knowledge. A *code* model, so strong at understanding code but not specifically at exploitability reasoning. |
 | **`gpt-oss:20b`** | ~14GB / 16GB | Open-weight (Apache-2.0) **reasoning** model — best at the exploitability call among the mid-size options. |
 | `qwen3:14b` | ~9GB / 16GB | Reasoning + code with a thinking mode. |
 | `qwen3:30b-a3b` | ~18GB / 24GB | Mixture-of-experts: 30B total but only ~3B active, so fast for its size. |
