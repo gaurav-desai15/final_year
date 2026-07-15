@@ -29,7 +29,17 @@ _ESCAPE_HELPER = (
     ".replace(\"\\n\", \"\\\\n\").replace(\"\\r\", \"\\\\r\").replace(\"\\t\", \"\\\\t\")"
 )
 
-_RESULT_RE = re.compile(r"=\s*\"(.*)\"\s*\Z", re.DOTALL)
+# Joern's REPL (built on Ammonite/pprint) prints a String result two
+# different ways depending on content:
+#   - `val resN: String = "..."`     -- plain strings, with \", \\, \n etc.
+#     escaped the normal way (reverse with `_unescape`, which undoes our
+#     own `cpgvdEscape` helper).
+#   - `val resN: String = """..."""` -- used whenever the string contains a
+#     `"` (i.e. essentially always, for JSON), printed *verbatim* with no
+#     extra escaping on top of what `cpgvdEscape` already applied -- the
+#     content between the triple quotes is already valid JSON text as-is.
+_TRIPLE_QUOTE_RESULT_RE = re.compile(r'=\s*"""(.*)"""\s*\Z', re.DOTALL)
+_SINGLE_QUOTE_RESULT_RE = re.compile(r'=\s*"(.*)"\s*\Z', re.DOTALL)
 
 
 class CpgQueryError(RuntimeError):
@@ -105,11 +115,17 @@ class CpgClient:
         richer per-node JSON builders in `context_extractor.py`.
         """
         stdout = self.run_raw(scala_expr)
-        match = _RESULT_RE.search(stdout)
-        if not match:
-            raise CpgQueryError(scala_expr, stdout, "could not locate a String result to parse")
-        unescaped = _unescape(match.group(1))
+
+        triple_match = _TRIPLE_QUOTE_RESULT_RE.search(stdout)
+        if triple_match:
+            json_text = triple_match.group(1)  # already valid JSON text, verbatim
+        else:
+            single_match = _SINGLE_QUOTE_RESULT_RE.search(stdout)
+            if not single_match:
+                raise CpgQueryError(scala_expr, stdout, "could not locate a String result to parse")
+            json_text = _unescape(single_match.group(1))
+
         try:
-            return json.loads(unescaped)
+            return json.loads(json_text)
         except json.JSONDecodeError as e:
             raise CpgQueryError(scala_expr, stdout, f"JSON decode failed: {e}") from e

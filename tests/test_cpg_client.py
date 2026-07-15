@@ -81,7 +81,11 @@ def test_load_cpg_runs_import_and_escape_helper(monkeypatch):
     assert "cpgvdEscape" in fake.queries[1]
 
 
-def test_run_json_parses_escaped_string_result(monkeypatch):
+def test_run_json_parses_single_quote_escaped_result(monkeypatch):
+    """Edge case: Joern's REPL uses a plain `"..."` (single-quoted) string
+    with the normal \\" escaping when the content happens to contain no
+    quote characters at all -- essentially never true for real JSON, but
+    the fallback path must still work correctly if it's ever hit."""
     monkeypatch.setattr(cpg_client_module.asyncio, "get_event_loop", asyncio.new_event_loop)
     stdout = 'res5: String = "[{\\"name\\":\\"foo\\"}]"'
     client, fake = make_client(monkeypatch, responses=[{"success": True, "stdout": stdout}])
@@ -89,6 +93,32 @@ def test_run_json_parses_escaped_string_result(monkeypatch):
     result = client.run_json("cpg.method.name.l")
 
     assert result == [{"name": "foo"}]
+
+
+def test_run_json_parses_triple_quoted_result(monkeypatch):
+    # Regression test: Joern's REPL (Ammonite/pprint) actually prints String
+    # results in triple-quoted form (three double-quotes on each side)
+    # whenever the content contains a double-quote, which real JSON output
+    # always does. The content between the triple quotes is verbatim
+    # (already-escaped) JSON text, not further-escaped -- confirmed against
+    # a real `joern-parse` + `joern --server` run against the bundled
+    # example app.
+    monkeypatch.setattr(cpg_client_module.asyncio, "get_event_loop", asyncio.new_event_loop)
+    stdout = (
+        'val res2: String = """[{"id":30064771092,"name":"popen",'
+        '"code":"os.popen(command)","filename":"app.py","lineNumber":30},'
+        '{"id":30064771090,"name":"<operator>.assignment",'
+        '"code":"tmp0[\\"disk\\"] = \\"df -h\\"\\ntmp0[\\"memory\\"] = \\"free -m\\"",'
+        '"filename":"app.py","lineNumber":17}]"""'
+    )
+    client, fake = make_client(monkeypatch, responses=[{"success": True, "stdout": stdout}])
+
+    result = client.run_json("cpg.call.l")
+
+    assert len(result) == 2
+    assert result[0]["name"] == "popen"
+    assert result[0]["code"] == "os.popen(command)"
+    assert result[1]["code"] == 'tmp0["disk"] = "df -h"\ntmp0["memory"] = "free -m"'
 
 
 def test_run_json_raises_on_query_failure(monkeypatch):
