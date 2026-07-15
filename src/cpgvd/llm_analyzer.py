@@ -76,6 +76,25 @@ appears. Specifically:
 - Hardcoded configuration values (dev-tooling script tags, local \
   hostnames, test fixtures) are not vulnerabilities unless attacker \
   input demonstrably reaches them.
+- A redirect, query, command, or other sink whose argument is a \
+  hardcoded string literal or a fixed relative path (e.g. \
+  `res.redirect("/login")`) is NOT a vulnerability -- the target is not \
+  attacker-controllable. Only report Open Redirect when the redirect \
+  target is built from request input.
+- Do NOT report a data-access / repository / DAO function as "Broken \
+  Authentication", "Missing Authorization", or IDOR merely because it \
+  accepts an id/user parameter and performs no auth check of its own. \
+  Persistence-layer functions legitimately delegate authentication and \
+  authorization to their callers (route handlers / middleware). Report \
+  an access-control finding only when the shown caller context \
+  demonstrates that the entry point actually reaches this function \
+  without any auth/ownership check. If the callers that would enforce \
+  auth are not shown, say so in `context_reasoning` and lower your \
+  confidence -- do not assert Broken Authentication at high confidence \
+  from the data-access function alone.
+- Do not emit multiple near-identical findings for the same underlying \
+  weakness across sibling functions in one file. Report the single \
+  strongest instance.
 - `context_reasoning` must explain what in the surrounding call graph or \
   data flow made this finding require *this* context to see -- i.e. why a \
   single-function, no-context scan would have missed or misjudged it. If \
