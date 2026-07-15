@@ -84,6 +84,23 @@ to choose the LLM backend, concurrency via `CPGVD_LLM_CONCURRENCY`,
 `--keep-repo` / `--keep-cpg` to inspect intermediates, `--rules` for a
 custom sink/source YAML).
 
+## Interactive dashboard
+
+For an interactive view of a report instead of reading `report.md`:
+
+```bash
+pip install -e ".[dashboard]"
+cpgvd dashboard --report cpgvd_output/report.json
+```
+
+Opens a Streamlit app in your browser: summary metrics, a severity
+breakdown chart, a filterable/sortable findings table (by severity,
+confidence, or a text search), a CSV export, and an expandable detail
+view per finding (description, why the context mattered, data flow,
+suggested fix). It only reads the JSON report already on disk -- no
+Joern or LLM calls happen here, so it's safe to re-run against any past
+report, or point it at one via the sidebar / a direct file upload.
+
 ## How a finding gets made
 
 1. **Clone & detect language** (`repo_manager.py`).
@@ -123,6 +140,7 @@ src/cpgvd/
   llm_analyzer.py         provider-agnostic vulnerability judgment + prompt/schema
   models.py               shared pydantic data models
   report.py               Markdown / JSON / SARIF rendering
+  dashboard.py            Streamlit dashboard (`cpgvd dashboard`), reads report.json
 rules/sinks_sources.yaml  sink & source regex rules per language
 examples/vulnerable_app/  small worked examples (Flask + Express) with
                            both a safe and an unsafe call site for the

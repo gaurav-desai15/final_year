@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import logging
+import shutil
+import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -188,6 +191,29 @@ def analyze(
 
     paths = write_report(report, config.output_dir)
     _print_summary(report, paths)
+
+
+@main.command()
+@click.option(
+    "--report",
+    "report_path",
+    default="cpgvd_output/report.json",
+    type=click.Path(path_type=Path),
+    help="Path to a report.json written by `cpgvd analyze`.",
+)
+def dashboard(report_path: Path) -> None:
+    """Launch a Streamlit dashboard to browse a report.json interactively.
+
+    Requires the 'dashboard' extra: pip install -e ".[dashboard]"
+    """
+    if shutil.which("streamlit") is None:
+        raise click.ClickException(
+            "streamlit isn't installed. Run: pip install -e \".[dashboard]\""
+        )
+    dashboard_script = Path(__file__).parent / "dashboard.py"
+    cmd = [sys.executable, "-m", "streamlit", "run", str(dashboard_script), "--", "--report", str(report_path)]
+    console.print(f"[bold]Launching dashboard[/bold] for {report_path} ...")
+    subprocess.run(cmd, check=False)
 
 
 def _print_summary(report: AnalysisReport, paths: dict[str, Path]) -> None:

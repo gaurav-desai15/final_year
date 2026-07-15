@@ -32,6 +32,11 @@ dev = [
 anthropic = [
     "anthropic>=0.40.0",
 ]
+# Only needed for `cpgvd dashboard` (interactive report viewer).
+dashboard = [
+    "streamlit>=1.38.0",
+    "pandas>=2.0.0",
+]
 
 [project.scripts]
 cpgvd = "cpgvd.cli:main"
