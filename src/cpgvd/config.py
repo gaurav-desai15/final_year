@@ -54,9 +54,18 @@ class Config:
     output_dir: Path = field(default_factory=lambda: Path(os.environ.get("CPGVD_OUTPUT_DIR", "cpgvd_output")))
 
     def joern_binary(self, name: str) -> str:
-        """Resolve a joern executable, preferring JOERN_HOME if set."""
+        """Resolve a joern executable, preferring JOERN_HOME if set.
+
+        Joern's own installer sometimes unpacks into a `joern-cli/`
+        subdirectory of the install dir rather than putting binaries at
+        its top level (varies by installer version) -- check both so
+        JOERN_HOME works whichever layout the user actually has on disk.
+        """
         if self.joern_home:
-            candidate = Path(self.joern_home) / name
-            if candidate.exists():
-                return str(candidate)
+            for candidate in (
+                Path(self.joern_home) / name,
+                Path(self.joern_home) / "joern-cli" / name,
+            ):
+                if candidate.exists():
+                    return str(candidate)
         return name  # fall back to PATH lookup

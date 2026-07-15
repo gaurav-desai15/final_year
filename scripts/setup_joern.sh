@@ -24,9 +24,21 @@ chmod +x "${TMP_SCRIPT}"
 "${TMP_SCRIPT}" --interactive=false --install-dir="${INSTALL_DIR}"
 rm -f "${TMP_SCRIPT}"
 
+# Joern's installer sometimes unpacks into a joern-cli/ subdirectory of
+# INSTALL_DIR rather than putting binaries at its top level (this varies
+# by installer version) -- find where joern-parse actually landed instead
+# of assuming a fixed layout.
+BIN_DIR="$(dirname "$(find "${INSTALL_DIR}" -maxdepth 3 -name 'joern-parse' -print -quit)")"
+
+if [ -z "${BIN_DIR}" ]; then
+  echo "Warning: could not locate joern-parse under ${INSTALL_DIR} after install." >&2
+  echo "Check the installer output above for errors." >&2
+  BIN_DIR="${INSTALL_DIR}"
+fi
+
 echo
 echo "Done. Add this to your shell profile:"
-echo "  export JOERN_HOME=\"${INSTALL_DIR}\""
+echo "  export JOERN_HOME=\"${BIN_DIR}\""
 echo "  export PATH=\"\$JOERN_HOME:\$PATH\""
 echo
-echo "Verify with: \"${INSTALL_DIR}/joern-parse\" --help"
+echo "Verify with: \"${BIN_DIR}/joern-parse\" --help"
