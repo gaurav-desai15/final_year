@@ -58,3 +58,25 @@ def test_python_sql_sink_matches_real_execute_call_not_bare_reference():
 
     assert any(r.pattern.search("cursor.execute(sql)") for r in sql_sinks)
     assert not any(r.pattern.search("obj.execute") for r in sql_sinks)
+
+
+def test_javascript_nosql_sink_matches_mongo_query_not_array_find():
+    """NodeGoat's login bypass (`usersCol.findOne({userName: ..., password:
+    ...})`) was missed entirely because no rule shortlisted Mongo query
+    calls. The `.find({` form requires an object-literal argument so that
+    ubiquitous Array.prototype.find callbacks don't flood the shortlist."""
+    rules = load_rules()
+    nosql = [r for r in rules["javascript"].sinks if r.category == "NoSQL Injection"]
+
+    assert nosql, "javascript should have a NoSQL Injection sink rule"
+    assert any(r.pattern.search("usersCol.findOne({userName: userName, password: password})") for r in nosql)
+    assert any(r.pattern.search("collection.find({name: req.query.name})") for r in nosql)
+    assert not any(r.pattern.search("items.find(x => x.id === id)") for r in nosql)
+
+
+def test_javascript_open_redirect_sink_matches():
+    rules = load_rules()
+    redirect = [r for r in rules["javascript"].sinks if r.category == "Open Redirect"]
+
+    assert redirect, "javascript should have an Open Redirect sink rule"
+    assert any(r.pattern.search("res.redirect(req.query.url)") for r in redirect)

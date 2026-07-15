@@ -66,6 +66,16 @@ appears. Specifically:
 - Do not report generic code-quality issues, style nits, or purely \
   theoretical/defense-in-depth suggestions with no plausible attacker-\
   controlled path. This is a vulnerability scanner, not a linter.
+- Internal consistency is mandatory. If your own analysis concludes that \
+  the value reaching the sink is hardcoded, that no data-flow path from \
+  attacker-controlled input exists, or that the sink is otherwise \
+  unreachable by an attacker, then there is NO finding -- do not report \
+  it "just in case", and never with high severity or confidence. A \
+  finding whose own `data_flow_summary` argues against exploitability \
+  must be omitted entirely.
+- Hardcoded configuration values (dev-tooling script tags, local \
+  hostnames, test fixtures) are not vulnerabilities unless attacker \
+  input demonstrably reaches them.
 - `context_reasoning` must explain what in the surrounding call graph or \
   data flow made this finding require *this* context to see -- i.e. why a \
   single-function, no-context scan would have missed or misjudged it. If \
@@ -152,6 +162,87 @@ def _clean_vulnerability_type(vulnerability_type: str) -> str:
     return _CWE_SUFFIX_RE.sub("", vulnerability_type).strip()
 
 
+# Phrases that assert the *absence* of an attacker-controlled path. A model
+# (the local ones especially) sometimes writes exactly this in its own
+# data_flow_summary/context_reasoning and still emits a high-confidence
+# finding -- observed on a real Ollama/qwen2.5-coder NodeGoat run, where a
+# hardcoded dev-tooling config value was reported as high-severity XSS while
+# the summary said "There are no data flow paths leading from a potential
+# taint source to this sink". Such a finding contradicts itself and is
+# dropped. Patterns are kept narrow (assertions of absence only) so that
+# e.g. "no evidence of sanitization" in a genuine finding never matches.
+_NO_ATTACKER_PATH_RE = re.compile(
+    "|".join(
+        [
+            r"\bno data[- ]?flow paths?\b",
+            r"\bnot (?:dynamically generated or )?influenced by (?:external|user|attacker)",
+            r"\bcannot be (?:controlled|influenced) by (?:an? )?attacker",
+            r"\bno (?:attacker|user)[- ]controlled (?:input|data|value)",
+            r"\bnot reachable by (?:an? )?attacker",
+        ]
+    ),
+    re.IGNORECASE,
+)
+
+
+def _asserts_no_attacker_path(item: dict) -> bool:
+    """True if the finding's own reasoning says no attacker path exists."""
+    text = f"{item.get('data_flow_summary', '')} {item.get('context_reasoning', '')}"
+    return bool(_NO_ATTACKER_PATH_RE.search(text))
+
+
+_CWE_ID_RE = re.compile(r"cwe-\d+", re.IGNORECASE)
+
+_SEVERITY_RANK = {
+    Severity.CRITICAL: 4,
+    Severity.HIGH: 3,
+    Severity.MEDIUM: 2,
+    Severity.LOW: 1,
+    Severity.INFO: 0,
+}
+_CONFIDENCE_RANK = {Confidence.HIGH: 2, Confidence.MEDIUM: 1, Confidence.LOW: 0}
+
+
+def _dedupe_key_class(finding: Finding) -> str:
+    """The 'same vulnerability class' half of the dedupe key: the bare CWE id
+    when present (models format the cwe field inconsistently, e.g. 'CWE-94'
+    vs 'CWE-94: Improper Control...'), else the vulnerability type."""
+    m = _CWE_ID_RE.search(finding.cwe)
+    if m:
+        return m.group(0).upper()
+    return finding.vulnerability_type.strip().lower()
+
+
+def dedupe_findings(findings: list[Finding]) -> list[Finding]:
+    """Collapse duplicate findings for the same underlying vulnerability.
+
+    The same sink is often analyzed once per related candidate function (a
+    caller and its callee both shortlist it), yielding near-identical
+    findings. Two findings are duplicates when they're in the same file,
+    the same vulnerability class, and their line ranges overlap; the one
+    with the highest severity (then confidence) wins.
+    """
+    ranked = sorted(
+        findings,
+        key=lambda f: (_SEVERITY_RANK[f.severity], _CONFIDENCE_RANK[f.confidence]),
+        reverse=True,
+    )
+    kept: list[Finding] = []
+    for f in ranked:
+        is_dup = any(
+            k.file == f.file
+            and _dedupe_key_class(k) == _dedupe_key_class(f)
+            and k.start_line <= f.end_line
+            and f.start_line <= k.end_line
+            for k in kept
+        )
+        if is_dup:
+            logger.info("Deduplicating finding %r at %s:%s", f.title, f.file, f.start_line)
+        else:
+            kept.append(f)
+    return kept
+
+
 def _extract_json_object(text: str) -> str:
     """Best-effort cleanup of an LLM's JSON response.
 
@@ -208,6 +299,14 @@ class LlmAnalyzer:
 
         findings = []
         for item in parsed.get("findings", []):
+            if _asserts_no_attacker_path(item):
+                logger.info(
+                    "Dropping self-contradictory finding %r in %s: its own reasoning "
+                    "states no attacker-controlled path exists",
+                    item.get("title", item.get("vulnerability_type", "?")),
+                    context.context_id,
+                )
+                continue
             vulnerability_type = _clean_vulnerability_type(item["vulnerability_type"])
             findings.append(
                 Finding(
@@ -239,7 +338,7 @@ class LlmAnalyzer:
             future_to_ctx = {pool.submit(self._safe_analyze, ctx): ctx for ctx in contexts}
             for future in concurrent.futures.as_completed(future_to_ctx):
                 findings.extend(future.result())
-        return findings
+        return dedupe_findings(findings)
 
     def _safe_analyze(self, context: FunctionContext) -> list[Finding]:
         try:

@@ -1,7 +1,13 @@
 from cpgvd.config import Config
-from cpgvd.llm_analyzer import LlmAnalyzer, _clean_vulnerability_type, _extract_json_object
+from cpgvd.llm_analyzer import (
+    LlmAnalyzer,
+    _asserts_no_attacker_path,
+    _clean_vulnerability_type,
+    _extract_json_object,
+    dedupe_findings,
+)
 from cpgvd.llm_providers import LlmResult
-from cpgvd.models import FunctionContext
+from cpgvd.models import Confidence, Finding, FunctionContext, Severity
 
 
 def make_context(context_id: str = "app.py:handle_request:9") -> FunctionContext:
@@ -113,6 +119,24 @@ def test_analyze_context_handles_markdown_fenced_json():
 
 
 def test_analyze_many_aggregates_across_contexts():
+    other_payload = dict(FINDING_PAYLOAD, start_line=30, end_line=32)
+    provider = FakeProvider(
+        [result_with_findings([FINDING_PAYLOAD]), result_with_findings([other_payload])]
+    )
+    config = Config()
+    config.llm_concurrency = 2
+    analyzer = LlmAnalyzer(config, provider=provider)
+
+    findings = analyzer.analyze_many([make_context(), make_context("app.py:other:1")])
+
+    assert len(findings) == 2
+    assert analyzer.usage.calls == 2
+
+
+def test_analyze_many_dedupes_identical_findings_across_contexts():
+    """Two related candidate functions (a caller and its callee) often
+    shortlist the same sink and yield near-identical findings -- only one
+    should survive."""
     provider = FakeProvider(
         [result_with_findings([FINDING_PAYLOAD]), result_with_findings([FINDING_PAYLOAD])]
     )
@@ -122,7 +146,7 @@ def test_analyze_many_aggregates_across_contexts():
 
     findings = analyzer.analyze_many([make_context(), make_context("app.py:other:1")])
 
-    assert len(findings) == 2
+    assert len(findings) == 1
     assert analyzer.usage.calls == 2
 
 
@@ -148,6 +172,93 @@ def test_clean_vulnerability_type_strips_trailing_cwe():
     assert _clean_vulnerability_type("SQL Injection (cwe-89)") == "SQL Injection"
     assert _clean_vulnerability_type("SQL Injection") == "SQL Injection"
     assert _clean_vulnerability_type("Path Traversal (CWE-22) and more") == "Path Traversal (CWE-22) and more"
+
+
+def test_analyze_context_drops_self_contradictory_finding():
+    """Regression test built from a real Ollama/qwen2.5-coder NodeGoat run:
+    the model reported a hardcoded dev-config value as high-severity XSS
+    while its own data_flow_summary said no taint path exists. A finding
+    that argues against its own exploitability must be dropped."""
+    payload = dict(FINDING_PAYLOAD)
+    payload["vulnerability_type"] = "Cross-Site Scripting"
+    payload["data_flow_summary"] = (
+        "The environmentalScripts array is hardcoded in the function. There are "
+        "no data flow paths leading from a potential taint source to this sink, "
+        "indicating that the value is not dynamically generated or influenced by "
+        "external inputs."
+    )
+    provider = FakeProvider([result_with_findings([payload])])
+    analyzer = LlmAnalyzer(Config(), provider=provider)
+
+    findings = analyzer.analyze_context(make_context())
+
+    assert findings == []
+
+
+def test_asserts_no_attacker_path_matches_assertions_of_absence_only():
+    assert _asserts_no_attacker_path(
+        {"data_flow_summary": "There are no data flow paths from a taint source to this sink."}
+    )
+    assert _asserts_no_attacker_path(
+        {"context_reasoning": "This value cannot be controlled by an attacker."}
+    )
+    # "no evidence of sanitization" is how a *genuine* finding reads -- it
+    # asserts absence of a defense, not absence of an attacker path.
+    assert not _asserts_no_attacker_path(
+        {"data_flow_summary": "User input reaches eval() with no evidence of sanitization."}
+    )
+    assert not _asserts_no_attacker_path(
+        {"data_flow_summary": "request.args.get('cmd') -> handle_request(cmd) -> os.system(cmd)"}
+    )
+
+
+def make_finding(**overrides) -> Finding:
+    base = dict(
+        id="x",
+        context_id="ctx",
+        file="app.js",
+        start_line=10,
+        end_line=20,
+        function="handler",
+        vulnerability_type="Code Injection",
+        cwe="CWE-94",
+        severity=Severity.HIGH,
+        confidence=Confidence.HIGH,
+        title="t",
+        description="d",
+    )
+    base.update(overrides)
+    return Finding(**base)
+
+
+def test_dedupe_findings_merges_overlapping_same_class():
+    """The same eval() sink analyzed via both its caller's and its own
+    context produces two near-identical findings -- keep the stronger one.
+    CWE formatting differs between them ('CWE-94' vs 'CWE-94: Improper...'),
+    as seen in real local-model output."""
+    a = make_finding(id="a", severity=Severity.HIGH, cwe="CWE-94")
+    b = make_finding(
+        id="b",
+        severity=Severity.MEDIUM,
+        cwe="CWE-94: Improper Control of Generation of Code ('Code Injection')",
+        start_line=12,
+        end_line=18,
+    )
+
+    kept = dedupe_findings([b, a])
+
+    assert [f.id for f in kept] == ["a"]
+
+
+def test_dedupe_findings_keeps_distinct_findings():
+    same_file_different_lines = make_finding(id="b", start_line=50, end_line=60)
+    different_class = make_finding(id="c", cwe="CWE-79", vulnerability_type="XSS")
+    different_file = make_finding(id="d", file="other.js")
+    a = make_finding(id="a")
+
+    kept = dedupe_findings([a, same_file_different_lines, different_class, different_file])
+
+    assert {f.id for f in kept} == {"a", "b", "c", "d"}
 
 
 def test_extract_json_object_strips_fence_and_prose():

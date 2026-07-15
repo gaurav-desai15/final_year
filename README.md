@@ -123,7 +123,14 @@ report, or point it at one via the sidebar / a direct file upload.
    decide whether this is real, explain *why the context mattered*, and
    return structured JSON (severity, confidence, CWE, description,
    suggested fix).
-7. Findings are aggregated into `report.py`'s Markdown/JSON/SARIF output.
+7. Two false-positive guards run over the model's raw findings: any
+   finding whose own reasoning asserts that no attacker-controlled path
+   exists is dropped (weaker local models sometimes emit these
+   self-contradictions), and near-identical findings for the same
+   file/CWE/line-range — typically the same sink analyzed via both a
+   caller's and its own context — are deduplicated, keeping the
+   highest-severity one.
+8. Findings are aggregated into `report.py`'s Markdown/JSON/SARIF output.
 
 ## Project layout
 
