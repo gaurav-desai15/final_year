@@ -6,10 +6,27 @@
 #   ./scripts/setup_ollama.sh [model]
 #
 # `model` defaults to qwen2.5-coder:7b (~4.7GB download, good code
-# reasoning, runs fine on 8GB+ RAM). For lower-end hardware, pass a smaller
-# tag, e.g.:
-#   ./scripts/setup_ollama.sh qwen2.5-coder:1.5b
-#   ./scripts/setup_ollama.sh llama3.2:3b
+# reasoning, runs fine on 8GB+ RAM).
+#
+# Recommended alternatives (see "Choosing a model" in README.md). The
+# quality bottleneck for context judgment -- telling a hardcoded value
+# from attacker-controlled input, understanding that a DAO delegates auth
+# to its callers -- is the model, so a stronger one meaningfully cuts
+# false positives:
+#
+#   Lighter than default (8GB RAM or less):
+#     ./scripts/setup_ollama.sh qwen2.5-coder:3b
+#     ./scripts/setup_ollama.sh llama3.2:3b
+#
+#   Better judgment (16GB+ RAM) -- recommended upgrade:
+#     ./scripts/setup_ollama.sh qwen2.5-coder:14b   # safe drop-in, clearly better than 7b
+#     ./scripts/setup_ollama.sh gpt-oss:20b         # reasoning model, best at the exploitability call
+#     ./scripts/setup_ollama.sh qwen3:14b           # reasoning + code, thinking mode
+#
+#   Strong GPU / 32GB+ RAM:
+#     ./scripts/setup_ollama.sh qwen2.5-coder:32b   # near-frontier open coder
+#     ./scripts/setup_ollama.sh qwen3:30b-a3b       # MoE, 30B total / 3B active -> fast for its size
+#     ./scripts/setup_ollama.sh gpt-oss:120b        # needs ~64GB; strongest free reasoning here
 
 set -euo pipefail
 

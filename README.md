@@ -84,6 +84,52 @@ to choose the LLM backend, concurrency via `CPGVD_LLM_CONCURRENCY`,
 `--keep-repo` / `--keep-cpg` to inspect intermediates, `--rules` for a
 custom sink/source YAML).
 
+## Choosing a model
+
+The free/local backend runs whatever Ollama model you point it at — switch
+with one env var, no reinstall of `cpgvd`:
+
+```bash
+./scripts/setup_ollama.sh gpt-oss:20b          # pull it once
+export CPGVD_OLLAMA_MODEL=gpt-oss:20b           # then use it (or set it in .env)
+cpgvd analyze https://github.com/owner/repo
+```
+
+The default `qwen2.5-coder:7b` is a fine free starting point, but its
+judgment is the main source of false positives (e.g. flagging a
+hardcoded `res.redirect("/login")` as an open redirect, or every method
+of a data-access layer as "broken authentication"). Because the sink
+rules are deliberately coarse and the *model* is what decides whether a
+match is really exploitable, a stronger model is the highest-leverage
+upgrade. Reasoning-capable models help most here — the hard calls are
+"is this value attacker-controlled?" and "does a caller already enforce
+auth?", which are reasoning problems, not code-completion problems.
+
+| Model | Size / RAM | Notes |
+|-------|-----------|-------|
+| `qwen2.5-coder:3b`, `llama3.2:3b` | ~2GB / 8GB | Lighter than default; use only if 7b is too heavy. Expect more misses. |
+| **`qwen2.5-coder:7b`** (default) | ~4.7GB / 8GB | Good baseline, decent code reasoning. |
+| **`qwen2.5-coder:14b`** | ~9GB / 16GB | Safe drop-in upgrade, clearly better judgment than 7b. |
+| **`gpt-oss:20b`** | ~14GB / 16GB | Open-weight (Apache-2.0) **reasoning** model — best at the exploitability call among the mid-size options. |
+| `qwen3:14b` | ~9GB / 16GB | Reasoning + code with a thinking mode. |
+| `qwen3:30b-a3b` | ~18GB / 24GB | Mixture-of-experts: 30B total but only ~3B active, so fast for its size. |
+| `qwen2.5-coder:32b` | ~20GB / 32GB | Near-frontier open coder; strongest pure-code option. |
+| `gpt-oss:120b` | ~65GB / 64GB+ | Strongest free reasoning here; needs a workstation or multi-GPU. |
+
+Practical notes:
+
+- **Reasoning models are slower per finding** (they think before answering).
+  On CPU-only machines, lower concurrency (`CPGVD_LLM_CONCURRENCY=1` or `2`)
+  and raise the timeout (`CPGVD_OLLAMA_TIMEOUT=600`) so requests don't drop.
+- All of these support Ollama's structured-JSON output, which the tool
+  relies on. If you try a `deepseek-r1` distill and see JSON parse
+  failures, that family sometimes fights the forced schema — prefer
+  `gpt-oss` or `qwen3` for reliable structured output.
+- Still weaker than `--provider anthropic` (Claude) at nuanced context
+  judgment. If you want a precision ceiling to compare against, run the
+  same repo through the paid backend once — same CPG, same rules, so any
+  difference in the findings is purely model quality.
+
 ## Interactive dashboard
 
 For an interactive view of a report instead of reading `report.md`:
