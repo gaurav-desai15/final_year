@@ -12,6 +12,7 @@ output.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -61,7 +62,17 @@ class CpgClient:
     """
 
     def __init__(self, host: str, port: int):
-        self._client = CPGQLSClient(f"{host}:{port}")
+        # cpgqls-client calls asyncio.get_event_loop() internally when no
+        # event_loop is given, expecting it to implicitly create one if
+        # none exists. Python 3.12+ removed that implicit creation on the
+        # main thread (RuntimeError: "There is no current event loop"), so
+        # we create and hand it one explicitly instead.
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        self._client = CPGQLSClient(f"{host}:{port}", event_loop=loop)
         self._ready = False
 
     def _execute(self, query: str) -> dict[str, Any]:
