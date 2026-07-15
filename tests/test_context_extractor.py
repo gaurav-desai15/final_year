@@ -175,6 +175,57 @@ def test_build_function_context_without_dataflow(repo_root, rules):
     assert ctx.data_flow_paths == []
 
 
+def test_find_sink_candidates_ignores_req_query_field_access(repo_root):
+    """Regression test: Joern represents a bare property access like
+    `req.query` (no invocation) as an `<operator>.fieldAccess` call node
+    whose `code` is exactly "req.query" -- with no trailing "()". The old
+    JS SQL Injection sink pattern `\\.query$` matched that bare string,
+    mislabeling ordinary Express request-parameter access as SQL
+    Injection. It should only match genuine `.query(...)` invocations."""
+    rules = load_rules()
+    field_access_call = {
+        "id": 200,
+        "name": "<operator>.fieldAccess",
+        "code": "req.query",
+        "filename": "app.js",
+        "lineNumber": 4,
+        "calleeFullName": "<operator>.fieldAccess",
+        "containingMethodFullName": "app.js:<module>.handler",
+    }
+    real_query_call = {
+        "id": 201,
+        "name": "query",
+        "code": 'db.query("SELECT * FROM users WHERE id = " + req.query.id)',
+        "filename": "app.js",
+        "lineNumber": 5,
+        "calleeFullName": "db.py:<module>.query",
+        "containingMethodFullName": "app.js:<module>.handler",
+    }
+    method_json = [
+        {
+            "id": 1,
+            "name": "handler",
+            "fullName": "app.js:<module>.handler",
+            "filename": "app.js",
+            "lineNumber": 3,
+            "lineNumberEnd": 6,
+            "parameters": ["req", "res"],
+            "returnType": "ANY",
+        }
+    ]
+    client = MagicMock()
+    client.run_json.side_effect = [method_json, [field_access_call, real_query_call]]
+    extractor = ContextExtractor(client, repo_root, rules)
+    extractor.load()
+
+    candidates = extractor.find_sink_candidates("javascript")
+    hits = candidates.get("app.js:<module>.handler", [])
+    sql_hits = [h for h in hits if h.category == "SQL Injection"]
+
+    assert len(sql_hits) == 1
+    assert sql_hits[0].call.id == 201
+
+
 def test_build_function_context_with_dataflow(repo_root, rules):
     dataflow_response = [
         [

@@ -33,3 +33,28 @@ def test_rule_has_category_and_cwe():
     rule = rules["python"].sinks[0]
     assert rule.category
     assert rule.cwe.startswith("CWE-")
+
+
+def test_javascript_sql_sink_matches_real_query_call_not_bare_property_access():
+    """Regression test for a real bug found via a live OWASP/NodeGoat run:
+    the SQL Injection sink pattern was `\\.query$|\\.execute$|...`, anchored
+    on the bare method name. A genuine call's `code` always includes the
+    invocation syntax (e.g. "db.query(sql)"), which ends in ")" not
+    "query" -- so the anchored pattern could never match a real call. It
+    matched instead on Joern's synthesized fieldAccess node for the
+    extremely common Express property access `req.query` (whose `code` is
+    exactly "req.query", nothing else), mislabeling unrelated code as SQL
+    Injection. The fix requires an opening paren after the method name."""
+    rules = load_rules()
+    sql_sinks = [r for r in rules["javascript"].sinks if r.category == "SQL Injection"]
+
+    assert any(r.pattern.search("db.query(sql)") for r in sql_sinks)
+    assert not any(r.pattern.search("req.query") for r in sql_sinks)
+
+
+def test_python_sql_sink_matches_real_execute_call_not_bare_reference():
+    rules = load_rules()
+    sql_sinks = [r for r in rules["python"].sinks if r.category == "SQL Injection"]
+
+    assert any(r.pattern.search("cursor.execute(sql)") for r in sql_sinks)
+    assert not any(r.pattern.search("obj.execute") for r in sql_sinks)
