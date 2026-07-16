@@ -70,6 +70,25 @@ def test_ollama_provider_connection_error_raises_helpful_message():
         provider.complete_json("s", "u", SCHEMA)
 
 
+def test_ollama_provider_timeout_raises_actionable_message():
+    """A read timeout means the server is up but the model was too slow --
+    the error must say so and suggest raising the timeout / lowering
+    concurrency / switching models, not send the user chasing a dead
+    server (observed running gpt-oss:20b at concurrency 4 on CPU)."""
+    config = Config()
+    config.ollama_model = "gpt-oss:20b"
+    fake_session = MagicMock()
+    fake_session.post.side_effect = requests.exceptions.ReadTimeout("read timed out")
+
+    provider = OllamaProvider(config, session=fake_session)
+
+    with pytest.raises(OllamaError, match="timed out") as exc:
+        provider.complete_json("s", "u", SCHEMA)
+    msg = str(exc.value)
+    assert "CPGVD_LLM_CONCURRENCY=1" in msg
+    assert "CPGVD_OLLAMA_TIMEOUT" in msg
+
+
 def test_check_ollama_available_raises_when_unreachable(monkeypatch):
     config = Config()
 

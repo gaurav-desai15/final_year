@@ -119,9 +119,19 @@ auth?", which are reasoning problems, not code-completion problems.
 
 Practical notes:
 
-- **Reasoning models are slower per finding** (they think before answering).
-  On CPU-only machines, lower concurrency (`CPGVD_LLM_CONCURRENCY=1` or `2`)
-  and raise the timeout (`CPGVD_OLLAMA_TIMEOUT=600`) so requests don't drop.
+- **Reasoning models are slow on CPU, and concurrency makes it worse.** A
+  20B reasoning model with the default 4 concurrent requests on a CPU-only
+  machine will blow past the request timeout on *every* context and produce
+  an empty report. If you don't have a GPU, either pick a fast model
+  (`qwen2.5-coder:7b`, or the MoE `deepseek-coder-v2:16b`) or, to run a big
+  model anyway, **serialize and be patient**:
+  ```bash
+  export CPGVD_LLM_CONCURRENCY=1      # one request at a time
+  export CPGVD_OLLAMA_TIMEOUT=1800    # 30 min per context
+  cpgvd analyze <repo> --max-contexts 5   # start small
+  ```
+  Rule of thumb: `gpt-oss:20b` / `qwen3` reasoning models want a GPU;
+  on CPU-only WSL2, stick to 7b or the MoE model.
 - All of these support Ollama's structured-JSON output, which the tool
   relies on. If you try a `deepseek-r1` distill and see JSON parse
   failures, that family sometimes fights the forced schema — prefer

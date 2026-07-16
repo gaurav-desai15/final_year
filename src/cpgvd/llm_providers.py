@@ -79,6 +79,18 @@ class OllamaProvider:
                 timeout=self.timeout,
             )
             resp.raise_for_status()
+        except requests.exceptions.Timeout as e:
+            # The server is reachable; the model just didn't finish in time.
+            # This is common with large/reasoning models on CPU, made worse
+            # by several concurrent requests competing for the same hardware.
+            raise OllamaError(
+                f"Ollama request timed out after {self.timeout:.0f}s while running "
+                f"'{self.model}'. The server is up but the model was too slow to "
+                f"answer -- typical for large/reasoning models on CPU. Fixes: raise "
+                f"the timeout (CPGVD_OLLAMA_TIMEOUT=1800), run one at a time "
+                f"(CPGVD_LLM_CONCURRENCY=1), or switch to a faster model "
+                f"(CPGVD_OLLAMA_MODEL=deepseek-coder-v2:16b or qwen2.5-coder:7b)."
+            ) from e
         except requests.exceptions.RequestException as e:
             raise OllamaError(
                 f"Could not reach Ollama at {self.host} ({e}). Is it running? "
