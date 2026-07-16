@@ -115,6 +115,8 @@ auth?", which are reasoning problems, not code-completion problems.
 | `qwen3:14b` | ~9GB / 16GB | Reasoning + code with a thinking mode. |
 | `qwen3:30b-a3b` | ~18GB / 24GB | Mixture-of-experts: 30B total but only ~3B active, so fast for its size. |
 | `qwen2.5-coder:32b` | ~20GB / 32GB | Near-frontier open coder; strongest pure-code option. |
+| `codestral:22b` | ~13GB / 24GB (GPU) | Mistral's code specialist — strong, but dense so slow on CPU; non-commercial license (fine for coursework). |
+| `magistral:24b` | ~14GB / 24GB (GPU) | Mistral's reasoning model; best-in-family judgment, but 24B dense reasoning wants a GPU. |
 | `gpt-oss:120b` | ~65GB / 64GB+ | Strongest free reasoning here; needs a workstation or multi-GPU. |
 
 Practical notes:
