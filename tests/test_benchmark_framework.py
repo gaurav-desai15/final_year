@@ -488,3 +488,45 @@ class TestMatchPolicy:
         )
         assert len(dataset.active_cases()) == 2
         assert dataset.ground_truth_count() == 1
+
+
+# ---------------------------------------------------------------------------
+# Runner environment
+# ---------------------------------------------------------------------------
+
+
+class TestCpgvdRunnerEnv:
+    def test_pythonpath_includes_src(self):
+        """The 'works without pip install' path must actually work.
+
+        The benchmark package puts src/ on its own sys.path, but a subprocess
+        does not inherit that -- without an explicit PYTHONPATH, running the
+        suite on a machine where cpgvd was never installed dies with
+        ModuleNotFoundError partway through.
+        """
+        import os
+
+        from benchmark.runners.cpgvd_runner import _subprocess_env
+
+        entries = _subprocess_env()["PYTHONPATH"].split(os.pathsep)
+        assert any(entry.endswith("/src") for entry in entries)
+
+    def test_existing_pythonpath_is_preserved(self, monkeypatch):
+        import os
+
+        from benchmark.runners.cpgvd_runner import _subprocess_env
+
+        monkeypatch.setenv("PYTHONPATH", "/somewhere/else")
+        assert "/somewhere/else" in _subprocess_env()["PYTHONPATH"].split(os.pathsep)
+
+    def test_subprocess_can_import_cpgvd(self):
+        import subprocess
+        import sys
+
+        from benchmark.runners.cpgvd_runner import _subprocess_env
+
+        result = subprocess.run(
+            [sys.executable, "-c", "import cpgvd; print('ok')"],
+            capture_output=True, text=True, env=_subprocess_env(), timeout=60,
+        )
+        assert result.returncode == 0, result.stderr

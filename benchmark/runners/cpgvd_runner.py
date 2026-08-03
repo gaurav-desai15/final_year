@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import shutil
 import subprocess
 import sys
@@ -20,13 +21,30 @@ from pathlib import Path
 
 from cpgvd.models import AnalysisReport
 
-from ..loader import resolve_repo
+from ..loader import REPO_ROOT, resolve_repo
 from ..models import BenchmarkCase
 from .base import BaseRunner, RunnerError, RunnerOutcome
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT_S = 3600.0
+
+
+def _subprocess_env() -> dict[str, str]:
+    """Environment for the `cpgvd` subprocess, with `src/` on PYTHONPATH.
+
+    The benchmark package puts `src/` on its own `sys.path` so it can run
+    straight from a source checkout, but a subprocess does not inherit that.
+    Without this, `python -m cpgvd.cli` fails with ModuleNotFoundError on any
+    machine where cpgvd was never `pip install`ed -- so export it explicitly
+    and keep the "works without installing" path honest.
+    """
+    env = os.environ.copy()
+    src = str(REPO_ROOT / "src")
+    existing = env.get("PYTHONPATH", "")
+    if src not in existing.split(os.pathsep):
+        env["PYTHONPATH"] = f"{src}{os.pathsep}{existing}" if existing else src
+    return env
 
 
 class CpgvdRunner(BaseRunner):
@@ -102,6 +120,7 @@ class CpgvdRunner(BaseRunner):
                 text=True,
                 timeout=self.timeout_s,
                 check=False,
+                env=_subprocess_env(),
             )
         except subprocess.TimeoutExpired as exc:
             raise RunnerError(
