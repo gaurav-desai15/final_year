@@ -27,6 +27,7 @@ from dataclasses import dataclass
 from .config import Config
 from .llm_providers import BaseProvider, LlmProviderError, build_provider
 from .models import Confidence, Finding, FunctionContext, Severity
+from .timing import STAGE_DEDUPLICATION, STAGE_LLM_ANALYSIS, StageTimer
 
 logger = logging.getLogger(__name__)
 
@@ -289,6 +290,9 @@ class LlmAnalyzer:
         self.provider = provider or build_provider(config)
         self.usage = AnalyzerUsage()
         self._usage_lock = threading.Lock()
+        # Splits `analyze_many` into its LLM-bound and post-processing halves
+        # so the benchmark can attribute runtime to the right stage.
+        self.timer = StageTimer()
 
     def analyze_context(self, context: FunctionContext) -> list[Finding]:
         user_text = context.to_prompt_text(max_related_chars=self.config.max_context_chars)
@@ -353,11 +357,13 @@ class LlmAnalyzer:
         if not contexts:
             return []
         findings: list[Finding] = []
-        with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.llm_concurrency) as pool:
-            future_to_ctx = {pool.submit(self._safe_analyze, ctx): ctx for ctx in contexts}
-            for future in concurrent.futures.as_completed(future_to_ctx):
-                findings.extend(future.result())
-        return dedupe_findings(findings)
+        with self.timer.stage(STAGE_LLM_ANALYSIS):
+            with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.llm_concurrency) as pool:
+                future_to_ctx = {pool.submit(self._safe_analyze, ctx): ctx for ctx in contexts}
+                for future in concurrent.futures.as_completed(future_to_ctx):
+                    findings.extend(future.result())
+        with self.timer.stage(STAGE_DEDUPLICATION):
+            return dedupe_findings(findings)
 
     def _safe_analyze(self, context: FunctionContext) -> list[Finding]:
         try:

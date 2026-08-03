@@ -13,6 +13,15 @@ dist/
 # Runtime working data
 .cpgvd_cache/
 cpgvd_output/
+
+# Benchmark runs are archived deliberately and SHOULD be committed -- they are
+# the project's measurement history. Only the bulky per-case raw scan output is
+# excluded; manifest.json, run.json, metrics.json and report.md are kept, and
+# run.json already carries every match, false positive, false negative and
+# timing needed to regenerate any report or comparison. (Consequence: replaying
+# an archived run with --runner replay only works on the machine that produced
+# it. Use benchmark/fixtures/, which is committed, for portable demos.)
+benchmark/results/*/raw/
 *.bin
 *.cpg
 joern-cli/

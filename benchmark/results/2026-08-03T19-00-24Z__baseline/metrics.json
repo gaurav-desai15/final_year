@@ -1,0 +1,213 @@
+{
+  "overall": {
+    "tp": 3,
+    "fp": 2,
+    "fn": 2,
+    "tn": 0,
+    "precision": 0.6,
+    "recall": 0.6,
+    "f1": 0.6
+  },
+  "by_dataset": {
+    "bundled-examples": {
+      "tp": 3,
+      "fp": 2,
+      "fn": 2,
+      "tn": 0,
+      "precision": 0.6,
+      "recall": 0.6,
+      "f1": 0.6
+    }
+  },
+  "by_case": {
+    "example-flask-python": {
+      "tp": 2,
+      "fp": 1,
+      "fn": 1,
+      "tn": 0,
+      "precision": 0.6667,
+      "recall": 0.6667,
+      "f1": 0.6667
+    },
+    "example-express-javascript": {
+      "tp": 1,
+      "fp": 1,
+      "fn": 1,
+      "tn": 0,
+      "precision": 0.5,
+      "recall": 0.5,
+      "f1": 0.5
+    }
+  },
+  "by_cwe": {
+    "CWE-78": {
+      "tp": 2,
+      "fp": 1,
+      "fn": 0,
+      "tn": 0,
+      "precision": 0.6667,
+      "recall": 1.0,
+      "f1": 0.8
+    },
+    "CWE-89": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "tn": 0,
+      "precision": 1.0,
+      "recall": 0.5,
+      "f1": 0.6667
+    },
+    "CWE-22": {
+      "tp": 0,
+      "fp": 1,
+      "fn": 1,
+      "tn": 0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    }
+  },
+  "by_category": {
+    "command-injection": {
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "tn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "sql-injection": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "tn": 0,
+      "precision": 1.0,
+      "recall": 0.5,
+      "f1": 0.6667
+    },
+    "path-traversal": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "tn": 0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    }
+  },
+  "runtime": {
+    "total_seconds": 87.8,
+    "mean_seconds": 43.9,
+    "median_seconds": 43.9,
+    "min_seconds": 39.2,
+    "max_seconds": 48.6,
+    "seconds_per_finding": 17.56,
+    "cases": 2
+  },
+  "stage_breakdown": {
+    "joern_parse": {
+      "total_seconds": 39.1,
+      "mean_seconds": 19.55,
+      "median_seconds": 19.55,
+      "share_pct": 44.9,
+      "cases": 2
+    },
+    "llm_analysis": {
+      "total_seconds": 32.7,
+      "mean_seconds": 16.35,
+      "median_seconds": 16.35,
+      "share_pct": 37.5,
+      "cases": 2
+    },
+    "cpg_load": {
+      "total_seconds": 7.0,
+      "mean_seconds": 3.5,
+      "median_seconds": 3.5,
+      "share_pct": 8.0,
+      "cases": 2
+    },
+    "context_extraction": {
+      "total_seconds": 4.3,
+      "mean_seconds": 2.15,
+      "median_seconds": 2.15,
+      "share_pct": 4.9,
+      "cases": 2
+    },
+    "candidate_extraction": {
+      "total_seconds": 3.2,
+      "mean_seconds": 1.6,
+      "median_seconds": 1.6,
+      "share_pct": 3.7,
+      "cases": 2
+    },
+    "repo_acquisition": {
+      "total_seconds": 0.7,
+      "mean_seconds": 0.35,
+      "median_seconds": 0.35,
+      "share_pct": 0.8,
+      "cases": 2
+    },
+    "report_generation": {
+      "total_seconds": 0.09,
+      "mean_seconds": 0.04,
+      "median_seconds": 0.04,
+      "share_pct": 0.1,
+      "cases": 2
+    },
+    "deduplication": {
+      "total_seconds": 0.03,
+      "mean_seconds": 0.01,
+      "median_seconds": 0.01,
+      "share_pct": 0.0,
+      "cases": 2
+    }
+  },
+  "memory": {
+    "peak_mb": 412.5,
+    "mean_peak_mb": 412.5,
+    "cases_measured": 2
+  },
+  "detection_latency": {
+    "mean_case_latency_s": 43.9,
+    "llm_seconds_per_context": 3.63,
+    "seconds_per_finding": 17.56,
+    "contexts_analyzed": 9
+  },
+  "detection_distribution": {
+    "FP/high": 1,
+    "TP": 3,
+    "FN": 2,
+    "FP/medium": 1
+  },
+  "top_false_positives": [
+    [
+      "CWE-78 / OS Command Injection",
+      1
+    ],
+    [
+      "CWE-22 / Path Traversal",
+      1
+    ]
+  ],
+  "top_false_negatives": [
+    [
+      "CWE-89 / sql-injection",
+      1
+    ],
+    [
+      "CWE-22 / path-traversal",
+      1
+    ]
+  ],
+  "near_miss_false_negatives": [
+    [
+      "flask-sqli-query-builder",
+      0.6667
+    ]
+  ],
+  "cases_total": 2,
+  "cases_ok": 2,
+  "cases_failed": 0
+}

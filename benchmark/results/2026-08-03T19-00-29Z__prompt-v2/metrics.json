@@ -1,0 +1,188 @@
+{
+  "overall": {
+    "tp": 5,
+    "fp": 0,
+    "fn": 0,
+    "tn": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0
+  },
+  "by_dataset": {
+    "bundled-examples": {
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "tn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    }
+  },
+  "by_case": {
+    "example-flask-python": {
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "tn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "example-express-javascript": {
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "tn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    }
+  },
+  "by_cwe": {
+    "CWE-78": {
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "tn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "CWE-89": {
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "tn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "CWE-22": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "tn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    }
+  },
+  "by_category": {
+    "command-injection": {
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "tn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "sql-injection": {
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "tn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "path-traversal": {
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "tn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    }
+  },
+  "runtime": {
+    "total_seconds": 93.8,
+    "mean_seconds": 46.9,
+    "median_seconds": 46.9,
+    "min_seconds": 41.7,
+    "max_seconds": 52.1,
+    "seconds_per_finding": 18.76,
+    "cases": 2
+  },
+  "stage_breakdown": {
+    "llm_analysis": {
+      "total_seconds": 39.8,
+      "mean_seconds": 19.9,
+      "median_seconds": 19.9,
+      "share_pct": 42.5,
+      "cases": 2
+    },
+    "joern_parse": {
+      "total_seconds": 38.5,
+      "mean_seconds": 19.25,
+      "median_seconds": 19.25,
+      "share_pct": 41.1,
+      "cases": 2
+    },
+    "cpg_load": {
+      "total_seconds": 7.0,
+      "mean_seconds": 3.5,
+      "median_seconds": 3.5,
+      "share_pct": 7.5,
+      "cases": 2
+    },
+    "context_extraction": {
+      "total_seconds": 4.5,
+      "mean_seconds": 2.25,
+      "median_seconds": 2.25,
+      "share_pct": 4.8,
+      "cases": 2
+    },
+    "candidate_extraction": {
+      "total_seconds": 3.1,
+      "mean_seconds": 1.55,
+      "median_seconds": 1.55,
+      "share_pct": 3.3,
+      "cases": 2
+    },
+    "repo_acquisition": {
+      "total_seconds": 0.7,
+      "mean_seconds": 0.35,
+      "median_seconds": 0.35,
+      "share_pct": 0.7,
+      "cases": 2
+    },
+    "report_generation": {
+      "total_seconds": 0.09,
+      "mean_seconds": 0.04,
+      "median_seconds": 0.04,
+      "share_pct": 0.1,
+      "cases": 2
+    },
+    "deduplication": {
+      "total_seconds": 0.04,
+      "mean_seconds": 0.02,
+      "median_seconds": 0.02,
+      "share_pct": 0.0,
+      "cases": 2
+    }
+  },
+  "memory": {
+    "peak_mb": 412.5,
+    "mean_peak_mb": 412.5,
+    "cases_measured": 2
+  },
+  "detection_latency": {
+    "mean_case_latency_s": 46.9,
+    "llm_seconds_per_context": 4.42,
+    "seconds_per_finding": 18.76,
+    "contexts_analyzed": 9
+  },
+  "detection_distribution": {
+    "TP": 5,
+    "FN": 0
+  },
+  "top_false_positives": [],
+  "top_false_negatives": [],
+  "near_miss_false_negatives": [],
+  "cases_total": 2,
+  "cases_ok": 2,
+  "cases_failed": 0
+}

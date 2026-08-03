@@ -1,0 +1,196 @@
+{
+  "metadata": {
+    "run_id": "2026-08-03T19-00-29Z__prompt-v2",
+    "label": "prompt-v2",
+    "created_at": "2026-08-03T19:00:29.040352Z",
+    "datasets": [
+      "bundled-examples"
+    ],
+    "runner": "replay",
+    "provider": "",
+    "model": "",
+    "cpgvd_version": "",
+    "git_commit": "cf1e3b9c5381b5e90540ce4649702ab298dfc22a",
+    "git_dirty": true,
+    "command": "python -m benchmark.run --runner replay --replay-source benchmark/fixtures/improved --label prompt-v2 --dataset bundled-examples --notes Framework demonstration: hypothetical precision fix, for exercising the comparison tooling. Not a measurement.",
+    "match_policy": {
+      "line_tolerance": 10,
+      "path_match": "suffix",
+      "require_file": true,
+      "require_cwe": false,
+      "require_line": false,
+      "min_score": 0.5,
+      "weights": {
+        "file": 1.0,
+        "line": 1.0,
+        "cwe": 1.0,
+        "function": 0.5,
+        "sink": 0.5
+      }
+    },
+    "notes": "Framework demonstration: hypothetical precision fix, for exercising the comparison tooling. Not a measurement.",
+    "synthetic": true
+  },
+  "cases": [
+    {
+      "case_id": "example-flask-python",
+      "dataset": "bundled-examples",
+      "repo": "examples/vulnerable_app/python",
+      "label": "mixed",
+      "status": "ok",
+      "error": "",
+      "metrics": {
+        "true_positives": 3,
+        "false_positives": 0,
+        "false_negatives": 0,
+        "true_negatives": 0
+      },
+      "matches": [
+        {
+          "ground_truth_id": "flask-cmdi-admin-run",
+          "finding_id": "py-f1",
+          "score": 0.9875,
+          "signals": {
+            "file": 1.0,
+            "line": 1.0,
+            "cwe": 1.0,
+            "function": 0.9,
+            "sink": 1.0
+          },
+          "finding_summary": "OS Command Injection @ app.py:43 [CWE-78]",
+          "ground_truth_summary": "flask-cmdi-admin-run (CWE-78 @ app.py:43)",
+          "ground_truth_cwe": "CWE-78",
+          "ground_truth_category": "command-injection",
+          "finding_cwe": "CWE-78",
+          "line_delta": 0
+        },
+        {
+          "ground_truth_id": "flask-sqli-query-builder",
+          "finding_id": "py-f4",
+          "score": 0.925,
+          "signals": {
+            "file": 1.0,
+            "line": 1.0,
+            "cwe": 1.0,
+            "function": 0.9,
+            "sink": 0.5
+          },
+          "finding_summary": "SQL Injection @ app.py:54 [CWE-89]",
+          "ground_truth_summary": "flask-sqli-query-builder (CWE-89 @ app.py:54)",
+          "ground_truth_cwe": "CWE-89",
+          "ground_truth_category": "sql-injection",
+          "finding_cwe": "CWE-89",
+          "line_delta": 0
+        },
+        {
+          "ground_truth_id": "flask-sqli-get-user",
+          "finding_id": "py-f2",
+          "score": 0.8625,
+          "signals": {
+            "file": 1.0,
+            "line": 1.0,
+            "cwe": 1.0,
+            "function": 0.9,
+            "sink": 0.0
+          },
+          "finding_summary": "SQL Injection @ app.py:60 [CWE-89]",
+          "ground_truth_summary": "flask-sqli-get-user (CWE-89 @ app.py:60)",
+          "ground_truth_cwe": "CWE-89",
+          "ground_truth_category": "sql-injection",
+          "finding_cwe": "CWE-89",
+          "line_delta": 0
+        }
+      ],
+      "false_positives": [],
+      "false_negatives": [],
+      "findings_reported": 3,
+      "ground_truth_total": 3,
+      "duration_seconds": 52.1,
+      "stage_timings": {
+        "repo_acquisition": 0.4,
+        "joern_parse": 21.0,
+        "cpg_load": 3.8,
+        "candidate_extraction": 1.7,
+        "context_extraction": 2.5,
+        "llm_analysis": 22.6,
+        "deduplication": 0.03,
+        "report_generation": 0.05
+      },
+      "peak_memory_mb": 412.5,
+      "llm_calls": 5,
+      "contexts_analyzed": 5,
+      "raw_report_path": "/home/user/final_year/benchmark/results/2026-08-03T19-00-29Z__prompt-v2/raw/example-flask-python/cpgvd_output/report.json"
+    },
+    {
+      "case_id": "example-express-javascript",
+      "dataset": "bundled-examples",
+      "repo": "examples/vulnerable_app/javascript",
+      "label": "mixed",
+      "status": "ok",
+      "error": "",
+      "metrics": {
+        "true_positives": 2,
+        "false_positives": 0,
+        "false_negatives": 0,
+        "true_negatives": 0
+      },
+      "matches": [
+        {
+          "ground_truth_id": "express-cmdi-admin-run",
+          "finding_id": "js-f1",
+          "score": 0.875,
+          "signals": {
+            "file": 1.0,
+            "line": 1.0,
+            "cwe": 1.0,
+            "function": 0.0,
+            "sink": 1.0
+          },
+          "finding_summary": "OS Command Injection @ app.js:35 [CWE-78]",
+          "ground_truth_summary": "express-cmdi-admin-run (CWE-78 @ app.js:35)",
+          "ground_truth_cwe": "CWE-78",
+          "ground_truth_category": "command-injection",
+          "finding_cwe": "CWE-78",
+          "line_delta": 0
+        },
+        {
+          "ground_truth_id": "express-path-traversal-files",
+          "finding_id": "js-f3",
+          "score": 0.8625,
+          "signals": {
+            "file": 1.0,
+            "line": 1.0,
+            "cwe": 1.0,
+            "function": 0.0,
+            "sink": 0.9
+          },
+          "finding_summary": "Path Traversal @ app.js:45 [CWE-22]",
+          "ground_truth_summary": "express-path-traversal-files (CWE-22 @ app.js:45)",
+          "ground_truth_cwe": "CWE-22",
+          "ground_truth_category": "path-traversal",
+          "finding_cwe": "CWE-22",
+          "line_delta": 0
+        }
+      ],
+      "false_positives": [],
+      "false_negatives": [],
+      "findings_reported": 2,
+      "ground_truth_total": 2,
+      "duration_seconds": 41.7,
+      "stage_timings": {
+        "repo_acquisition": 0.3,
+        "joern_parse": 17.5,
+        "cpg_load": 3.2,
+        "candidate_extraction": 1.4,
+        "context_extraction": 2.0,
+        "llm_analysis": 17.2,
+        "deduplication": 0.01,
+        "report_generation": 0.04
+      },
+      "peak_memory_mb": 412.5,
+      "llm_calls": 4,
+      "contexts_analyzed": 4,
+      "raw_report_path": "/home/user/final_year/benchmark/results/2026-08-03T19-00-29Z__prompt-v2/raw/example-express-javascript/cpgvd_output/report.json"
+    }
+  ]
+}

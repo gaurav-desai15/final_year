@@ -217,7 +217,55 @@ tests/                    unit tests (no live Joern/Ollama/Anthropic calls
 scripts/setup_joern.sh    installs Joern
 scripts/setup_ollama.sh   installs the free local LLM backend
 docs/architecture.md      pipeline diagram + design rationale
+docs/benchmarking.md      how the evaluation framework works
+docs/RESULT_ANALYSIS.md   generated analysis of the most recent benchmark run
+benchmark/                evaluation framework (see "Benchmarking" above)
+  datasets/                 ground-truth definitions (YAML)
+  runners/                  how a case gets scanned (live cpgvd, or replay)
+  evaluators/               scoring findings against ground truth
+  reports/                  Markdown report rendering
+  results/                  archived runs, one timestamped directory each
+  scripts/                  dataset importers (OWASP Benchmark, Juliet)
 ```
+
+## Benchmarking & evaluation
+
+The project has an evaluation framework for measuring detection quality
+rather than eyeballing it: it runs cpgvd against repositories with known
+vulnerabilities, scores the findings against ground truth, and archives a
+timestamped result so any change (prompt edit, new sink rule, different
+model) can be compared against a baseline.
+
+```bash
+python -m benchmark.run --dry-run                 # what would run
+python -m benchmark.run --label baseline          # record a baseline
+python -m benchmark.run --label prompt-v2         # ...then measure a change
+python -m benchmark.compare baseline prompt-v2    # metric + runtime deltas
+python -m benchmark.analyze                       # -> docs/RESULT_ANALYSIS.md
+```
+
+Reports precision, recall, F1, TP/FP/FN/TN, per-CWE and per-project
+breakdowns, runtime per stage (repo → Joern → CPG → context → LLM → dedup),
+detection latency, peak memory, and the specific vulnerabilities that became
+detected or missed between two runs.
+
+Datasets are YAML under `benchmark/datasets/`, so adding a suite needs no
+code. `bundled-examples` (hand-verified against the example apps) ships
+ready to run; importers for the OWASP Benchmark and NIST Juliet suites are in
+`benchmark/scripts/`, and `cve-repos.yaml` is a documented template for
+real-world CVE cases.
+
+Without Joern or a local model, the framework still runs end-to-end against
+checked-in fixtures — such runs are flagged synthetic and are not valid
+measurements:
+
+```bash
+python benchmark/scripts/make_fixtures.py
+python -m benchmark.run --runner replay --replay-source benchmark/fixtures/baseline --label demo
+```
+
+See [`docs/benchmarking.md`](docs/benchmarking.md) for the dataset schema,
+matching rules, and metric definitions.
 
 ## Testing
 
@@ -225,6 +273,9 @@ docs/architecture.md      pipeline diagram + design rationale
 pip install -e ".[dev]"
 pytest tests/ -v
 ```
+
+Tests cover the pipeline and the benchmark framework (matching engine,
+metrics, storage, report generation) and need no Joern, model, or network.
 
 Tests mock the Joern CPGQL client and both LLM providers, so the full
 suite runs without live Joern, a running Ollama server, or an Anthropic

@@ -1,0 +1,133 @@
+# Ground truth for the worked examples shipped in `examples/vulnerable_app/`.
+#
+# These are the only cases whose ground truth is hand-verified against the
+# actual source files in this repository (line numbers below were read
+# directly off `examples/vulnerable_app/{python,javascript}/`), which makes
+# this dataset the framework's smoke test: it runs in minutes, needs no
+# network, and its expected results are not in dispute.
+#
+# It is deliberately TINY. Precision/recall computed from 5 ground-truth
+# entries are not a performance measurement -- they tell you the pipeline
+# and the matcher are working. Use the OWASP Benchmark / Juliet importers in
+# `benchmark/scripts/` for statistically meaningful numbers.
+#
+# Note the safe/unsafe pairs: each file contains a *safe* call site of the
+# same sink as the vulnerable one. Those safe sites are not listed as
+# expected findings, so reporting them counts as a false positive. That is
+# the whole thesis of the project reduced to a measurable test -- a
+# context-blind scanner scores ~50% precision here by construction.
+
+name: bundled-examples
+description: >
+  Hand-verified ground truth for the two deliberately vulnerable example
+  apps bundled with cpgvd. Each app pairs a vulnerable call site with a safe
+  call site of the same sink, so context-blind detection is measurably
+  penalised.
+version: "1.0"
+verified: true
+
+# Tighter than the framework default, and deliberately so. In these files the
+# safe sibling call site sits within a few lines of the vulnerable one (in
+# app.js, 4 lines below it), so the default 10-line tolerance will happily
+# match a finding on the SAFE route to the ground truth for the VULNERABLE
+# one -- converting the exact false positive this dataset exists to catch
+# into a spurious true positive. Requiring an in-tolerance line match with a
+# small window keeps the two apart.
+#
+# Do not copy these values to datasets with sparser ground truth: tight line
+# matching only works when every entry has an accurate line span, which is
+# true here because they were read off the files by hand.
+match_policy:
+  line_tolerance: 3
+  require_line: true
+
+cases:
+  - id: example-flask-python
+    repo: examples/vulnerable_app/python
+    language: python
+    label: mixed
+    description: >
+      Flask app. `run_diagnostic` wraps `os.popen`; it is reached safely from
+      /status/<name> (allowlisted) and unsafely from /admin/run (raw query
+      param). Separately, `build_user_query` concatenates a path segment into
+      SQL that `get_user` executes, while `get_user_safe` parameterises.
+    expected:
+      - id: flask-cmdi-admin-run
+        cwe: CWE-78
+        category: command-injection
+        file: app.py
+        start_line: 43
+        end_line: 51
+        function: admin_run
+        sink: os.popen
+        description: >
+          The `cmd` query parameter flows unvalidated into run_diagnostic and
+          then os.popen. Detecting this requires walking from the os.popen
+          sink up to this caller -- run_diagnostic alone is not decidable.
+        tags: [cross-function, requires-caller-context]
+
+      - id: flask-sqli-get-user
+        cwe: CWE-89
+        category: sql-injection
+        file: app.py
+        start_line: 60
+        end_line: 70
+        function: get_user
+        sink: cursor.execute
+        description: >
+          The `user_id` path segment is interpolated into a SQL string by
+          build_user_query and executed by get_user. The concatenation and
+          the execution are in different functions.
+        tags: [cross-function, requires-callee-context]
+
+      - id: flask-sqli-query-builder
+        cwe: CWE-89
+        category: sql-injection
+        file: app.py
+        start_line: 54
+        end_line: 57
+        function: build_user_query
+        sink: f-string SQL concatenation
+        description: >
+          build_user_query itself builds an unparameterised SQL string. Only
+          a vulnerability because get_user passes attacker-controlled input
+          to it -- reporting it without that caller context is not justified.
+        tags: [cross-function]
+
+  - id: example-express-javascript
+    repo: examples/vulnerable_app/javascript
+    language: javascript
+    label: mixed
+    description: >
+      Express app mirroring the Python example: `runReport` wraps
+      child_process.exec and is reached both safely (allowlist) and unsafely
+      (raw query param); a path-traversal sink appears in both an unguarded
+      and a canonicalised form.
+    expected:
+      - id: express-cmdi-admin-run
+        cwe: CWE-78
+        category: command-injection
+        file: app.js
+        start_line: 35
+        end_line: 38
+        function: /admin/run
+        sink: exec
+        description: >
+          `req.query.cmd` reaches runReport -> child_process.exec with no
+          validation. The safe sibling route at /reports/:name calls the same
+          function with an allowlisted value.
+        tags: [cross-function, requires-caller-context]
+
+      - id: express-path-traversal-files
+        cwe: CWE-22
+        category: path-traversal
+        file: app.js
+        start_line: 45
+        end_line: 51
+        function: /files/:filename
+        sink: fs.readFile
+        description: >
+          `req.params.filename` is path.join'd onto UPLOAD_ROOT with no
+          canonicalisation, so `../../etc/passwd` escapes the base directory.
+          The route directly below does the same thing correctly.
+        tags: [same-file-safe-sibling]

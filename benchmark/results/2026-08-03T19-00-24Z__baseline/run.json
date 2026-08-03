@@ -1,0 +1,206 @@
+{
+  "metadata": {
+    "run_id": "2026-08-03T19-00-24Z__baseline",
+    "label": "baseline",
+    "created_at": "2026-08-03T19:00:24.127759Z",
+    "datasets": [
+      "bundled-examples"
+    ],
+    "runner": "replay",
+    "provider": "",
+    "model": "",
+    "cpgvd_version": "",
+    "git_commit": "cf1e3b9c5381b5e90540ce4649702ab298dfc22a",
+    "git_dirty": true,
+    "command": "python -m benchmark.run --runner replay --replay-source benchmark/fixtures/baseline --label baseline --dataset bundled-examples --notes Framework demonstration run from committed fixtures. Not a measurement -- replace with a live scan on a machine with Joern + an LLM backend.",
+    "match_policy": {
+      "line_tolerance": 10,
+      "path_match": "suffix",
+      "require_file": true,
+      "require_cwe": false,
+      "require_line": false,
+      "min_score": 0.5,
+      "weights": {
+        "file": 1.0,
+        "line": 1.0,
+        "cwe": 1.0,
+        "function": 0.5,
+        "sink": 0.5
+      }
+    },
+    "notes": "Framework demonstration run from committed fixtures. Not a measurement -- replace with a live scan on a machine with Joern + an LLM backend.",
+    "synthetic": true
+  },
+  "cases": [
+    {
+      "case_id": "example-flask-python",
+      "dataset": "bundled-examples",
+      "repo": "examples/vulnerable_app/python",
+      "label": "mixed",
+      "status": "ok",
+      "error": "",
+      "metrics": {
+        "true_positives": 2,
+        "false_positives": 1,
+        "false_negatives": 1,
+        "true_negatives": 0
+      },
+      "matches": [
+        {
+          "ground_truth_id": "flask-cmdi-admin-run",
+          "finding_id": "py-f1",
+          "score": 0.9875,
+          "signals": {
+            "file": 1.0,
+            "line": 1.0,
+            "cwe": 1.0,
+            "function": 0.9,
+            "sink": 1.0
+          },
+          "finding_summary": "OS Command Injection @ app.py:43 [CWE-78]",
+          "ground_truth_summary": "flask-cmdi-admin-run (CWE-78 @ app.py:43)",
+          "ground_truth_cwe": "CWE-78",
+          "ground_truth_category": "command-injection",
+          "finding_cwe": "CWE-78",
+          "line_delta": 0
+        },
+        {
+          "ground_truth_id": "flask-sqli-get-user",
+          "finding_id": "py-f2",
+          "score": 0.8625,
+          "signals": {
+            "file": 1.0,
+            "line": 1.0,
+            "cwe": 1.0,
+            "function": 0.9,
+            "sink": 0.0
+          },
+          "finding_summary": "SQL Injection @ app.py:60 [CWE-89]",
+          "ground_truth_summary": "flask-sqli-get-user (CWE-89 @ app.py:60)",
+          "ground_truth_cwe": "CWE-89",
+          "ground_truth_category": "sql-injection",
+          "finding_cwe": "CWE-89",
+          "line_delta": 0
+        }
+      ],
+      "false_positives": [
+        {
+          "finding_id": "py-f3",
+          "file": "app.py",
+          "start_line": 33,
+          "cwe": "CWE-78",
+          "vulnerability_type": "OS Command Injection",
+          "title": "Shell command executed in request handler",
+          "severity": "high",
+          "confidence": "medium",
+          "best_score": 0.6875
+        }
+      ],
+      "false_negatives": [
+        {
+          "ground_truth_id": "flask-sqli-query-builder",
+          "cwe": "CWE-89",
+          "file": "app.py",
+          "start_line": 54,
+          "category": "sql-injection",
+          "description": "build_user_query itself builds an unparameterised SQL string. Only a vulnerability because get_user passes attacker-controlled input to it -- reporting it without that caller context is not justified.\n",
+          "best_score": 0.6667,
+          "best_candidate_finding_id": "py-f2"
+        }
+      ],
+      "findings_reported": 3,
+      "ground_truth_total": 3,
+      "duration_seconds": 48.6,
+      "stage_timings": {
+        "repo_acquisition": 0.4,
+        "joern_parse": 21.3,
+        "cpg_load": 3.9,
+        "candidate_extraction": 1.8,
+        "context_extraction": 2.4,
+        "llm_analysis": 18.1,
+        "deduplication": 0.02,
+        "report_generation": 0.05
+      },
+      "peak_memory_mb": 412.5,
+      "llm_calls": 5,
+      "contexts_analyzed": 5,
+      "raw_report_path": "/home/user/final_year/benchmark/results/2026-08-03T19-00-24Z__baseline/raw/example-flask-python/cpgvd_output/report.json"
+    },
+    {
+      "case_id": "example-express-javascript",
+      "dataset": "bundled-examples",
+      "repo": "examples/vulnerable_app/javascript",
+      "label": "mixed",
+      "status": "ok",
+      "error": "",
+      "metrics": {
+        "true_positives": 1,
+        "false_positives": 1,
+        "false_negatives": 1,
+        "true_negatives": 0
+      },
+      "matches": [
+        {
+          "ground_truth_id": "express-cmdi-admin-run",
+          "finding_id": "js-f1",
+          "score": 0.875,
+          "signals": {
+            "file": 1.0,
+            "line": 1.0,
+            "cwe": 1.0,
+            "function": 0.0,
+            "sink": 1.0
+          },
+          "finding_summary": "OS Command Injection @ app.js:35 [CWE-78]",
+          "ground_truth_summary": "express-cmdi-admin-run (CWE-78 @ app.js:35)",
+          "ground_truth_cwe": "CWE-78",
+          "ground_truth_category": "command-injection",
+          "finding_cwe": "CWE-78",
+          "line_delta": 0
+        }
+      ],
+      "false_positives": [
+        {
+          "finding_id": "js-f2",
+          "file": "app.js",
+          "start_line": 55,
+          "cwe": "CWE-22",
+          "vulnerability_type": "Path Traversal",
+          "title": "User-controlled filename reaches fs.readFile",
+          "severity": "medium",
+          "confidence": "low",
+          "best_score": 0.0
+        }
+      ],
+      "false_negatives": [
+        {
+          "ground_truth_id": "express-path-traversal-files",
+          "cwe": "CWE-22",
+          "file": "app.js",
+          "start_line": 45,
+          "category": "path-traversal",
+          "description": "`req.params.filename` is path.join'd onto UPLOAD_ROOT with no canonicalisation, so `../../etc/passwd` escapes the base directory. The route directly below does the same thing correctly.\n",
+          "best_score": 0.0,
+          "best_candidate_finding_id": ""
+        }
+      ],
+      "findings_reported": 2,
+      "ground_truth_total": 2,
+      "duration_seconds": 39.2,
+      "stage_timings": {
+        "repo_acquisition": 0.3,
+        "joern_parse": 17.8,
+        "cpg_load": 3.1,
+        "candidate_extraction": 1.4,
+        "context_extraction": 1.9,
+        "llm_analysis": 14.6,
+        "deduplication": 0.01,
+        "report_generation": 0.04
+      },
+      "peak_memory_mb": 412.5,
+      "llm_calls": 4,
+      "contexts_analyzed": 4,
+      "raw_report_path": "/home/user/final_year/benchmark/results/2026-08-03T19-00-24Z__baseline/raw/example-express-javascript/cpgvd_output/report.json"
+    }
+  ]
+}

@@ -24,6 +24,16 @@ from .models import AnalysisReport, RunStats
 from .repo_manager import RepoManager
 from .report import write_report
 from .rules import DEFAULT_RULES_PATH, load_rules
+from .timing import (
+    STAGE_CANDIDATE_EXTRACTION,
+    STAGE_CONTEXT_EXTRACTION,
+    STAGE_CPG_LOAD,
+    STAGE_JOERN_PARSE,
+    STAGE_REPO_ACQUISITION,
+    STAGE_REPORT_GENERATION,
+    StageTimer,
+    peak_memory_mb,
+)
 
 console = Console()
 
@@ -76,6 +86,7 @@ def analyze(
     """Analyze REPO (a GitHub URL or local path) for context-aware vulnerabilities."""
     _setup_logging(verbose)
     start = time.monotonic()
+    timer = StageTimer()
 
     config = Config()
     if output_dir:
@@ -103,7 +114,8 @@ def analyze(
 
     repo_manager = RepoManager(config.work_dir)
     console.print(f"[bold]Acquiring[/bold] {repo}...")
-    repo_info = repo_manager.acquire(repo, ref=ref)
+    with timer.stage(STAGE_REPO_ACQUISITION):
+        repo_info = repo_manager.acquire(repo, ref=ref)
     lang = language or repo_info.primary_language
     if not lang:
         raise click.ClickException(
@@ -123,7 +135,8 @@ def analyze(
 
     cpg_path = config.work_dir / f"{repo_info.path.name}.cpg.bin"
     console.print("[bold]Parsing repo into a Code Property Graph with Joern...[/bold]")
-    parse_repo_to_cpg(repo_info.path, cpg_path, config, language=lang)
+    with timer.stage(STAGE_JOERN_PARSE):
+        parse_repo_to_cpg(repo_info.path, cpg_path, config, language=lang)
 
     stats = RunStats()
     findings = []
@@ -132,14 +145,16 @@ def analyze(
         with JoernServer(config) as server:
             client = CpgClient(server.host, server.port)
             console.print("[bold]Loading CPG into the Joern query server...[/bold]")
-            client.load_cpg(cpg_path)
+            with timer.stage(STAGE_CPG_LOAD):
+                client.load_cpg(cpg_path)
 
-            extractor = ContextExtractor(client, repo_info.path, rules)
-            extractor.load()
-            stats.functions_discovered = len(extractor.methods)
+            with timer.stage(STAGE_CANDIDATE_EXTRACTION):
+                extractor = ContextExtractor(client, repo_info.path, rules)
+                extractor.load()
+                stats.functions_discovered = len(extractor.methods)
 
-            sink_candidates = extractor.find_sink_candidates(lang)
-            source_calls = extractor.find_source_calls(lang)
+                sink_candidates = extractor.find_sink_candidates(lang)
+                source_calls = extractor.find_source_calls(lang)
             stats.sink_matches = sum(len(v) for v in sink_candidates.values())
             console.print(
                 f"  {stats.functions_discovered} functions, {len(extractor.calls)} calls, "
@@ -148,22 +163,23 @@ def analyze(
 
             prioritized = sorted(sink_candidates.items(), key=lambda kv: len(kv[1]), reverse=True)
             contexts = []
-            for full_name, hits in prioritized[: config.max_contexts]:
-                method = extractor.method_by_full_name(full_name)
-                if method is None:
-                    continue
-                relevant_sources = [
-                    c for c in source_calls if c.containing_method_full_name == full_name
-                ] or source_calls  # fall back to any known source calls in the repo
-                context = extractor.build_function_context(
-                    method,
-                    lang,
-                    hits,
-                    relevant_sources,
-                    include_dataflow=not no_dataflow,
-                    max_related=config.max_related_functions,
-                )
-                contexts.append(context)
+            with timer.stage(STAGE_CONTEXT_EXTRACTION):
+                for full_name, hits in prioritized[: config.max_contexts]:
+                    method = extractor.method_by_full_name(full_name)
+                    if method is None:
+                        continue
+                    relevant_sources = [
+                        c for c in source_calls if c.containing_method_full_name == full_name
+                    ] or source_calls  # fall back to any known source calls in the repo
+                    context = extractor.build_function_context(
+                        method,
+                        lang,
+                        hits,
+                        relevant_sources,
+                        include_dataflow=not no_dataflow,
+                        max_related=config.max_related_functions,
+                    )
+                    contexts.append(context)
             stats.candidate_contexts_analyzed = len(contexts)
 
         console.print(f"[bold]Analyzing {len(contexts)} candidate functions with {active_model}...[/bold]")
@@ -172,13 +188,12 @@ def analyze(
         stats.llm_calls = analyzer.usage.calls
         stats.llm_input_tokens = analyzer.usage.input_tokens
         stats.llm_output_tokens = analyzer.usage.output_tokens
+        timer.merge(analyzer.timer)
     finally:
         if not keep_cpg and cpg_path.exists():
             cpg_path.unlink(missing_ok=True)
         if not keep_repo:
             repo_manager.cleanup(repo_info)
-
-    stats.duration_seconds = time.monotonic() - start
 
     report = AnalysisReport(
         repo=repo_info.source,
@@ -189,7 +204,16 @@ def analyze(
         stats=stats,
     )
 
+    with timer.stage(STAGE_REPORT_GENERATION):
+        paths = write_report(report, config.output_dir)
+
+    # Filled in after writing once so report generation is itself timed, then
+    # rewritten so the on-disk report carries the complete breakdown.
+    stats.stage_timings = timer.as_dict()
+    stats.peak_memory_mb = peak_memory_mb()
+    stats.duration_seconds = time.monotonic() - start
     paths = write_report(report, config.output_dir)
+
     _print_summary(report, paths)
 
 

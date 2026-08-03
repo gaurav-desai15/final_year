@@ -61,7 +61,19 @@ def to_markdown(report: AnalysisReport) -> str:
         f"({report.stats.llm_input_tokens} input / {report.stats.llm_output_tokens} output tokens)"
     )
     lines.append(f"- **Duration:** {report.stats.duration_seconds:.1f}s")
+    if report.stats.peak_memory_mb:
+        lines.append(f"- **Peak memory:** {report.stats.peak_memory_mb:.0f} MB")
     lines.append("")
+
+    if report.stats.stage_timings:
+        lines.append("## Runtime breakdown")
+        lines.append("")
+        lines.append("| Stage | Seconds | % of total |")
+        lines.append("|---|---:|---:|")
+        total = sum(report.stats.stage_timings.values()) or 1.0
+        for stage, seconds in report.stats.stage_timings.items():
+            lines.append(f"| {stage} | {seconds:.2f} | {100 * seconds / total:.1f}% |")
+        lines.append("")
 
     if not findings:
         lines.append("No findings. 🎉")

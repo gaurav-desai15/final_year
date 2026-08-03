@@ -180,6 +180,21 @@ class RunStats(BaseModel):
     llm_output_tokens: int = 0
     duration_seconds: float = 0.0
 
+    stage_timings: dict[str, float] = Field(
+        default_factory=dict,
+        description=(
+            "Wall-clock seconds per pipeline stage (see cpgvd.timing.STAGE_*). "
+            "Empty on reports produced before instrumentation existed."
+        ),
+    )
+    peak_memory_mb: float = Field(
+        default=0.0, description="Peak RSS of the analysis process in MB; 0.0 if not measured."
+    )
+
+    def stage_seconds(self, stage: str) -> float:
+        """Timing for one stage, or 0.0 if it wasn't recorded."""
+        return self.stage_timings.get(stage, 0.0)
+
 
 class AnalysisReport(BaseModel):
     repo: str
