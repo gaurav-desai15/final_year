@@ -1,0 +1,14 @@
+# Streamlit's own chrome (widget accents, selection chips, focus rings). The
+# app's CSS in src/cpgvd/ui_theme.py styles everything else; this file covers
+# the parts Streamlit renders before that CSS loads.
+#
+# `base` is deliberately unset: with no base, Streamlit follows the viewer's
+# system light/dark preference, and ui_theme.theme_mode() detects the result
+# so the charts are drawn against the surface they actually land on.
+
+[theme]
+primaryColor = "#2a78d6"
+font = "sans-serif"
+
+[browser]
+gatherUsageStats = false

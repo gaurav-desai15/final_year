@@ -207,6 +207,7 @@ src/cpgvd/
   models.py               shared pydantic data models
   report.py               Markdown / JSON / SARIF rendering
   dashboard.py            Streamlit dashboard (`cpgvd dashboard`), reads report.json
+  ui_theme.py             shared visual language for both dashboards
 rules/sinks_sources.yaml  sink & source regex rules per language
 examples/vulnerable_app/  small worked examples (Flask + Express) with
                            both a safe and an unsafe call site for the
@@ -224,6 +225,7 @@ benchmark/                evaluation framework (see "Benchmarking" above)
   runners/                  how a case gets scanned (live cpgvd, or replay)
   evaluators/               scoring findings against ground truth
   reports/                  Markdown report rendering
+  dashboard.py              interactive results dashboard
   results/                  archived runs, one timestamped directory each
   scripts/                  dataset importers (OWASP Benchmark, Juliet)
 ```
@@ -263,6 +265,24 @@ measurements:
 python benchmark/scripts/make_fixtures.py
 python -m benchmark.run --runner replay --replay-source benchmark/fixtures/baseline --label demo
 ```
+
+### Benchmark dashboard
+
+For an interactive view of the results instead of reading `report.md`:
+
+```bash
+pip install -e ".[dashboard]"
+python -m benchmark.dashboard
+```
+
+Opens a browser app over the archived runs: headline precision/recall/F1,
+outcome and precision breakdowns per CWE and per category, the runtime stage
+breakdown, a metric trend across every run you've recorded, a two-run
+comparison with the specific vulnerabilities that became detected or missed,
+and filterable tables of every true positive, false positive and false
+negative (with CSV export). Every chart has a table view, and it reads only
+the archived JSON — no Joern, no LLM, safe to leave open while a benchmark
+runs.
 
 See [`docs/benchmarking.md`](docs/benchmarking.md) for the dataset schema,
 matching rules, and metric definitions.

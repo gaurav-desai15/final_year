@@ -235,6 +235,33 @@ matcher rejected the pairing — a CWE label difference, or line drift beyond
 tolerance. Those are evaluation bugs, not detection failures. Triage them
 before tuning the detector, or you'll optimise against your own harness.
 
+## Interactive dashboard
+
+```bash
+pip install -e ".[dashboard]"
+python -m benchmark.dashboard
+```
+
+Six tabs over the archived runs — Overview (headline metrics, per-case
+table), Vulnerability classes (outcomes and precision/recall per CWE and
+category, plus most-missed classes), Performance (runtime stage breakdown,
+detection latency, slowest cases), History (metric trend across runs),
+Compare (two-run deltas and the id-level detected/missed diff), and Details
+(filterable TP/FP/FN tables with CSV export).
+
+It reads only `benchmark/results/`, so it never scans anything and is safe to
+leave open while a real benchmark runs. Charting choices worth knowing:
+
+- **TP/FP/FN are not green/amber/red.** The obvious status encoding fails the
+  colorblind-separation check — green `#0ca30c` against red `#d03b3b` measures
+  ΔE 4.1 under deuteranopia simulation, against a ≥8 gate — so the two most
+  important bars would be indistinguishable to a red-green colorblind reader.
+  The validated categorical slots are used instead.
+- **Severity uses an ordinal one-hue ramp**, since severity is an ordered
+  scale; the conventional red-for-critical signal is carried by the emoji and
+  label that accompany every level.
+- **Every chart has a table view**, so no value is reachable only by hovering.
+
 ## Comparing runs
 
 ```bash
