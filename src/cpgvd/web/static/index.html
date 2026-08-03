@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>cpgvd console</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🛡️</text></svg>">
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">cpgvd<span class="dot">.</span></span>
+      <span class="brand-sub">Security Console</span>
+    </div>
+
+    <nav class="nav" id="nav" aria-label="Primary">
+      <button data-view="scan" aria-current="page">Scan Report</button>
+      <button data-view="benchmark">Benchmark Analysis</button>
+      <button data-view="compare">Compare Runs</button>
+    </nav>
+
+    <div class="topbar-right">
+      <span id="conn"><span class="status-dot"></span><span id="conn-text">connecting…</span></span>
+    </div>
+  </header>
+
+  <!-- Each view owns a rail (controls), a main column, and an optional
+       detail column. Only one view is in the DOM at a time; app.js swaps
+       the whole workspace so stale panels can't linger. -->
+  <main class="workspace" id="workspace">
+    <section class="panel rail"><div class="panel-body" id="rail"></div></section>
+    <section class="panel"><div class="panel-body" id="main"></div></section>
+    <section class="panel detail"><div class="panel-body" id="detail"></div></section>
+  </main>
+
+</div>
+
+<div id="tooltip" role="tooltip" aria-hidden="true"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

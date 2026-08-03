@@ -218,6 +218,37 @@ def analyze(
 
 
 @main.command()
+@click.option("--host", default="127.0.0.1", help="Bind address (0.0.0.0 to expose on the network).")
+@click.option("--port", default=8000, type=int, help="Port to listen on.")
+@click.option(
+    "--scan-dir", "scan_dirs", multiple=True, type=click.Path(path_type=Path),
+    help="Directory to search for report.json files. Repeatable.",
+)
+@click.option(
+    "--results-dir", default=None, type=click.Path(path_type=Path),
+    help="Benchmark results directory (default: benchmark/results).",
+)
+def web(host: str, port: int, scan_dirs: tuple[Path, ...], results_dir: Path | None) -> None:
+    """Launch the web console: scan reports and benchmark analysis in one page.
+
+    Requires the 'web' extra: pip install -e ".[web]"
+    """
+    try:
+        from .web.server import DEFAULT_RESULTS_DIR, DEFAULT_SCAN_DIR, REPO_ROOT, serve
+    except ImportError as exc:  # pragma: no cover
+        raise click.ClickException(str(exc)) from exc
+
+    dirs = list(scan_dirs) or [DEFAULT_SCAN_DIR, REPO_ROOT]
+    console.print(f"[bold]cpgvd console[/bold] -> http://{host}:{port}")
+    console.print(f"  scans:   {', '.join(str(d) for d in dirs)}")
+    console.print(f"  results: {results_dir or DEFAULT_RESULTS_DIR}")
+    try:
+        serve(host=host, port=port, scan_dirs=dirs, results_dir=results_dir or DEFAULT_RESULTS_DIR)
+    except RuntimeError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+
+@main.command()
 @click.option(
     "--report",
     "report_path",

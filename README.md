@@ -143,9 +143,34 @@ Practical notes:
   same repo through the paid backend once — same CPG, same rules, so any
   difference in the findings is purely model quality.
 
-## Interactive dashboard
+## Web console
 
-For an interactive view of a report instead of reading `report.md`:
+One page over both halves of the project — scan findings and benchmark
+results — with a top-bar switch between them:
+
+```bash
+pip install -e ".[web]"
+cpgvd web                       # -> http://127.0.0.1:8000
+```
+
+Three views: **Scan Report** (findings with severity filters, search, and the
+call-graph reasoning behind each), **Benchmark Analysis** (precision/recall/F1,
+outcomes per CWE, runtime stage breakdown, false-positive and false-negative
+drill-downs), and **Compare Runs** (metric deltas plus the specific
+vulnerabilities that became detected or missed).
+
+No build step and no CDN — the frontend is one HTML file, one stylesheet and
+one script, so it works offline. It reads only the JSON artifacts already on
+disk, never invoking Joern, an LLM, or a benchmark run, and refuses paths
+outside the directories it was started with.
+
+```bash
+cpgvd web --port 9000 --scan-dir ./cpgvd_output --results-dir ./benchmark/results
+```
+
+## Interactive dashboard (Streamlit)
+
+An alternative to the web console, if you prefer Streamlit:
 
 ```bash
 pip install -e ".[dashboard]"
@@ -207,7 +232,8 @@ src/cpgvd/
   models.py               shared pydantic data models
   report.py               Markdown / JSON / SARIF rendering
   dashboard.py            Streamlit dashboard (`cpgvd dashboard`), reads report.json
-  ui_theme.py             shared visual language for both dashboards
+  ui_theme.py             shared visual language for the Streamlit dashboards
+  web/                    the web console (`cpgvd web`): FastAPI + a no-build SPA
 rules/sinks_sources.yaml  sink & source regex rules per language
 examples/vulnerable_app/  small worked examples (Flask + Express) with
                            both a safe and an unsafe call site for the

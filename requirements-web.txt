@@ -1,0 +1,4 @@
+# Only needed for `cpgvd web` (the single-page console). The frontend has no
+# build step and no CDN dependencies -- this is just the HTTP server.
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0

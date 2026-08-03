@@ -26,6 +26,11 @@ dev = [
     "pytest>=8.0.0",
     "pytest-mock>=3.14.0",
     "anthropic>=0.40.0",
+    # So the web-console and dashboard tests run rather than skip.
+    "fastapi>=0.110.0",
+    "httpx>=0.27.0",
+    "streamlit>=1.38.0",
+    "pandas>=2.0.0",
 ]
 # Only needed if you opt into the paid Claude backend (--provider anthropic).
 # The default (free, local Ollama) backend doesn't need this at all.
@@ -37,9 +42,18 @@ dashboard = [
     "streamlit>=1.38.0",
     "pandas>=2.0.0",
 ]
+# Only needed for `cpgvd web` (the single-page console). The frontend has no
+# build step and no CDN dependencies -- this is just the HTTP server.
+web = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.27.0",
+]
 
 [project.scripts]
 cpgvd = "cpgvd.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+cpgvd = ["web/static/*"]
