@@ -1,0 +1,32 @@
+{
+  "run_id": "2026-08-04T04-09-16Z__baseline",
+  "label": "baseline",
+  "created_at": "2026-08-04T04:09:16.574392Z",
+  "datasets": [
+    "bundled-examples"
+  ],
+  "runner": "replay",
+  "provider": "",
+  "model": "",
+  "cpgvd_version": "",
+  "git_commit": "0b41c3c8f162cd97b43069f8e1d39e79f56fdbf4",
+  "git_dirty": false,
+  "command": "python -m benchmark.run --runner replay --replay-source benchmark/fixtures/baseline --label baseline --dataset bundled-examples",
+  "match_policy": {
+    "line_tolerance": 10,
+    "path_match": "suffix",
+    "require_file": true,
+    "require_cwe": false,
+    "require_line": false,
+    "min_score": 0.5,
+    "weights": {
+      "file": 1.0,
+      "line": 1.0,
+      "cwe": 1.0,
+      "function": 0.5,
+      "sink": 0.5
+    }
+  },
+  "notes": "",
+  "synthetic": true
+}
