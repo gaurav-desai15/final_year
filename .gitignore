@@ -28,3 +28,9 @@ joern-cli/
 workspace/
 
 .DS_Store
+
+# Pitch deck build tooling — node_modules and generated icon PNGs are
+# regeneratable (npm install && node icons.js); only the scripts and the
+# final .pptx are worth keeping in git.
+pitch_deck/node_modules/
+pitch_deck/icons/
