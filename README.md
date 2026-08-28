@@ -81,8 +81,12 @@ scanning / other SARIF-consuming tooling). Override with `--output-dir`.
 Run `cpgvd analyze --help` for the full option list (`--provider`/`--model`
 to choose the LLM backend, concurrency via `CPGVD_LLM_CONCURRENCY`,
 `--max-contexts` to cap how many functions get analyzed on huge repos,
-`--keep-repo` / `--keep-cpg` to inspect intermediates, `--rules` for a
-custom sink/source YAML).
+`--keep-repo` to inspect the cloned source, `--rules` for a custom
+sink/source YAML).
+
+The generated `cpg.bin` is cached under the work dir (`.cpgvd_cache/`) with a
+content-addressed name, so re-running the same repo state skips the Joern
+parse. Pass `--no-keep-cpg` to delete it after the run instead.
 
 ## Choosing a model
 

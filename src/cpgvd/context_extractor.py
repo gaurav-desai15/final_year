@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -143,6 +144,9 @@ class ContextExtractor:
         self._methods_by_id: dict[int, RawMethod] = {}
         self._methods_by_full_name: dict[str, RawMethod] = {}
         self._calls: list[RawCall] = []
+        # Accumulated wall-clock time spent in `reachableByFlows` dataflow
+        # queries, so the CLI can report it as its own pipeline stage.
+        self.dataflow_seconds: float = 0.0
 
     # -- CPG-backed fetch -------------------------------------------------
 
@@ -281,6 +285,22 @@ class ContextExtractor:
         source_calls: list[RawCall],
         max_paths_per_sink: int = 3,
         max_source_ids: int = 20,
+    ) -> list[DataFlowPath]:
+        started = time.monotonic()
+        try:
+            return self._fetch_dataflow_paths(
+                sink_hits, method, source_calls, max_paths_per_sink, max_source_ids
+            )
+        finally:
+            self.dataflow_seconds += time.monotonic() - started
+
+    def _fetch_dataflow_paths(
+        self,
+        sink_hits: list[SinkHit],
+        method: RawMethod,
+        source_calls: list[RawCall],
+        max_paths_per_sink: int,
+        max_source_ids: int,
     ) -> list[DataFlowPath]:
         source_ids = [c.id for c in source_calls[:max_source_ids]]
         paths: list[DataFlowPath] = []

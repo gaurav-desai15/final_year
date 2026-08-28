@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import re
 import shutil
@@ -88,6 +89,35 @@ def detect_languages(root: Path, sample_limit: int = 20000) -> tuple[list[str], 
         return [], ""
     languages = [lang for lang, _ in counts.most_common()]
     return languages, languages[0]
+
+
+def source_fingerprint(root: Path, sample_limit: int = 50000) -> str:
+    """A content hash of the source files under `root`, used to key the CPG cache.
+
+    We hash file *contents*, not just the commit SHA, on purpose: the mutation
+    harness rewrites tracked files in place without committing, so every mutant
+    of one application shares its SHA. A SHA-keyed cache would hand every mutant
+    the unmutated CPG and silently invalidate the whole evaluation.
+    """
+    h = hashlib.sha256()
+    files: list[Path] = []
+    for path in root.rglob("*"):
+        if path.is_dir():
+            continue
+        if any(part in _IGNORED_DIRS for part in path.parts):
+            continue
+        if path.suffix.lower() not in _EXT_TO_LANGUAGE:
+            continue
+        files.append(path)
+    for path in sorted(files)[:sample_limit]:
+        h.update(path.relative_to(root).as_posix().encode("utf-8"))
+        h.update(b"\0")
+        try:
+            h.update(path.read_bytes())
+        except OSError:
+            h.update(b"<unreadable>")
+        h.update(b"\0")
+    return h.hexdigest()
 
 
 class RepoManager:

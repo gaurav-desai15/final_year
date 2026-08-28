@@ -180,6 +180,29 @@ class RunStats(BaseModel):
     llm_output_tokens: int = 0
     duration_seconds: float = 0.0
 
+    # Per-stage wall-clock timings (seconds), filled in by the CLI so an
+    # instrumented run shows where the time actually goes. `dataflow_seconds`
+    # is a subset of the context-extraction phase, broken out because Joern's
+    # `reachableByFlows` is the single most expensive operation in the pipeline.
+    clone_seconds: float = 0.0
+    cpg_build_seconds: float = 0.0
+    cpg_load_seconds: float = 0.0
+    context_extraction_seconds: float = 0.0
+    dataflow_seconds: float = 0.0
+    llm_seconds: float = 0.0
+
+    def stage_breakdown(self) -> list[tuple[str, float]]:
+        """Ordered (stage, seconds) pairs for display; omits unmeasured stages."""
+        stages = [
+            ("clone", self.clone_seconds),
+            ("cpg-build", self.cpg_build_seconds),
+            ("cpg-load", self.cpg_load_seconds),
+            ("context", self.context_extraction_seconds),
+            ("dataflow", self.dataflow_seconds),
+            ("llm", self.llm_seconds),
+        ]
+        return [(name, secs) for name, secs in stages if secs > 0.0]
+
 
 class AnalysisReport(BaseModel):
     repo: str

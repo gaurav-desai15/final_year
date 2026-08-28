@@ -75,6 +75,24 @@ def test_to_markdown_orders_by_severity_and_includes_details():
     assert "caller passes unsanitized input" in md
 
 
+def test_stage_breakdown_omits_unmeasured_stages():
+    stats = RunStats(cpg_build_seconds=12.0, llm_seconds=40.0)
+    breakdown = dict(stats.stage_breakdown())
+    assert breakdown == {"cpg-build": 12.0, "llm": 40.0}
+    assert [name for name, _ in stats.stage_breakdown()] == ["cpg-build", "llm"]
+
+
+def test_to_markdown_includes_stage_timings_when_measured():
+    report = make_report()
+    report.stats.cpg_build_seconds = 8.4
+    report.stats.dataflow_seconds = 55.1
+    report.stats.llm_seconds = 30.0
+    md = to_markdown(report)
+    assert "stages:" in md
+    assert "cpg-build 8.4s" in md
+    assert "dataflow 55.1s" in md
+
+
 def test_to_markdown_no_findings():
     report = make_report()
     report.findings = []

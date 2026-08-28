@@ -31,7 +31,7 @@ class Config:
     joern_server_host: str = DEFAULT_JOERN_SERVER_HOST
     joern_server_port: int = DEFAULT_JOERN_SERVER_PORT
     joern_startup_timeout_s: float = float(os.environ.get("CPGVD_JOERN_STARTUP_TIMEOUT", "120"))
-    keep_cpg: bool = False
+    keep_cpg: bool = True  # cache cpg.bin for reuse; --no-keep-cpg opts out
 
     # LLM
     llm_provider: str = DEFAULT_LLM_PROVIDER  # "ollama" (free, local) or "anthropic" (paid)

@@ -21,7 +21,7 @@ from .joern_runner import JoernServer, check_joern_available, parse_repo_to_cpg
 from .llm_analyzer import LlmAnalyzer
 from .llm_providers import check_ollama_available
 from .models import AnalysisReport, RunStats
-from .repo_manager import RepoManager
+from .repo_manager import RepoManager, source_fingerprint
 from .report import write_report
 from .rules import DEFAULT_RULES_PATH, load_rules
 
@@ -57,7 +57,13 @@ def main() -> None:
 @click.option("--max-contexts", default=None, type=int, help="Cap on how many candidate functions get sent to the LLM.")
 @click.option("--no-dataflow", is_flag=True, help="Skip Joern dataflow queries (faster, less precise).")
 @click.option("--keep-repo", is_flag=True, help="Don't delete a cloned repo after analysis.")
-@click.option("--keep-cpg", is_flag=True, help="Don't delete the generated cpg.bin after analysis.")
+@click.option(
+    "--keep-cpg/--no-keep-cpg",
+    "keep_cpg",
+    default=True,
+    help="Cache the generated cpg.bin under the work dir for reuse (default: keep). "
+    "--no-keep-cpg deletes it after the run.",
+)
 @click.option("-v", "--verbose", is_flag=True)
 def analyze(
     repo: str,
@@ -89,8 +95,7 @@ def analyze(
             config.model = model
     if max_contexts:
         config.max_contexts = max_contexts
-    if keep_cpg:
-        config.keep_cpg = True
+    config.keep_cpg = keep_cpg
 
     active_model = config.ollama_model if config.llm_provider == "ollama" else config.model
 
@@ -101,9 +106,14 @@ def analyze(
     else:
         console.print(f"[bold]Using Claude API (paid):[/bold] {active_model}")
 
+    stats = RunStats()
+    findings = []
+
     repo_manager = RepoManager(config.work_dir)
     console.print(f"[bold]Acquiring[/bold] {repo}...")
+    _t = time.monotonic()
     repo_info = repo_manager.acquire(repo, ref=ref)
+    stats.clone_seconds = time.monotonic() - _t
     lang = language or repo_info.primary_language
     if not lang:
         raise click.ClickException(
@@ -121,19 +131,28 @@ def analyze(
             "the CPG will still be built, but no candidate functions will be shortlisted."
         )
 
-    cpg_path = config.work_dir / f"{repo_info.path.name}.cpg.bin"
-    console.print("[bold]Parsing repo into a Code Property Graph with Joern...[/bold]")
-    parse_repo_to_cpg(repo_info.path, cpg_path, config, language=lang)
-
-    stats = RunStats()
-    findings = []
+    # Cache the CPG under a content-addressed name so re-running the same repo
+    # state (and, crucially for the mutation corpus, a *specific* mutant) skips
+    # the most expensive stage. See `source_fingerprint` for why not the SHA.
+    fingerprint = source_fingerprint(repo_info.path)
+    cpg_path = config.work_dir / f"{repo_info.path.name}-{fingerprint[:16]}.cpg.bin"
+    if cpg_path.exists() and cpg_path.stat().st_size > 0:
+        console.print(f"[bold]Reusing cached CPG[/bold] {cpg_path.name}")
+    else:
+        console.print("[bold]Parsing repo into a Code Property Graph with Joern...[/bold]")
+        _t = time.monotonic()
+        parse_repo_to_cpg(repo_info.path, cpg_path, config, language=lang)
+        stats.cpg_build_seconds = time.monotonic() - _t
 
     try:
         with JoernServer(config) as server:
             client = CpgClient(server.host, server.port)
             console.print("[bold]Loading CPG into the Joern query server...[/bold]")
+            _t = time.monotonic()
             client.load_cpg(cpg_path)
+            stats.cpg_load_seconds = time.monotonic() - _t
 
+            _t = time.monotonic()
             extractor = ContextExtractor(client, repo_info.path, rules)
             extractor.load()
             stats.functions_discovered = len(extractor.methods)
@@ -154,7 +173,7 @@ def analyze(
                     continue
                 relevant_sources = [
                     c for c in source_calls if c.containing_method_full_name == full_name
-                ] or source_calls  # fall back to any known source calls in the repo
+                ]
                 context = extractor.build_function_context(
                     method,
                     lang,
@@ -165,10 +184,18 @@ def analyze(
                 )
                 contexts.append(context)
             stats.candidate_contexts_analyzed = len(contexts)
+            stats.dataflow_seconds = extractor.dataflow_seconds
+            # The context phase includes the dataflow queries; report the two
+            # separately so a slow run points at the right culprit.
+            stats.context_extraction_seconds = max(
+                0.0, (time.monotonic() - _t) - extractor.dataflow_seconds
+            )
 
         console.print(f"[bold]Analyzing {len(contexts)} candidate functions with {active_model}...[/bold]")
+        _t = time.monotonic()
         analyzer = LlmAnalyzer(config)
         findings = analyzer.analyze_many(contexts)
+        stats.llm_seconds = time.monotonic() - _t
         stats.llm_calls = analyzer.usage.calls
         stats.llm_input_tokens = analyzer.usage.input_tokens
         stats.llm_output_tokens = analyzer.usage.output_tokens
@@ -229,6 +256,16 @@ def _print_summary(report: AnalysisReport, paths: dict[str, Path]) -> None:
         table.add_row(f.severity.value.upper(), f.vulnerability_type, f"{f.file}:{f.start_line}", f.confidence.value)
 
     console.print(table)
+
+    breakdown = report.stats.stage_breakdown()
+    if breakdown:
+        timing = Table(title=f"Stage timings (total {report.stats.duration_seconds:.1f}s)")
+        timing.add_column("Stage")
+        timing.add_column("Seconds", justify="right")
+        for name, secs in breakdown:
+            timing.add_row(name, f"{secs:.1f}")
+        console.print(timing)
+
     console.print(f"\nReports written to:\n  {paths['markdown']}\n  {paths['json']}\n  {paths['sarif']}")
 
 

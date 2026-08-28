@@ -61,6 +61,12 @@ def to_markdown(report: AnalysisReport) -> str:
         f"({report.stats.llm_input_tokens} input / {report.stats.llm_output_tokens} output tokens)"
     )
     lines.append(f"- **Duration:** {report.stats.duration_seconds:.1f}s")
+    breakdown = report.stats.stage_breakdown()
+    if breakdown:
+        lines.append(
+            "  - stages: "
+            + ", ".join(f"{name} {secs:.1f}s" for name, secs in breakdown)
+        )
     lines.append("")
 
     if not findings:

@@ -1,4 +1,4 @@
-from cpgvd.repo_manager import RepoManager, detect_languages
+from cpgvd.repo_manager import RepoManager, detect_languages, source_fingerprint
 
 
 def test_detect_languages_counts_by_extension(tmp_path):
@@ -45,3 +45,30 @@ def test_is_url_detection_via_acquire_local_fallback(tmp_path):
     except FileNotFoundError:
         raised = True
     assert raised
+
+
+def _tree(root):
+    (root / "src").mkdir()
+    (root / "src" / "app.js").write_text("app.get('/admin', requireAuth, h)\n")
+    (root / "src" / "util.py").write_text("x = 1\n")
+    (root / "README.md").write_text("docs, not source\n")
+    nm = root / "node_modules"
+    nm.mkdir()
+    (nm / "dep.js").write_text("vendored\n")
+
+
+def test_source_fingerprint_is_stable_and_ignores_non_source(tmp_path):
+    _tree(tmp_path)
+    fp1 = source_fingerprint(tmp_path)
+    # Touching a non-source file and a vendored file must not change the hash.
+    (tmp_path / "README.md").write_text("different docs\n")
+    (tmp_path / "node_modules" / "dep.js").write_text("different vendored\n")
+    assert source_fingerprint(tmp_path) == fp1
+
+
+def test_source_fingerprint_changes_when_source_content_changes(tmp_path):
+    """The mutation-harness case: same file path, one line rewritten in place."""
+    _tree(tmp_path)
+    fp1 = source_fingerprint(tmp_path)
+    (tmp_path / "src" / "app.js").write_text("app.get('/admin', h)\n")  # auth dropped
+    assert source_fingerprint(tmp_path) != fp1

@@ -246,3 +246,26 @@ def test_build_function_context_with_dataflow(repo_root, rules):
     assert len(ctx.data_flow_paths) == 1
     assert len(ctx.data_flow_paths[0].steps) == 2
     assert ctx.data_flow_paths[0].steps[0].code == "request.args.get('cmd')"
+
+
+def test_dataflow_seconds_accumulates_only_for_dataflow_queries(repo_root, rules):
+    dataflow_response = [
+        [
+            {"code": "request.args.get('cmd')", "lineNumber": 3, "filename": "app.py", "method": INDEX_FULL_NAME},
+            {"code": "os.system(cmd)", "lineNumber": 11, "filename": "app.py", "method": HANDLE_FULL_NAME},
+        ]
+    ]
+    client = make_client(extra_side_effects=[dataflow_response])
+    extractor = ContextExtractor(client, repo_root, rules)
+    extractor.load()
+    assert extractor.dataflow_seconds == 0.0
+
+    method = extractor.method_by_full_name(HANDLE_FULL_NAME)
+    hits = extractor.find_sink_candidates("python")[HANDLE_FULL_NAME]
+    sources = extractor.find_source_calls("python")
+
+    extractor.build_function_context(method, "python", hits, sources, include_dataflow=False)
+    assert extractor.dataflow_seconds == 0.0
+
+    extractor.build_function_context(method, "python", hits, sources, include_dataflow=True)
+    assert extractor.dataflow_seconds > 0.0

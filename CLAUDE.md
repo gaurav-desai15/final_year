@@ -66,6 +66,21 @@ Verified on OWASP NodeGoat with qwen2.5-coder:7b:
   - ~6 "Broken Authentication" findings across one DAO's methods — over-
     reporting; consider capping same-file/same-class findings.
 
+Perf / instrumentation (landed this session):
+- `RunStats` now carries per-stage wall-clock timings; `analyze` prints a
+  stage-breakdown table and the Markdown report lists it. Baseline on the
+  bundled python example: cpg-build ~5s, dataflow ~5s, **LLM ~88s of ~110s
+  total** — the LLM stage is the thing to optimise.
+- `cpg.bin` is cached under the work dir with a content-addressed name
+  (`source_fingerprint` over source files, not the commit SHA — mutants share
+  a SHA). Re-running the same tree skips `joern-parse`. `keep_cpg` now
+  defaults true; `--no-keep-cpg` opts out.
+- Removed the `or source_calls` fallback in `cli.py` that fed every source in
+  the repo into `reachableByFlows` when a function had no source call.
+- Still open: run one Joern server across a batch and use `importCode`
+  in-server instead of `joern-parse` (one JVM not two) — belongs with the
+  batch/eval runner, where it actually pays off.
+
 Candidate next features (pick with the user, don't assume):
 1. Widen `_NO_ATTACKER_PATH_RE` to catch "no … taint … reach… sink" phrasing.
 2. Cap same-class over-reporting per file (the Broken-Auth flood).
