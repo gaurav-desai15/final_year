@@ -134,7 +134,19 @@ Mutation harness (`corpus mutate` / `corpus stats`, landed this session — v1):
 - `analyze` now persists the analyzed `contexts` (with `guard_evidence` +
   node ids) into `report.json` — findings are checkable against what the
   model saw. Absence-mode context selection now ranks route handlers first.
-- Still to build (D5-D6): GitHub-API corpus collection script (express +
+- **D4 harness smoke test — NodeGoat, 3 M1 mutants, max_contexts 6:** ran
+  end-to-end (one Joern server across all 4 runs, ~6.5 min, valid eval.json).
+  Numbers: recall 0/3, **5 FP on the unmutated original**, precision 0.
+  Root cause (a real finding, not a harness bug): NodeGoat registers ~60
+  routes in ONE `<module>` method, so the absence context for that method is
+  the whole router and a single dropped `isLoggedIn` is invisible to the LLM
+  — it flags other things (a hardcoded `/learn` redirect ×2) but never the
+  mutated line. **The absence mode needs per-route-registration context, not
+  per-method**, when routing is centralised. This is the top D5 tuning item;
+  do it against mutation-corpus apps, and expect the honest write-up the
+  plan's risk table calls for. `qwen2.5-coder:7b` also over-flags DAO reads.
+- Still to build (D5-D6): per-route-registration absence context (above);
+  GitHub-API corpus collection script (express +
   passport/express-session/jsonwebtoken, >=50 stars, permissive licence);
   scale the corpus to ~30 apps; hand-verify ~10 mutations at D6.
 
