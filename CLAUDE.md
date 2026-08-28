@@ -42,6 +42,9 @@ out at the default concurrency — see the "Choosing a model" table in README.
 - `rules/sinks_sources.yaml` — per-language sink/source regexes (injection mode).
 - `rules/control_absence.yaml` — per-language `triggers` / `guards` for
   `--mode absence` (missing-access-control detection).
+- `mutation.py` (M1-M5 control-removal operators, `node --check` verify) +
+  `corpus.py` (JSONL labels, by-app split) — the control-absence eval corpus.
+  CLI: `cpgvd corpus mutate <repo>` / `cpgvd corpus stats`.
 - `tests/` — mocked unit tests (no live Joern/Ollama/Anthropic).
 - `docs/presentation-script.md` — final-year demo runbook.
 
@@ -105,6 +108,25 @@ Control-absence mode (`--mode absence|both`, landed this session — v1):
   under DAO files. Refinements: rank 0-guard route handlers first; persist
   analyzed contexts to the report so `guard_evidence`+node-ids are a
   checkable artifact.
+
+Mutation harness (`corpus mutate` / `corpus stats`, landed this session — v1):
+- `mutation.py`: regex + brace-balanced text edits, NOT an AST. Operator
+  vocab is deliberately kept separate from `control_absence.yaml` (mutator
+  and detector must not share patterns or the eval is circular). M1 emits one
+  mutation per removable route middleware, classified by name (auth vs
+  admin/role). M2/M3/M4 share an `if`-statement finder + a denial-shaped-body
+  filter. M5 needs a DB write within ~60 lines below the guard. Line-count
+  preserving (removed lines -> blank) so labels' line ranges hold in both
+  original and mutant. `mutation_applied()` context manager restores exact
+  bytes; `verify_mutations()` drops mutants that fail `node --check`.
+- `corpus.py`: JSONL labels, `split_by_app` (stable per-app hash -> holdout,
+  order-independent, so re-collecting apps never reshuffles).
+- Dry run on NodeGoat: 19 mutations, all parse-valid (16x M1, 3x M4). M2/M3/M5
+  need apps with per-route inline handlers — NodeGoat centralises routing.
+- Still to build (D3-D5): GitHub-API corpus collection script (express +
+  passport/express-session/jsonwebtoken, >=50 stars, permissive licence);
+  a batch runner that applies each mutation, runs `--mode absence`, scores
+  the finding against the label, restores; hand-verify ~10 mutations at D6.
 
 Candidate next features (pick with the user, don't assume):
 1. Widen `_NO_ATTACKER_PATH_RE` to catch "no … taint … reach… sink" phrasing.

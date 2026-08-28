@@ -272,6 +272,91 @@ def analyze(
     _print_summary(report, paths)
 
 
+@main.group()
+def corpus() -> None:
+    """Build and inspect the mutation corpus for the control-absence eval."""
+
+
+@corpus.command("mutate")
+@click.argument("repo")
+@click.option("--app", default=None, help="Corpus name for this app (default: repo basename).")
+@click.option("--ref", default=None, help="Branch/tag/commit to check out.")
+@click.option(
+    "--out",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="JSONL labels output (default: corpus/labels/<app>.jsonl).",
+)
+@click.option("--verify/--no-verify", default=True, help="Drop mutations whose mutant fails `node --check`.")
+@click.option("--keep-repo", is_flag=True, help="Don't delete a cloned repo afterwards.")
+@click.option("-v", "--verbose", is_flag=True)
+def corpus_mutate(
+    repo: str,
+    app: str | None,
+    ref: str | None,
+    out: Path | None,
+    verify: bool,
+    keep_repo: bool,
+    verbose: bool,
+) -> None:
+    """Enumerate M1-M5 control-removal mutations for REPO and write JSONL labels.
+
+    REPO is a GitHub URL or local path. Each label is exact ground truth: file,
+    line range, route path, control class, and the original source removed.
+    """
+    _setup_logging(verbose)
+    from .corpus import summarize_json, write_labels
+    from .mutation import find_mutations, verify_mutations
+
+    config = Config()
+    repo_manager = RepoManager(config.work_dir)
+    console.print(f"[bold]Acquiring[/bold] {repo}...")
+    repo_info = repo_manager.acquire(repo, ref=ref)
+    app_name = app or repo_info.path.name
+
+    try:
+        records = find_mutations(
+            repo_info.path, app_name, commit_sha=repo_info.commit_sha, repo=repo_info.source
+        )
+        console.print(f"  {len(records)} candidate mutations")
+        if verify:
+            records = verify_mutations(repo_info.path, records)
+            console.print(f"  {len(records)} survive `node --check`")
+    finally:
+        if not keep_repo:
+            repo_manager.cleanup(repo_info)
+
+    out_path = out or (Path("corpus/labels") / f"{app_name}.jsonl")
+    write_labels(records, out_path)
+    console.print(f"[bold]Wrote[/bold] {out_path}")
+    console.print_json(summarize_json(records))
+
+
+@corpus.command("stats")
+@click.argument("labels", nargs=-1, type=click.Path(exists=True, path_type=Path))
+@click.option("--holdout-frac", default=0.3, show_default=True)
+def corpus_stats(labels: tuple[Path, ...], holdout_frac: float) -> None:
+    """Summarize one or more JSONL label files and show the by-app split."""
+    from .corpus import read_labels, split_by_app, summarize
+
+    records = []
+    for path in labels or (Path("corpus/labels"),):
+        if path.is_dir():
+            for jsonl in sorted(path.glob("*.jsonl")):
+                records += read_labels(jsonl)
+        else:
+            records += read_labels(path)
+
+    train, holdout = split_by_app(records, holdout_frac=holdout_frac)
+    console.print_json(
+        data={
+            "total": summarize(records),
+            "train": summarize(train),
+            "holdout": summarize(holdout),
+        }
+    )
+
+
 @main.command()
 @click.option(
     "--report",

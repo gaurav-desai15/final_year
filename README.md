@@ -94,6 +94,29 @@ cpgvd analyze ./my-project --mode both
   control it needs, check that against the guard list.
 - `--mode both`: run both, one LLM pass each.
 
+## Mutation corpus (control-absence evaluation)
+
+Real Express apps that *have* working access controls are turned into labelled
+positives by removing one control at a time. Because each removal is scripted,
+the label is exact -- file, line range, route path, control class, original
+source -- with no human judgement.
+
+```bash
+cpgvd corpus mutate https://github.com/some/express-app --app express-app
+#   -> corpus/labels/express-app.jsonl  (one MutationRecord per line)
+cpgvd corpus stats corpus/labels/         # totals + the by-application split
+```
+
+Five operators (`src/cpgvd/mutation.py`): **M1** drop an access-control
+middleware from a route registration, **M2** drop an ownership comparison,
+**M3** drop a role/privilege check, **M4** drop a session validation, **M5**
+drop an input-validation guard before a write. Every mutant is run through
+`node --check`; ones that don't parse are dropped. Mutations are
+line-count-preserving, so a label's line range is valid against both the
+original and the mutant. The corpus is split **by application** (70/30) --
+splitting by mutation would leak, since mutations from one app share almost
+all their code.
+
 Output goes to `cpgvd_output/` by default: `report.md` (human-readable),
 `report.json` (full structured data), and `report.sarif` (for GitHub code
 scanning / other SARIF-consuming tooling). Override with `--output-dir`.

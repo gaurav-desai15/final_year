@@ -18,6 +18,12 @@ cpgvd_output/
 joern-cli/
 workspace/
 
+# Mutation corpus: labels (corpus/labels/*.jsonl) are tracked; the cloned
+# apps and generated mutant trees are not.
+corpus/repos/
+corpus/mutants/
+corpus/cache/
+
 # Internal team communication, not part of the project
 gg.md
 

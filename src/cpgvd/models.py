@@ -303,6 +303,30 @@ class RunStats(BaseModel):
         return [(name, secs) for name, secs in stages if secs > 0.0]
 
 
+class MutationRecord(BaseModel):
+    """One programmatic removal of an access control from an app that had it.
+
+    Each record IS a labelled positive for the control-absence evaluation: the
+    file/line/route/control-class are exact because we deleted them. The
+    deletion is line-count preserving (removed lines become blank), so
+    `start_line`/`end_line` are valid in both the original and the mutant.
+    """
+
+    id: str
+    app: str
+    repo: str = ""
+    commit_sha: str = ""
+    operator: str  # M1..M5
+    control_class: str  # authentication | authorization | ownership | session | validation
+    file: str  # repo-relative POSIX path
+    start_line: int
+    end_line: int
+    route_path: str = ""
+    original_text: str = ""
+    mutated_text: str = ""
+    note: str = ""
+
+
 class AnalysisReport(BaseModel):
     repo: str
     commit_sha: str = ""
