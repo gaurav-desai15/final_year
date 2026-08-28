@@ -110,6 +110,112 @@ Line numbers in findings must be absolute file line numbers (matching the \
 line numbers shown next to the target function's code, not 1-indexed \
 relative to the snippet)."""
 
+ABSENCE_SYSTEM_PROMPT = """\
+You are a senior application security engineer checking one function for a \
+*missing access control* -- broken/absent authentication, authorization, \
+ownership enforcement, session validation, or input validation before a \
+sensitive operation. This is NOT an injection/taint review.
+
+You are shown:
+- The candidate function's source.
+- The operation(s) inside it a lightweight pass flagged as possibly needing a \
+  control (a route handler, a DB read/write, a file send, credential handling), \
+  each with its CPG node id.
+- `guard_evidence`: every authentication / authorization / ownership / session \
+  / validation check a regex pass found on this function AND on its callers \
+  (the route-registration middleware chain), each with its CPG node id. An \
+  empty list means no such check was detected anywhere in the shown context.
+- The direct callers (route registrations, middleware, wrappers).
+
+Work in three explicit steps, for each operation:
+1. CLASSIFY the operation: what is it and what does it expose or change?
+2. INFER the control it requires: none / authentication / authorization \
+   (role) / ownership (this user may only touch their own records) / session \
+   / input-validation. A public read may legitimately need nothing.
+3. CHECK presence: is that control actually present in `guard_evidence` or \
+   plainly visible in the function or a shown caller? Middleware on the route \
+   registration counts. A hardcoded non-attacker-controlled value counts as \
+   safe.
+
+Report a finding ONLY when step 2 says a control is required and step 3 finds \
+it absent or clearly insufficient. Rules:
+- An empty `guard_evidence` list is necessary but not sufficient -- the \
+  operation must actually need a control (step 2). A read-only public \
+  endpoint with no auth is not a finding.
+- If a required control IS present in the evidence or the shown callers, there \
+  is NO finding. Do not report "defense in depth" additions.
+- If the callers that would enforce the control are NOT shown (you cannot see \
+  the route registration), say so in `missing_control_reasoning` and lower \
+  confidence rather than asserting the control is absent.
+- A data-access / DAO / repository function that takes an id and does no \
+  check of its own is NOT automatically a finding: it may legitimately \
+  delegate to its callers. Only report it if a shown caller reaches it \
+  without a control.
+- Do not emit multiple near-identical findings across sibling functions in \
+  one file; report the single strongest instance.
+
+`missing_control_reasoning` must name the operation class, the control you \
+concluded was required, and why the shown evidence does not provide it.
+
+Respond with JSON only, matching the schema exactly. Line numbers must be \
+absolute file line numbers. If nothing is missing, return an empty \
+`findings` array."""
+
+_ABSENCE_FINDING_ITEM_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "vulnerability_type": {
+            "type": "string",
+            "description": (
+                "Short human name, e.g. 'Missing Authorization', 'Missing "
+                "Authentication', 'Broken Access Control (IDOR)'. No CWE id here."
+            ),
+        },
+        "cwe": {
+            "type": "string",
+            "description": "e.g. 'CWE-862' (missing authz), 'CWE-306' (missing authn), 'CWE-639' (IDOR), or ''",
+        },
+        "severity": {"type": "string", "enum": ["critical", "high", "medium", "low", "info"]},
+        "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+        "title": {"type": "string"},
+        "description": {"type": "string", "description": "What operation is unprotected and what an attacker could do"},
+        "operation_class": {"type": "string", "description": "Step 1: what the sensitive operation is"},
+        "required_control": {
+            "type": "string",
+            "description": "Step 2: the control it needs (authentication/authorization/ownership/session/validation)",
+        },
+        "missing_control_reasoning": {
+            "type": "string",
+            "description": "Step 3: why the shown guard_evidence / callers do not provide that control",
+        },
+        "suggested_fix": {"type": "string"},
+        "start_line": {"type": "integer"},
+        "end_line": {"type": "integer"},
+    },
+    "required": [
+        "vulnerability_type",
+        "cwe",
+        "severity",
+        "confidence",
+        "title",
+        "description",
+        "operation_class",
+        "required_control",
+        "missing_control_reasoning",
+        "suggested_fix",
+        "start_line",
+        "end_line",
+    ],
+    "additionalProperties": False,
+}
+
+ABSENCE_RESPONSE_SCHEMA = {
+    "type": "object",
+    "properties": {"findings": {"type": "array", "items": _ABSENCE_FINDING_ITEM_SCHEMA}},
+    "required": ["findings"],
+    "additionalProperties": False,
+}
+
 _FINDING_ITEM_SCHEMA = {
     "type": "object",
     "properties": {
@@ -171,14 +277,20 @@ _CWE_SUFFIX_RE = re.compile(r"\s*\(cwe-\d+\)\s*$", re.IGNORECASE)
 
 
 def _clean_vulnerability_type(vulnerability_type: str) -> str:
-    """Strip a trailing "(CWE-N)" from `vulnerability_type`.
+    """Normalise `vulnerability_type` for display.
 
-    Local models sometimes embed the CWE id here despite the schema
-    instructing them to use the separate `cwe` field instead, producing a
-    doubled "SQL Injection (CWE-89) (CWE-89)" once report.py appends the
-    `cwe` field on its own -- observed on a real Ollama/qwen2.5-coder run.
+    - Strip a trailing "(CWE-N)": local models sometimes embed the CWE id
+      here despite the schema telling them to use the separate `cwe` field,
+      producing a doubled "SQL Injection (CWE-89) (CWE-89)" once report.py
+      appends `cwe` on its own -- observed on a real Ollama/qwen2.5-coder run.
+    - Turn `snake_case` / `kebab-case` into "Title Case": the absence mode's
+      local-model output alternates between "Missing Authorization" and
+      "missing_access_control" for the same thing.
     """
-    return _CWE_SUFFIX_RE.sub("", vulnerability_type).strip()
+    cleaned = _CWE_SUFFIX_RE.sub("", vulnerability_type).strip()
+    if cleaned and " " not in cleaned and ("_" in cleaned or "-" in cleaned):
+        cleaned = re.sub(r"[_-]+", " ", cleaned).strip().title()
+    return cleaned
 
 
 # Phrases that assert the *absence* of an attacker-controlled path. A model
@@ -208,6 +320,27 @@ def _asserts_no_attacker_path(item: dict) -> bool:
     """True if the finding's own reasoning says no attacker path exists."""
     text = f"{item.get('data_flow_summary', '')} {item.get('context_reasoning', '')}"
     return bool(_NO_ATTACKER_PATH_RE.search(text))
+
+
+# Absence-mode analogue: phrases where the model's own reasoning concedes the
+# control it claims is missing is in fact present (or legitimately delegated),
+# yet still emits the finding. Kept narrow to avoid dropping genuine findings.
+_CONTROL_PRESENT_RE = re.compile(
+    "|".join(
+        [
+            r"\bthe required control is (?:present|in place|enforced)\b",
+            r"\bis (?:properly |correctly )?(?:protected|authorized|authenticated|guarded)\b",
+            r"\b(?:auth\w*|the check|the guard|middleware) (?:is|are) (?:already )?(?:present|enforced|applied)\b",
+            r"\blegitimately delegat\w+ (?:auth\w*\s+)?to (?:its|the) callers?\b",
+        ]
+    ),
+    re.IGNORECASE,
+)
+
+
+def _asserts_control_present(item: dict) -> bool:
+    text = f"{item.get('missing_control_reasoning', '')} {item.get('description', '')}"
+    return bool(_CONTROL_PRESENT_RE.search(text))
 
 
 _CWE_ID_RE = re.compile(r"cwe-\d+", re.IGNORECASE)
@@ -284,16 +417,29 @@ def _extract_json_object(text: str) -> str:
 
 
 class LlmAnalyzer:
-    def __init__(self, config: Config, provider: BaseProvider | None = None):
+    def __init__(
+        self,
+        config: Config,
+        provider: BaseProvider | None = None,
+        mode: str = "injection",
+    ):
+        if mode not in ("injection", "absence"):
+            raise ValueError(f"Unknown analyzer mode {mode!r}; expected 'injection' or 'absence'")
         self.config = config
         self.provider = provider or build_provider(config)
+        self.mode = mode
         self.usage = AnalyzerUsage()
         self._usage_lock = threading.Lock()
 
     def analyze_context(self, context: FunctionContext) -> list[Finding]:
-        user_text = context.to_prompt_text(max_related_chars=self.config.max_context_chars)
+        if self.mode == "absence":
+            system, schema = ABSENCE_SYSTEM_PROMPT, ABSENCE_RESPONSE_SCHEMA
+            user_text = context.to_absence_prompt_text(max_related_chars=self.config.max_context_chars)
+        else:
+            system, schema = SYSTEM_PROMPT, RESPONSE_SCHEMA
+            user_text = context.to_prompt_text(max_related_chars=self.config.max_context_chars)
 
-        result = self.provider.complete_json(SYSTEM_PROMPT, user_text, RESPONSE_SCHEMA)
+        result = self.provider.complete_json(system, user_text, schema)
 
         with self._usage_lock:
             self.usage.calls += 1
@@ -316,6 +462,13 @@ class LlmAnalyzer:
 
         model_name = self.config.ollama_model if self.config.llm_provider == "ollama" else self.config.model
 
+        if self.mode == "absence":
+            return self._parse_absence_findings(parsed, context, model_name)
+        return self._parse_injection_findings(parsed, context, model_name)
+
+    def _parse_injection_findings(
+        self, parsed: dict, context: FunctionContext, model_name: str
+    ) -> list[Finding]:
         findings = []
         for item in parsed.get("findings", []):
             if _asserts_no_attacker_path(item):
@@ -343,6 +496,46 @@ class LlmAnalyzer:
                     description=item["description"],
                     context_reasoning=item.get("context_reasoning", ""),
                     data_flow_summary=item.get("data_flow_summary", ""),
+                    suggested_fix=item.get("suggested_fix", ""),
+                    model=model_name,
+                )
+            )
+        return findings
+
+    def _parse_absence_findings(
+        self, parsed: dict, context: FunctionContext, model_name: str
+    ) -> list[Finding]:
+        findings = []
+        for item in parsed.get("findings", []):
+            if _asserts_control_present(item):
+                logger.info(
+                    "Dropping self-contradictory absence finding %r in %s: its own "
+                    "reasoning states the control is present or delegated",
+                    item.get("title", item.get("vulnerability_type", "?")),
+                    context.context_id,
+                )
+                continue
+            vulnerability_type = _clean_vulnerability_type(
+                item.get("vulnerability_type") or "Missing Access Control"
+            )
+            operation = item.get("operation_class", "?")
+            required = item.get("required_control", "?")
+            findings.append(
+                Finding(
+                    id=str(uuid.uuid4()),
+                    context_id=context.context_id,
+                    file=context.file,
+                    start_line=item.get("start_line") or context.start_line,
+                    end_line=item.get("end_line") or context.end_line,
+                    function=context.full_name,
+                    vulnerability_type=vulnerability_type,
+                    cwe=item.get("cwe", ""),
+                    severity=Severity(item["severity"]),
+                    confidence=Confidence(item["confidence"]),
+                    title=item.get("title") or vulnerability_type,
+                    description=item["description"],
+                    context_reasoning=item.get("missing_control_reasoning", ""),
+                    data_flow_summary=f"operation: {operation}; required control: {required}",
                     suggested_fix=item.get("suggested_fix", ""),
                     model=model_name,
                 )

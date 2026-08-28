@@ -23,9 +23,15 @@ from .llm_providers import check_ollama_available
 from .models import AnalysisReport, RunStats
 from .repo_manager import RepoManager, source_fingerprint
 from .report import write_report
-from .rules import DEFAULT_RULES_PATH, load_rules
+from .rules import DEFAULT_RULES_PATH, load_absence_rules, load_rules
 
 console = Console()
+
+
+def _accumulate_usage(stats: RunStats, usage) -> None:
+    stats.llm_calls += usage.calls
+    stats.llm_input_tokens += usage.input_tokens
+    stats.llm_output_tokens += usage.output_tokens
 
 
 def _setup_logging(verbose: bool) -> None:
@@ -54,8 +60,14 @@ def main() -> None:
 )
 @click.option("--model", default=None, help="Model ID for the selected provider (Ollama tag or Claude model ID).")
 @click.option("--rules", "rules_path", default=None, type=click.Path(exists=True, path_type=Path), help="Custom sinks_sources.yaml.")
+@click.option(
+    "--mode",
+    type=click.Choice(["injection", "absence", "both"]),
+    default="injection",
+    help="'injection' (taint -> sink, default), 'absence' (missing access control), or 'both'.",
+)
 @click.option("--max-contexts", default=None, type=int, help="Cap on how many candidate functions get sent to the LLM.")
-@click.option("--no-dataflow", is_flag=True, help="Skip Joern dataflow queries (faster, less precise).")
+@click.option("--no-dataflow", is_flag=True, help="Skip Joern dataflow queries (faster, less precise). Implied by --mode absence.")
 @click.option("--keep-repo", is_flag=True, help="Don't delete a cloned repo after analysis.")
 @click.option(
     "--keep-cpg/--no-keep-cpg",
@@ -73,6 +85,7 @@ def analyze(
     provider: str | None,
     model: str | None,
     rules_path: Path | None,
+    mode: str,
     max_contexts: int | None,
     no_dataflow: bool,
     keep_repo: bool,
@@ -124,11 +137,19 @@ def analyze(
         f"language={lang} (detected: {', '.join(repo_info.languages) or 'none'})"
     )
 
+    want_injection = mode in ("injection", "both")
+    want_absence = mode in ("absence", "both")
+
     rules = load_rules(rules_path or DEFAULT_RULES_PATH)
-    if lang not in rules:
+    absence_rules = load_absence_rules() if want_absence else {}
+    if want_injection and lang not in rules:
         console.print(
             f"[yellow]Warning:[/yellow] no sink/source rules for language '{lang}'; "
             "the CPG will still be built, but no candidate functions will be shortlisted."
+        )
+    if want_absence and lang not in absence_rules:
+        console.print(
+            f"[yellow]Warning:[/yellow] no control-absence rules for language '{lang}'."
         )
 
     # Cache the CPG under a content-addressed name so re-running the same repo
@@ -153,36 +174,58 @@ def analyze(
             stats.cpg_load_seconds = time.monotonic() - _t
 
             _t = time.monotonic()
-            extractor = ContextExtractor(client, repo_info.path, rules)
+            extractor = ContextExtractor(client, repo_info.path, rules, absence_rules)
             extractor.load()
             stats.functions_discovered = len(extractor.methods)
 
-            sink_candidates = extractor.find_sink_candidates(lang)
-            source_calls = extractor.find_source_calls(lang)
-            stats.sink_matches = sum(len(v) for v in sink_candidates.values())
-            console.print(
-                f"  {stats.functions_discovered} functions, {len(extractor.calls)} calls, "
-                f"{stats.sink_matches} sink pattern matches across {len(sink_candidates)} functions"
-            )
+            injection_contexts: list = []
+            absence_contexts: list = []
 
-            prioritized = sorted(sink_candidates.items(), key=lambda kv: len(kv[1]), reverse=True)
-            contexts = []
-            for full_name, hits in prioritized[: config.max_contexts]:
-                method = extractor.method_by_full_name(full_name)
-                if method is None:
-                    continue
-                relevant_sources = [
-                    c for c in source_calls if c.containing_method_full_name == full_name
-                ]
-                context = extractor.build_function_context(
-                    method,
-                    lang,
-                    hits,
-                    relevant_sources,
-                    include_dataflow=not no_dataflow,
-                    max_related=config.max_related_functions,
+            if want_injection:
+                sink_candidates = extractor.find_sink_candidates(lang)
+                source_calls = extractor.find_source_calls(lang)
+                stats.sink_matches = sum(len(v) for v in sink_candidates.values())
+                console.print(
+                    f"  {stats.functions_discovered} functions, {len(extractor.calls)} calls, "
+                    f"{stats.sink_matches} sink pattern matches across {len(sink_candidates)} functions"
                 )
-                contexts.append(context)
+                prioritized = sorted(sink_candidates.items(), key=lambda kv: len(kv[1]), reverse=True)
+                for full_name, hits in prioritized[: config.max_contexts]:
+                    method = extractor.method_by_full_name(full_name)
+                    if method is None:
+                        continue
+                    relevant_sources = [
+                        c for c in source_calls if c.containing_method_full_name == full_name
+                    ]
+                    injection_contexts.append(
+                        extractor.build_function_context(
+                            method,
+                            lang,
+                            hits,
+                            relevant_sources,
+                            include_dataflow=not no_dataflow,
+                            max_related=config.max_related_functions,
+                        )
+                    )
+
+            if want_absence:
+                triggers = extractor.find_control_triggers(lang)
+                trigger_count = sum(len(v) for v in triggers.values())
+                console.print(
+                    f"  {trigger_count} control-trigger matches across {len(triggers)} functions"
+                )
+                prioritized_t = sorted(triggers.items(), key=lambda kv: len(kv[1]), reverse=True)
+                for full_name, hits in prioritized_t[: config.max_contexts]:
+                    method = extractor.method_by_full_name(full_name)
+                    if method is None:
+                        continue
+                    absence_contexts.append(
+                        extractor.build_absence_context(
+                            method, lang, hits, max_related=config.max_related_functions
+                        )
+                    )
+
+            contexts = injection_contexts + absence_contexts
             stats.candidate_contexts_analyzed = len(contexts)
             stats.dataflow_seconds = extractor.dataflow_seconds
             # The context phase includes the dataflow queries; report the two
@@ -191,14 +234,23 @@ def analyze(
                 0.0, (time.monotonic() - _t) - extractor.dataflow_seconds
             )
 
-        console.print(f"[bold]Analyzing {len(contexts)} candidate functions with {active_model}...[/bold]")
+        findings = []
         _t = time.monotonic()
-        analyzer = LlmAnalyzer(config)
-        findings = analyzer.analyze_many(contexts)
+        if injection_contexts:
+            console.print(
+                f"[bold]Analyzing {len(injection_contexts)} injection candidates with {active_model}...[/bold]"
+            )
+            inj = LlmAnalyzer(config, mode="injection")
+            findings += inj.analyze_many(injection_contexts)
+            _accumulate_usage(stats, inj.usage)
+        if absence_contexts:
+            console.print(
+                f"[bold]Analyzing {len(absence_contexts)} control-absence candidates with {active_model}...[/bold]"
+            )
+            absn = LlmAnalyzer(config, mode="absence")
+            findings += absn.analyze_many(absence_contexts)
+            _accumulate_usage(stats, absn.usage)
         stats.llm_seconds = time.monotonic() - _t
-        stats.llm_calls = analyzer.usage.calls
-        stats.llm_input_tokens = analyzer.usage.input_tokens
-        stats.llm_output_tokens = analyzer.usage.output_tokens
     finally:
         if not keep_cpg and cpg_path.exists():
             cpg_path.unlink(missing_ok=True)

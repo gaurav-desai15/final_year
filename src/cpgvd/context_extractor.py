@@ -28,8 +28,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .cpg_client import CpgClient
-from .models import CodeRef, DataFlowPath, DataFlowStep, FunctionContext
-from .rules import LanguageRules
+from .models import (
+    CodeRef,
+    ControlTrigger,
+    DataFlowPath,
+    DataFlowStep,
+    FunctionContext,
+    GuardEvidence,
+)
+from .rules import AbsenceRules, LanguageRules
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +83,21 @@ class SinkHit:
     category: str
     cwe: str
     pattern: str
+
+
+@dataclass
+class TriggerHit:
+    """A control-absence trigger match: an operation inside a method that may
+    need an access control."""
+
+    call: RawCall
+    category: str
+    operation: str
+    pattern: str
+    route_path: str = ""
+
+
+_ROUTE_PATH_RE = re.compile(r"""['"]([^'"]{1,200})['"]""")
 
 
 _METHOD_LIST_QUERY = r"""
@@ -137,10 +159,17 @@ cpgvdSink.reachableByFlows(cpgvdSources).take({max_paths}).l.map(path =>
 
 
 class ContextExtractor:
-    def __init__(self, client: CpgClient, repo_root: Path, rules: dict[str, LanguageRules]):
+    def __init__(
+        self,
+        client: CpgClient,
+        repo_root: Path,
+        rules: dict[str, LanguageRules],
+        absence_rules: dict[str, AbsenceRules] | None = None,
+    ):
         self.client = client
         self.repo_root = Path(repo_root)
         self.rules = rules
+        self.absence_rules = absence_rules or {}
         self._methods_by_id: dict[int, RawMethod] = {}
         self._methods_by_full_name: dict[str, RawMethod] = {}
         self._calls: list[RawCall] = []
@@ -222,6 +251,118 @@ class ContextExtractor:
                     hits.append(call)
                     break
         return hits
+
+    # -- Control-absence matching ----------------------------------------
+
+    def find_control_triggers(self, language: str) -> dict[str, list[TriggerHit]]:
+        """Return containing-method full_name -> control-absence trigger hits."""
+        lang_rules = self.absence_rules.get(language)
+        if lang_rules is None:
+            logger.warning("No control-absence rules configured for language %r", language)
+            return {}
+
+        by_method: dict[str, list[TriggerHit]] = {}
+        for call in self._calls:
+            for rule in lang_rules.triggers:
+                if rule.pattern.search(call.code) or rule.pattern.search(call.name):
+                    route_path = ""
+                    if rule.operation == "route":
+                        m = _ROUTE_PATH_RE.search(call.code)
+                        route_path = m.group(1) if m else ""
+                    by_method.setdefault(call.containing_method_full_name, []).append(
+                        TriggerHit(
+                            call=call,
+                            category=rule.category,
+                            operation=rule.operation,
+                            pattern=rule.raw_pattern,
+                            route_path=route_path,
+                        )
+                    )
+                    break
+        return by_method
+
+    def collect_guard_evidence(self, method: RawMethod, language: str) -> list[GuardEvidence]:
+        """Every guard-pattern match on `method` and on its direct callers.
+
+        This is a pragmatic stand-in for a true CPG control-dependence slice:
+        guards usually sit either in the handler body or in the middleware
+        chain at the route-registration site. A route handler is *passed as an
+        argument* to `app.get(path, mw, handler)`, so it has no call-graph
+        caller -- we instead find calls whose code names this method and read
+        the middleware list straight out of that call's code. Matches come
+        from both the flat call list (keeping the CPG node id) and a regex
+        pass over source text (so comparisons / decorators that aren't calls
+        -- `if (req.user.id !== doc.ownerId)`, `@login_required` -- are caught).
+        """
+        lang_rules = self.absence_rules.get(language)
+        if lang_rules is None:
+            return []
+
+        seen: set[tuple[str, str, int, str]] = set()
+        evidence: list[GuardEvidence] = []
+
+        def add(control: str, category: str, code: str, file: str, line: int, node_id: int, scope: str) -> None:
+            key = (control, file, line, code.strip())
+            if key in seen:
+                return
+            seen.add(key)
+            evidence.append(
+                GuardEvidence(
+                    control=control,
+                    category=category,
+                    code=code.strip()[:400],
+                    file=file,
+                    line=line,
+                    node_id=node_id,
+                    scope=scope,
+                )
+            )
+
+        # Registration sites: calls elsewhere that reference this handler by
+        # name (typically `app.get('/x', requireAuth, handler)`). The middleware
+        # list is in the call's own `code`, so test it directly.
+        name_re = re.compile(rf"\b{re.escape(method.name)}\b") if method.name else None
+        if name_re is not None:
+            for call in self._calls:
+                if call.containing_method_full_name == method.full_name:
+                    continue
+                if not name_re.search(call.code):
+                    continue
+                for rule in lang_rules.guards:
+                    if rule.pattern.search(call.code):
+                        add(rule.control, rule.category, call.code, call.filename, call.line_number, call.id, "caller")
+
+        # Body scan only for the handler itself and its real call-graph callers
+        # (wrapper functions). Route-registration modules are deliberately
+        # excluded here -- one module registers many routes, so scanning its
+        # whole body would attribute another route's `requireAuth` to this one.
+        targets: list[tuple[RawMethod, str]] = [(method, "handler")]
+        targets += [(c, "caller") for c in self.callers_of(method.full_name)[:8]]
+
+        for meth, scope in targets:
+            method_calls = [
+                c for c in self._calls if c.containing_method_full_name == meth.full_name
+            ]
+            for call in method_calls:
+                for rule in lang_rules.guards:
+                    if rule.pattern.search(call.code) or rule.pattern.search(call.name):
+                        add(rule.control, rule.category, call.code, call.filename, call.line_number, call.id, scope)
+                        break
+            source = self.read_source(meth.filename, meth.start_line, meth.end_line, max_lines=200)
+            for offset, text in enumerate(source.splitlines()):
+                for rule in lang_rules.guards:
+                    if rule.pattern.search(text):
+                        add(
+                            rule.control,
+                            rule.category,
+                            text,
+                            meth.filename,
+                            meth.start_line + offset,
+                            -1,
+                            scope,
+                        )
+                        break
+        return evidence
 
     def callers_of(self, method_full_name: str) -> list[RawMethod]:
         caller_names = {
@@ -391,4 +532,62 @@ class ContextExtractor:
                 {c.code for c in source_calls if c.containing_method_full_name == method.full_name}
             )[:10],
             data_flow_paths=data_flow_paths,
+        )
+
+    def build_absence_context(
+        self,
+        method: RawMethod,
+        language: str,
+        trigger_hits: list[TriggerHit],
+        *,
+        max_related: int = 6,
+    ) -> FunctionContext:
+        """Assemble a `FunctionContext` for the control-absence question.
+
+        No dataflow: whether a control is *present* is a control-dependence
+        question, not a taint one. Callers are included verbatim because the
+        access control usually lives in the route-registration middleware.
+        """
+        code = self.read_source(method.filename, method.start_line, method.end_line)
+        imports = self.extract_imports(method.filename, language)
+
+        callers = [
+            CodeRef(
+                file=c.filename,
+                start_line=c.start_line,
+                end_line=c.end_line,
+                name=c.full_name,
+                code=self.read_source(c.filename, c.start_line, c.end_line, max_lines=120),
+            )
+            for c in self.callers_of(method.full_name)[:max_related]
+        ]
+
+        triggers = [
+            ControlTrigger(
+                operation=h.operation,
+                category=h.category,
+                code=h.call.code,
+                file=h.call.filename,
+                line=h.call.line_number,
+                node_id=h.call.id,
+                route_path=h.route_path,
+            )
+            for h in trigger_hits
+        ]
+
+        return FunctionContext(
+            context_id=f"absence:{method.filename}:{method.full_name}:{method.start_line}",
+            language=language,
+            file=method.filename,
+            method_name=method.name,
+            full_name=method.full_name,
+            start_line=method.start_line,
+            end_line=method.end_line,
+            code=code,
+            parameters=method.parameters,
+            return_type=method.return_type,
+            callers=callers,
+            imports=imports,
+            control_triggers=triggers,
+            guard_evidence=self.collect_guard_evidence(method, language),
         )

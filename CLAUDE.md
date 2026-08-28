@@ -39,7 +39,9 @@ out at the default concurrency — see the "Choosing a model" table in README.
   `cpg_client.py`, `context_extractor.py`, `rules.py`, `llm_providers.py`
   (Ollama/Anthropic), `llm_analyzer.py` (prompt + schema + FP guards),
   `models.py`, `report.py`, `dashboard.py`.
-- `rules/sinks_sources.yaml` — per-language sink/source regexes.
+- `rules/sinks_sources.yaml` — per-language sink/source regexes (injection mode).
+- `rules/control_absence.yaml` — per-language `triggers` / `guards` for
+  `--mode absence` (missing-access-control detection).
 - `tests/` — mocked unit tests (no live Joern/Ollama/Anthropic).
 - `docs/presentation-script.md` — final-year demo runbook.
 
@@ -80,6 +82,29 @@ Perf / instrumentation (landed this session):
 - Still open: run one Joern server across a batch and use `importCode`
   in-server instead of `joern-parse` (one JVM not two) — belongs with the
   batch/eval runner, where it actually pays off.
+
+Control-absence mode (`--mode absence|both`, landed this session — v1):
+- `rules/control_absence.yaml`: `triggers` (route regs, DB read/write, file
+  send, credential handling) and `guards` (auth/authz/ownership/session/
+  validation evidence). Guards deliberately match bare property access
+  (`req.user`) — inverse failure mode to sinks; header in the file explains.
+- `ContextExtractor.find_control_triggers` / `collect_guard_evidence`
+  (handler body + real callers via regex+call-list; route-registration sites
+  via "call whose code names this handler" since handlers are passed as
+  args, not called) / `build_absence_context` (no dataflow).
+- `FunctionContext` gains `control_triggers` / `guard_evidence` (each with
+  CPG node id + line) and `to_absence_prompt_text`. Empty `guard_evidence`
+  is rendered as an explicit "(none)".
+- `LlmAnalyzer(mode="absence")`: 3-step prompt (classify op → infer required
+  control → check guard list), own schema, own contradiction guard
+  (`_asserts_control_present`).
+- Verified on NodeGoat: mode runs end-to-end, contradiction guard + dedup
+  fire. Known weakness (expected, tune on the mutation corpus not here): the
+  local model over-reports DAO methods as missing-control despite the prompt
+  caveat, and context prioritisation (by hit count) buries route handlers
+  under DAO files. Refinements: rank 0-guard route handlers first; persist
+  analyzed contexts to the report so `guard_evidence`+node-ids are a
+  checkable artifact.
 
 Candidate next features (pick with the user, don't assume):
 1. Widen `_NO_ATTACKER_PATH_RE` to catch "no … taint … reach… sink" phrasing.

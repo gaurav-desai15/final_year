@@ -1,4 +1,4 @@
-from cpgvd.rules import load_rules
+from cpgvd.rules import load_absence_rules, load_rules
 
 
 def test_load_rules_has_expected_languages():
@@ -80,3 +80,47 @@ def test_javascript_open_redirect_sink_matches():
 
     assert redirect, "javascript should have an Open Redirect sink rule"
     assert any(r.pattern.search("res.redirect(req.query.url)") for r in redirect)
+
+
+# -- control-absence rules -------------------------------------------------
+
+
+def test_load_absence_rules_has_triggers_and_guards():
+    rules = load_absence_rules()
+    for lang in ("javascript", "typescript", "python"):
+        assert lang in rules, f"missing absence rules for {lang}"
+        assert rules[lang].triggers, f"no triggers for {lang}"
+        assert rules[lang].guards, f"no guards for {lang}"
+
+
+def test_absence_trigger_matches_express_route_and_db_write():
+    js = load_absence_rules()["javascript"].triggers
+    route = [r for r in js if r.operation == "route"]
+    assert any(r.pattern.search("app.get('/admin', handler)") for r in route)
+    assert any(r.pattern.search("router.post('/users/:id', h)") for r in route)
+    assert any(
+        r.pattern.search("usersCol.updateOne({_id: id}, {$set: doc})")
+        for r in js
+        if r.operation == "db_write"
+    )
+
+
+def test_absence_guard_matches_auth_and_ownership_checks():
+    js = load_absence_rules()["javascript"].guards
+    assert any(
+        r.control == "authentication" and r.pattern.search("router.get('/x', requireAuth, h)")
+        for r in js
+    )
+    assert any(
+        r.control == "authentication" and r.pattern.search("passport.authenticate('local')")
+        for r in js
+    )
+    assert any(
+        r.control == "ownership" and r.pattern.search("if (doc.ownerId !== req.user.id) return")
+        for r in js
+    )
+
+
+def test_absence_guard_does_not_match_plain_db_call():
+    js = load_absence_rules()["javascript"].guards
+    assert not any(r.pattern.search("usersCol.findOne({name: name})") for r in js)

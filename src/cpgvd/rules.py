@@ -8,7 +8,9 @@ from pathlib import Path
 
 import yaml
 
-DEFAULT_RULES_PATH = Path(__file__).resolve().parent.parent.parent / "rules" / "sinks_sources.yaml"
+_RULES_DIR = Path(__file__).resolve().parent.parent.parent / "rules"
+DEFAULT_RULES_PATH = _RULES_DIR / "sinks_sources.yaml"
+DEFAULT_ABSENCE_RULES_PATH = _RULES_DIR / "control_absence.yaml"
 
 
 @dataclass
@@ -23,6 +25,25 @@ class Rule:
 class LanguageRules:
     sinks: list[Rule]
     sources: list[Rule]
+
+
+@dataclass
+class ControlRule:
+    """A rule for the control-absence mode: either a `trigger` (an operation
+    needing a control) or a `guard` (evidence a control is present)."""
+
+    pattern: re.Pattern
+    category: str
+    kind: str  # "trigger" or "guard"
+    operation: str = ""  # trigger only: route | db_read | db_write | file_send | credential | session
+    control: str = ""  # guard only: authentication | authorization | ownership | session | validation
+    raw_pattern: str = ""
+
+
+@dataclass
+class AbsenceRules:
+    triggers: list[ControlRule]
+    guards: list[ControlRule]
 
 
 def load_rules(path: Path | None = None) -> dict[str, LanguageRules]:
@@ -44,5 +65,30 @@ def _build_rule(entry: dict) -> Rule:
         pattern=re.compile(pattern),
         category=entry.get("category", "Unknown"),
         cwe=entry.get("cwe", ""),
+        raw_pattern=pattern,
+    )
+
+
+def load_absence_rules(path: Path | None = None) -> dict[str, AbsenceRules]:
+    path = path or DEFAULT_ABSENCE_RULES_PATH
+    with open(path, encoding="utf-8") as f:
+        raw = yaml.safe_load(f) or {}
+
+    rules: dict[str, AbsenceRules] = {}
+    for lang, section in raw.items():
+        triggers = [_build_control_rule(r, "trigger") for r in section.get("triggers", [])]
+        guards = [_build_control_rule(r, "guard") for r in section.get("guards", [])]
+        rules[lang] = AbsenceRules(triggers=triggers, guards=guards)
+    return rules
+
+
+def _build_control_rule(entry: dict, kind: str) -> ControlRule:
+    pattern = entry["pattern"]
+    return ControlRule(
+        pattern=re.compile(pattern),
+        category=entry.get("category", "Unknown"),
+        kind=kind,
+        operation=entry.get("operation", ""),
+        control=entry.get("control", ""),
         raw_pattern=pattern,
     )

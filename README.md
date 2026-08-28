@@ -72,7 +72,27 @@ cpgvd analyze ./examples/vulnerable_app/python --language python
 
 # Opt into the paid Claude API backend instead of the free local model
 cpgvd analyze ./my-project --provider anthropic --model claude-opus-4-8
+
+# Look for missing access controls instead of injection (or run both)
+cpgvd analyze ./my-project --mode absence
+cpgvd analyze ./my-project --mode both
 ```
+
+## Analysis modes
+
+- `--mode injection` (default): does attacker-controlled input reach a
+  dangerous sink? Uses `rules/sinks_sources.yaml` and, unless `--no-dataflow`,
+  Joern taint paths.
+- `--mode absence`: does a sensitive operation (a route handler, a DB
+  read/write, a file send, credential handling) run *without* an access
+  control that should be there? Uses `rules/control_absence.yaml`, which
+  defines `triggers` (operations needing a control) and `guards` (evidence a
+  control is present). The extractor collects every guard on the candidate
+  and its callers into `guard_evidence` (each with its CPG node id); an empty
+  list is the candidate finding. No dataflow -- this is a control-dependence
+  question. The LLM works in three steps: classify the operation, infer the
+  control it needs, check that against the guard list.
+- `--mode both`: run both, one LLM pass each.
 
 Output goes to `cpgvd_output/` by default: `report.md` (human-readable),
 `report.json` (full structured data), and `report.sarif` (for GitHub code

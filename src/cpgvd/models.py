@@ -57,6 +57,43 @@ class DataFlowPath(BaseModel):
         return "\n".join(lines)
 
 
+class ControlTrigger(BaseModel):
+    """An operation inside a candidate function that plausibly needs an access
+    control before it runs (a route handler, a DB write, a file send, ...).
+
+    Emitted by the control-absence mode. `node_id` is the CPG call node id, so
+    a finding can be checked back against the graph.
+    """
+
+    operation: str  # route | db_read | db_write | file_send | credential | session
+    category: str
+    code: str
+    file: str
+    line: int
+    node_id: int
+    route_path: str = ""
+
+
+class GuardEvidence(BaseModel):
+    """Syntactic evidence that an access control IS present on/around a
+    candidate function -- an auth-middleware call, a role check, an ownership
+    comparison, a session guard, a validator.
+
+    The control-absence mode collects every match onto the candidate. An empty
+    list is itself the candidate finding: absence is a field, not an inference.
+    `node_id` is the CPG call node id when the evidence came from a call, else
+    -1 (a source-text regex match with no dedicated node).
+    """
+
+    control: str  # authentication | authorization | ownership | session | validation
+    category: str
+    code: str
+    file: str
+    line: int
+    node_id: int = -1
+    scope: str = "handler"  # where it was found: handler | caller
+
+
 class FunctionContext(BaseModel):
     """Everything gathered from the CPG about one candidate function.
 
@@ -85,6 +122,10 @@ class FunctionContext(BaseModel):
     matched_sink_patterns: list[str] = Field(default_factory=list)
     matched_source_patterns: list[str] = Field(default_factory=list)
     data_flow_paths: list[DataFlowPath] = Field(default_factory=list)
+
+    # Control-absence mode only (empty in injection mode).
+    control_triggers: list[ControlTrigger] = Field(default_factory=list)
+    guard_evidence: list[GuardEvidence] = Field(default_factory=list)
 
     def to_prompt_text(self, max_related_chars: int = 4000) -> str:
         """Render this context as plain text for the LLM prompt."""
@@ -140,6 +181,64 @@ class FunctionContext(BaseModel):
             for i, p in enumerate(self.data_flow_paths):
                 parts.append(f"\nPath {i + 1}:")
                 parts.append(p.as_text())
+
+        return "\n".join(parts)
+
+    def to_absence_prompt_text(self, max_related_chars: int = 4000) -> str:
+        """Render this context for the control-absence question.
+
+        Unlike `to_prompt_text` this leads with the operation(s) that need a
+        control and the guard evidence found around them, and includes callers
+        verbatim (the route-registration site and its middleware chain are
+        where an access control usually lives).
+        """
+        parts = [
+            f"### Candidate function: {self.full_name}",
+            f"File: {self.file}:{self.start_line}-{self.end_line}",
+            f"Parameters: {', '.join(self.parameters) or '(none)'}",
+            "",
+            "```" + self.language,
+            self.code,
+            "```",
+        ]
+
+        parts.append("\n### Operations found in this function that may require an access control")
+        for t in self.control_triggers:
+            path = f'  route="{t.route_path}"' if t.route_path else ""
+            parts.append(
+                f"- [{t.operation}] {t.category} (CPG node {t.node_id}, {t.file}:{t.line}){path}\n"
+                f"    {t.code}"
+            )
+
+        if self.guard_evidence:
+            parts.append("\n### Guard evidence found on this function and its callers")
+            for g in self.guard_evidence:
+                node = f"CPG node {g.node_id}" if g.node_id >= 0 else "source match"
+                parts.append(
+                    f"- [{g.control}] {g.category} ({g.scope}, {node}, {g.file}:{g.line})\n"
+                    f"    {g.code}"
+                )
+        else:
+            parts.append(
+                "\n### Guard evidence found on this function and its callers\n"
+                "(none) -- no authentication, authorization, ownership, session or "
+                "validation check was detected on this function or any shown caller."
+            )
+
+        if self.imports:
+            parts.append("\nImports/dependencies visible in this file:")
+            parts.append(", ".join(self.imports[:40]))
+
+        if self.callers:
+            parts.append("\n### Callers (route registrations / middleware / wrappers)")
+            budget = max_related_chars
+            for c in self.callers:
+                snippet = f"- {c.name} ({c.file}:{c.start_line})\n```{self.language}\n{c.code}\n```"
+                budget -= len(snippet)
+                if budget < 0:
+                    parts.append("- ... additional callers truncated ...")
+                    break
+                parts.append(snippet)
 
         return "\n".join(parts)
 

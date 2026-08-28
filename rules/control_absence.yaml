@@ -1,0 +1,124 @@
+# Rules for the *control-absence* analysis mode (`cpgvd analyze --mode absence`).
+#
+# This mode asks a different question from the injection detector: not "does
+# tainted input reach a dangerous sink" but "does this operation happen
+# *without* an access-control check that should be there". That is a
+# control-dependence question, not a taint question -- no dataflow needed.
+#
+# Two families:
+#
+#   triggers -- an operation that plausibly requires an access control before
+#     it runs (a route handler, a DB read/write, a file send, credential
+#     handling). Each trigger inside a function makes that function a
+#     candidate.
+#
+#   guards -- syntactic *evidence* that a control IS present (auth middleware,
+#     a role check, an ownership comparison, a session guard, a validator).
+#     These are collected onto the candidate as `guard_evidence`, each with
+#     its CPG node id and line. An empty `guard_evidence` list is the
+#     candidate finding -- absence becomes a field, not an inference, and the
+#     LLM makes the final call on whether the missing control actually matters
+#     for this operation.
+#
+# NOTE ON MATCHING, and why it differs from sinks_sources.yaml: for *sinks* we
+# insist on invocation syntax (`\.query\(`) so bare property access never
+# mislabels code. For *guards* the failure mode is inverted -- missing a real
+# guard makes us over-report -- so guard patterns are deliberately liberal and
+# DO match bare property access (`req.user`, `req.session.userId`). The LLM
+# sees the real code and decides if the evidence is a genuine control.
+#
+# `operation` values: route | db_read | db_write | file_send | credential | session
+# `control` values:    authentication | authorization | ownership | session | validation
+
+javascript:
+  triggers:
+    - pattern: "\\b(?:app|router)\\.(?:get|post|put|patch|delete|all)\\s*\\("
+      category: "Express route registration"
+      operation: "route"
+    - pattern: "\\.(?:insertOne|insertMany|insert|updateOne|updateMany|update|replaceOne|deleteOne|deleteMany|remove|save|findOneAndUpdate|findOneAndDelete|findOneAndReplace|bulkWrite|create)\\s*\\("
+      category: "Database write"
+      operation: "db_write"
+    - pattern: "\\.(?:findOne|find|aggregate|countDocuments|distinct|findById)\\s*\\(|\\$where"
+      category: "Database read"
+      operation: "db_read"
+    - pattern: "res\\.(?:sendFile|download|attachment)\\s*\\("
+      category: "File send to client"
+      operation: "file_send"
+    - pattern: "bcrypt\\.(?:compare|hash)\\s*\\(|\\.comparePassword\\s*\\(|\\.setPassword\\s*\\(|jwt\\.sign\\s*\\("
+      category: "Credential / token handling"
+      operation: "credential"
+  guards:
+    - pattern: "\\b(?:requireAuth|isLoggedIn|isAuthenticated|ensureLoggedIn|ensureAuthenticated|checkAuth|needsAuth|requiresLogin|verifyToken|authRequired)\\b|passport\\.authenticate\\s*\\(|req\\.isAuthenticated\\s*\\(\\)"
+      category: "Authentication middleware / check"
+      control: "authentication"
+    - pattern: "\\b(?:isAdmin|requireAdmin|ensureAdmin|hasRole|checkRole|requireRole|authorize|can|ability)\\b|\\.role\\s*(?:===|!==|==|!=)|req\\.user\\.(?:isAdmin|role|admin|permissions)"
+      category: "Role / privilege check"
+      control: "authorization"
+    - pattern: "req\\.user\\.(?:_id|id)\\s*(?:===|!==|==|!=)|\\.(?:ownerId|owner|userId|createdBy|author)\\s*(?:===|!==|==|!=)|\\.equals\\s*\\(\\s*req\\.user|belongsTo\\s*\\("
+      category: "Ownership comparison"
+      control: "ownership"
+    - pattern: "req\\.session\\.(?:userId|user|uid|passport)|req\\.session\\s*&&|if\\s*\\(\\s*!?\\s*req\\.session\\b|req\\.session\\.user\\b"
+      category: "Session validation"
+      control: "session"
+    - pattern: "req\\.check(?:Body|Params|Query)\\s*\\(|validationResult\\s*\\(|express-validator|\\bcelebrate\\s*\\(|Joi\\.|\\.validate\\s*\\(|sanitize(?:Body|Param)?\\s*\\("
+      category: "Input validation guard"
+      control: "validation"
+
+typescript:
+  triggers:
+    - pattern: "\\b(?:app|router)\\.(?:get|post|put|patch|delete|all)\\s*\\("
+      category: "Express route registration"
+      operation: "route"
+    - pattern: "@(?:Get|Post|Put|Patch|Delete)\\s*\\("
+      category: "Controller route decorator"
+      operation: "route"
+    - pattern: "\\.(?:insert|update|delete|save|remove|softDelete|create)\\s*\\(|createQueryBuilder\\s*\\(|\\.(?:findOne|find|findBy|findOneBy)\\s*\\("
+      category: "Repository read/write"
+      operation: "db_write"
+    - pattern: "res\\.(?:sendFile|download)\\s*\\("
+      category: "File send to client"
+      operation: "file_send"
+  guards:
+    - pattern: "@(?:UseGuards|Roles|Auth)\\s*\\(|\\b(?:AuthGuard|JwtAuthGuard|RolesGuard)\\b|passport\\.authenticate\\s*\\(|req\\.isAuthenticated\\s*\\(\\)|\\b(?:isAuthenticated|ensureAuthenticated|requireAuth)\\b"
+      category: "Authentication guard / decorator"
+      control: "authentication"
+    - pattern: "\\b(?:hasRole|checkRole|requireRole|isAdmin|authorize)\\b|\\.role\\s*(?:===|!==)|@Roles\\s*\\("
+      category: "Role / privilege check"
+      control: "authorization"
+    - pattern: "\\.(?:ownerId|userId|owner|createdBy)\\s*(?:===|!==)|\\.equals\\s*\\(\\s*(?:req\\.)?user|user\\.id\\s*(?:===|!==)"
+      category: "Ownership comparison"
+      control: "ownership"
+    - pattern: "class-validator|\\bvalidateOrReject\\b|\\bplainToClass\\b|ValidationPipe|\\.validate\\s*\\("
+      category: "Input validation guard"
+      control: "validation"
+
+python:
+  triggers:
+    - pattern: "@(?:app|bp|blueprint|router)\\.(?:route|get|post|put|patch|delete)\\s*\\(|add_url_rule\\s*\\("
+      category: "Flask/FastAPI route registration"
+      operation: "route"
+    - pattern: "\\.(?:execute|executemany|raw)\\s*\\(|session\\.(?:add|delete|merge)\\s*\\(|\\.objects\\.(?:create|update|delete|get_or_create)|\\.save\\s*\\(\\)"
+      category: "Database read/write"
+      operation: "db_write"
+    - pattern: "send_file\\s*\\(|send_from_directory\\s*\\(|FileResponse\\s*\\("
+      category: "File send to client"
+      operation: "file_send"
+    - pattern: "check_password_hash\\s*\\(|generate_password_hash\\s*\\(|\\.set_password\\s*\\(|jwt\\.encode\\s*\\("
+      category: "Credential / token handling"
+      operation: "credential"
+  guards:
+    - pattern: "@login_required|@jwt_required|current_user\\.is_authenticated|request\\.user\\.is_authenticated|\\blogin_required\\b|Depends\\s*\\(\\s*get_current_user"
+      category: "Authentication decorator / check"
+      control: "authentication"
+    - pattern: "@(?:admin_required|roles_required|permission_required)|current_user\\.(?:is_admin|role|has_role)|\\.has_perm\\s*\\(|is_staff|is_superuser"
+      category: "Role / privilege check"
+      control: "authorization"
+    - pattern: "\\.(?:user_id|owner_id|created_by|author_id)\\s*(?:==|!=)\\s*(?:current_user|request\\.user)|current_user\\.id\\s*(?:==|!=)"
+      category: "Ownership comparison"
+      control: "ownership"
+    - pattern: "session\\.get\\s*\\(\\s*['\"](?:user|user_id|uid)|['\"]user_id['\"]\\s*in\\s*session|if\\s+not\\s+session\\b"
+      category: "Session validation"
+      control: "session"
+    - pattern: "\\.is_valid\\s*\\(\\)|schema\\.load\\s*\\(|pydantic|marshmallow|\\bvalidate\\s*\\(|abort\\s*\\(\\s*40[13]"
+      category: "Input validation guard"
+      control: "validation"

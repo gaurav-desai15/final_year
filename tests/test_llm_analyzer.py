@@ -265,3 +265,62 @@ def test_extract_json_object_strips_fence_and_prose():
     assert _extract_json_object('```json\n{"a": 1}\n```') == '{"a": 1}'
     assert _extract_json_object('Sure, here you go: {"a": 1} thanks!') == '{"a": 1}'
     assert _extract_json_object('{"a": 1}') == '{"a": 1}'
+
+
+# -- control-absence mode ------------------------------------------------
+
+ABSENCE_PAYLOAD = {
+    "vulnerability_type": "Missing Authorization",
+    "cwe": "CWE-862",
+    "severity": "high",
+    "confidence": "high",
+    "title": "Admin user listing has no access control",
+    "description": "GET /admin/users returns all users with no authentication or role check.",
+    "operation_class": "admin route handler performing a bulk DB read",
+    "required_control": "authorization (admin role)",
+    "missing_control_reasoning": "guard_evidence is empty and no shown caller applies auth middleware.",
+    "suggested_fix": "Add requireAuth + requireAdmin middleware to the route.",
+    "start_line": 10,
+    "end_line": 13,
+}
+
+
+def test_absence_mode_uses_absence_prompt_and_parses_finding():
+    provider = FakeProvider([result_with_findings([ABSENCE_PAYLOAD])])
+    analyzer = LlmAnalyzer(Config(), provider=provider, mode="absence")
+
+    findings = analyzer.analyze_context(make_context("absence:routes.js:adminHandler:10"))
+
+    assert "missing access control" in provider.calls[0][0].lower()
+    assert len(findings) == 1
+    f = findings[0]
+    assert f.vulnerability_type == "Missing Authorization"
+    assert f.cwe == "CWE-862"
+    assert "required control:" in f.data_flow_summary
+    assert "guard_evidence is empty" in f.context_reasoning
+
+
+def test_absence_mode_drops_finding_that_concedes_control_is_present():
+    conceding = dict(ABSENCE_PAYLOAD)
+    conceding["missing_control_reasoning"] = (
+        "The route legitimately delegates authorization to its callers, which apply requireAuth."
+    )
+    provider = FakeProvider([result_with_findings([conceding])])
+    analyzer = LlmAnalyzer(Config(), provider=provider, mode="absence")
+
+    assert analyzer.analyze_context(make_context("absence:x:y:1")) == []
+
+
+def test_clean_vulnerability_type_normalises_snake_case():
+    assert _clean_vulnerability_type("missing_access_control") == "Missing Access Control"
+    assert _clean_vulnerability_type("broken-access-control") == "Broken Access Control"
+    # a normal human name is left alone
+    assert _clean_vulnerability_type("Missing Authorization") == "Missing Authorization"
+    assert _clean_vulnerability_type("SQL Injection (CWE-89)") == "SQL Injection"
+
+
+def test_unknown_mode_rejected():
+    import pytest
+
+    with pytest.raises(ValueError):
+        LlmAnalyzer(Config(), provider=FakeProvider([]), mode="nonsense")
