@@ -105,7 +105,14 @@ source -- with no human judgement.
 cpgvd corpus mutate https://github.com/some/express-app --app express-app
 #   -> corpus/labels/express-app.jsonl  (one MutationRecord per line)
 cpgvd corpus stats corpus/labels/         # totals + the by-application split
+cpgvd corpus eval corpus/labels/express-app.jsonl   # score the detector
 ```
+
+`corpus eval` runs the control-absence detector once on the **unmutated** tree
+(every finding there is a false positive -- the negative control the report
+must show), then once per mutation, and reports precision / recall / F1
+overall and per operator / control class. It holds one Joern server open
+across all the mutant runs.
 
 Five operators (`src/cpgvd/mutation.py`): **M1** drop an access-control
 middleware from a route registration, **M2** drop an ownership comparison,

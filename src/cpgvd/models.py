@@ -327,6 +327,47 @@ class MutationRecord(BaseModel):
     note: str = ""
 
 
+class MutationEvalResult(BaseModel):
+    """Outcome of running the detector on one mutant."""
+
+    record_id: str
+    operator: str
+    control_class: str
+    file: str
+    line: int
+    route_path: str = ""
+    detected: bool = False
+    matched_title: str = ""
+    matched_line: int = 0
+    matched_control_ok: bool = False  # detected finding's class matches the removed one
+    n_findings: int = 0
+
+
+class EvalSummary(BaseModel):
+    app: str
+    commit_sha: str = ""
+    n_mutations: int = 0
+    baseline_fp: int = 0  # findings on the UNMUTATED original -- the critical negative control
+    tp: int = 0
+    fp: int = 0
+    fn: int = 0
+    recall: float = 0.0
+    precision: float = 0.0
+    f1: float = 0.0
+    by_operator: dict[str, dict] = Field(default_factory=dict)
+    by_control_class: dict[str, dict] = Field(default_factory=dict)
+
+
+class EvalReport(BaseModel):
+    generated_at: _dt.datetime = Field(default_factory=lambda: _dt.datetime.now(_dt.timezone.utc))
+    model: str = ""
+    mode: str = "absence"
+    match_window: int = 20
+    summary: EvalSummary
+    results: list[MutationEvalResult] = Field(default_factory=list)
+    baseline_findings: list[Finding] = Field(default_factory=list)
+
+
 class AnalysisReport(BaseModel):
     repo: str
     commit_sha: str = ""
@@ -335,6 +376,11 @@ class AnalysisReport(BaseModel):
     generated_at: _dt.datetime = Field(default_factory=lambda: _dt.datetime.now(_dt.timezone.utc))
     findings: list[Finding] = Field(default_factory=list)
     stats: RunStats = Field(default_factory=RunStats)
+
+    # The contexts the LLM actually saw. Persisted so findings are checkable
+    # against the CPG: an absence finding can be traced to the `guard_evidence`
+    # (with node ids) that was, or wasn't, in front of the model.
+    contexts: list[FunctionContext] = Field(default_factory=list)
 
     def findings_by_severity(self) -> dict[str, list[Finding]]:
         buckets: dict[str, list[Finding]] = {}

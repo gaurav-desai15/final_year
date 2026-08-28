@@ -15,23 +15,14 @@ from rich.logging import RichHandler
 from rich.table import Table
 
 from .config import Config
-from .context_extractor import ContextExtractor
-from .cpg_client import CpgClient
-from .joern_runner import JoernServer, check_joern_available, parse_repo_to_cpg
-from .llm_analyzer import LlmAnalyzer
+from .joern_runner import check_joern_available
 from .llm_providers import check_ollama_available
-from .models import AnalysisReport, RunStats
-from .repo_manager import RepoManager, source_fingerprint
+from .models import AnalysisReport
+from .pipeline import RuleSets, run_pipeline
+from .repo_manager import RepoManager
 from .report import write_report
-from .rules import DEFAULT_RULES_PATH, load_absence_rules, load_rules
 
 console = Console()
-
-
-def _accumulate_usage(stats: RunStats, usage) -> None:
-    stats.llm_calls += usage.calls
-    stats.llm_input_tokens += usage.input_tokens
-    stats.llm_output_tokens += usage.output_tokens
 
 
 def _setup_logging(verbose: bool) -> None:
@@ -119,14 +110,11 @@ def analyze(
     else:
         console.print(f"[bold]Using Claude API (paid):[/bold] {active_model}")
 
-    stats = RunStats()
-    findings = []
-
     repo_manager = RepoManager(config.work_dir)
     console.print(f"[bold]Acquiring[/bold] {repo}...")
     _t = time.monotonic()
     repo_info = repo_manager.acquire(repo, ref=ref)
-    stats.clone_seconds = time.monotonic() - _t
+    clone_seconds = time.monotonic() - _t
     lang = language or repo_info.primary_language
     if not lang:
         raise click.ClickException(
@@ -137,127 +125,30 @@ def analyze(
         f"language={lang} (detected: {', '.join(repo_info.languages) or 'none'})"
     )
 
-    want_injection = mode in ("injection", "both")
-    want_absence = mode in ("absence", "both")
-
-    rules = load_rules(rules_path or DEFAULT_RULES_PATH)
-    absence_rules = load_absence_rules() if want_absence else {}
-    if want_injection and lang not in rules:
-        console.print(
-            f"[yellow]Warning:[/yellow] no sink/source rules for language '{lang}'; "
-            "the CPG will still be built, but no candidate functions will be shortlisted."
-        )
-    if want_absence and lang not in absence_rules:
-        console.print(
-            f"[yellow]Warning:[/yellow] no control-absence rules for language '{lang}'."
-        )
-
-    # Cache the CPG under a content-addressed name so re-running the same repo
-    # state (and, crucially for the mutation corpus, a *specific* mutant) skips
-    # the most expensive stage. See `source_fingerprint` for why not the SHA.
-    fingerprint = source_fingerprint(repo_info.path)
-    cpg_path = config.work_dir / f"{repo_info.path.name}-{fingerprint[:16]}.cpg.bin"
-    if cpg_path.exists() and cpg_path.stat().st_size > 0:
-        console.print(f"[bold]Reusing cached CPG[/bold] {cpg_path.name}")
-    else:
-        console.print("[bold]Parsing repo into a Code Property Graph with Joern...[/bold]")
-        _t = time.monotonic()
-        parse_repo_to_cpg(repo_info.path, cpg_path, config, language=lang)
-        stats.cpg_build_seconds = time.monotonic() - _t
+    rulesets = RuleSets.load(mode, rules_path)
+    if mode in ("injection", "both") and lang not in rulesets.rules:
+        console.print(f"[yellow]Warning:[/yellow] no sink/source rules for language '{lang}'.")
+    if mode in ("absence", "both") and lang not in rulesets.absence_rules:
+        console.print(f"[yellow]Warning:[/yellow] no control-absence rules for language '{lang}'.")
 
     try:
-        with JoernServer(config) as server:
-            client = CpgClient(server.host, server.port)
-            console.print("[bold]Loading CPG into the Joern query server...[/bold]")
-            _t = time.monotonic()
-            client.load_cpg(cpg_path)
-            stats.cpg_load_seconds = time.monotonic() - _t
-
-            _t = time.monotonic()
-            extractor = ContextExtractor(client, repo_info.path, rules, absence_rules)
-            extractor.load()
-            stats.functions_discovered = len(extractor.methods)
-
-            injection_contexts: list = []
-            absence_contexts: list = []
-
-            if want_injection:
-                sink_candidates = extractor.find_sink_candidates(lang)
-                source_calls = extractor.find_source_calls(lang)
-                stats.sink_matches = sum(len(v) for v in sink_candidates.values())
-                console.print(
-                    f"  {stats.functions_discovered} functions, {len(extractor.calls)} calls, "
-                    f"{stats.sink_matches} sink pattern matches across {len(sink_candidates)} functions"
-                )
-                prioritized = sorted(sink_candidates.items(), key=lambda kv: len(kv[1]), reverse=True)
-                for full_name, hits in prioritized[: config.max_contexts]:
-                    method = extractor.method_by_full_name(full_name)
-                    if method is None:
-                        continue
-                    relevant_sources = [
-                        c for c in source_calls if c.containing_method_full_name == full_name
-                    ]
-                    injection_contexts.append(
-                        extractor.build_function_context(
-                            method,
-                            lang,
-                            hits,
-                            relevant_sources,
-                            include_dataflow=not no_dataflow,
-                            max_related=config.max_related_functions,
-                        )
-                    )
-
-            if want_absence:
-                triggers = extractor.find_control_triggers(lang)
-                trigger_count = sum(len(v) for v in triggers.values())
-                console.print(
-                    f"  {trigger_count} control-trigger matches across {len(triggers)} functions"
-                )
-                prioritized_t = sorted(triggers.items(), key=lambda kv: len(kv[1]), reverse=True)
-                for full_name, hits in prioritized_t[: config.max_contexts]:
-                    method = extractor.method_by_full_name(full_name)
-                    if method is None:
-                        continue
-                    absence_contexts.append(
-                        extractor.build_absence_context(
-                            method, lang, hits, max_related=config.max_related_functions
-                        )
-                    )
-
-            contexts = injection_contexts + absence_contexts
-            stats.candidate_contexts_analyzed = len(contexts)
-            stats.dataflow_seconds = extractor.dataflow_seconds
-            # The context phase includes the dataflow queries; report the two
-            # separately so a slow run points at the right culprit.
-            stats.context_extraction_seconds = max(
-                0.0, (time.monotonic() - _t) - extractor.dataflow_seconds
-            )
-
-        findings = []
-        _t = time.monotonic()
-        if injection_contexts:
-            console.print(
-                f"[bold]Analyzing {len(injection_contexts)} injection candidates with {active_model}...[/bold]"
-            )
-            inj = LlmAnalyzer(config, mode="injection")
-            findings += inj.analyze_many(injection_contexts)
-            _accumulate_usage(stats, inj.usage)
-        if absence_contexts:
-            console.print(
-                f"[bold]Analyzing {len(absence_contexts)} control-absence candidates with {active_model}...[/bold]"
-            )
-            absn = LlmAnalyzer(config, mode="absence")
-            findings += absn.analyze_many(absence_contexts)
-            _accumulate_usage(stats, absn.usage)
-        stats.llm_seconds = time.monotonic() - _t
+        outcome = run_pipeline(
+            repo_info.path,
+            config,
+            mode=mode,
+            lang=lang,
+            rulesets=rulesets,
+            no_dataflow=no_dataflow,
+            progress=lambda m: console.print(m),
+        )
     finally:
-        if not keep_cpg and cpg_path.exists():
-            cpg_path.unlink(missing_ok=True)
         if not keep_repo:
             repo_manager.cleanup(repo_info)
 
+    stats = outcome.stats
+    stats.clone_seconds = clone_seconds
     stats.duration_seconds = time.monotonic() - start
+    findings = outcome.findings
 
     report = AnalysisReport(
         repo=repo_info.source,
@@ -266,6 +157,7 @@ def analyze(
         model=active_model,
         findings=findings,
         stats=stats,
+        contexts=outcome.contexts,
     )
 
     paths = write_report(report, config.output_dir)
@@ -330,6 +222,89 @@ def corpus_mutate(
     write_labels(records, out_path)
     console.print(f"[bold]Wrote[/bold] {out_path}")
     console.print_json(summarize_json(records))
+
+
+@corpus.command("eval")
+@click.argument("labels", type=click.Path(exists=True, path_type=Path))
+@click.option("--repo", "repo_override", default=None, help="App repo URL/path (default: taken from the labels).")
+@click.option("--ref", default=None, help="Ref to check out (default: the labels' commit SHA).")
+@click.option("--max-mutations", default=None, type=int, help="Cap mutations evaluated (for a quick run).")
+@click.option("--match-window", default=20, show_default=True, help="Lines of slack when matching a finding to a removed control.")
+@click.option("--out", type=click.Path(path_type=Path), default=None, help="Eval report JSON (default: corpus/eval/<app>.json).")
+@click.option("--keep-repo", is_flag=True)
+@click.option("-v", "--verbose", is_flag=True)
+def corpus_eval(
+    labels: Path,
+    repo_override: str | None,
+    ref: str | None,
+    max_mutations: int | None,
+    match_window: int,
+    out: Path | None,
+    keep_repo: bool,
+    verbose: bool,
+) -> None:
+    """Score the control-absence detector against a JSONL of mutation labels.
+
+    Runs the detector once on the unmutated tree (its findings are the
+    false-positive negative control), then once per mutation, and reports
+    precision / recall / F1 overall and per operator / control class.
+    """
+    _setup_logging(verbose)
+    from .corpus import read_labels
+    from .evaluation import run_eval
+
+    records = read_labels(labels)
+    if not records:
+        raise click.ClickException(f"No mutation labels in {labels}")
+    if max_mutations:
+        records = records[:max_mutations]
+    app = records[0].app
+    src = repo_override or records[0].repo
+    if not src:
+        raise click.ClickException("Labels have no `repo`; pass --repo explicitly.")
+    commit_sha = records[0].commit_sha
+
+    config = Config()
+    check_joern_available(config)
+    if config.llm_provider == "ollama":
+        check_ollama_available(config)
+
+    repo_manager = RepoManager(config.work_dir)
+    console.print(f"[bold]Acquiring[/bold] {src} @ {(ref or commit_sha or 'HEAD')[:12]}")
+    repo_info = repo_manager.acquire(src, ref=ref or commit_sha or None)
+
+    try:
+        report = run_eval(
+            repo_info.path,
+            records,
+            config,
+            app=app,
+            commit_sha=commit_sha or repo_info.commit_sha,
+            match_window=match_window,
+            progress=lambda m: console.print(m),
+        )
+    finally:
+        if not keep_repo:
+            repo_manager.cleanup(repo_info)
+
+    out_path = out or (Path("corpus/eval") / f"{app}.json")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(report.model_dump_json(indent=2), encoding="utf-8")
+
+    s = report.summary
+    table = Table(title=f"control-absence eval: {app} ({s.n_mutations} mutations)")
+    table.add_column("bucket")
+    table.add_column("TP", justify="right")
+    table.add_column("FN", justify="right")
+    table.add_column("recall", justify="right")
+    for name, b in {"OVERALL": {"tp": s.tp, "fn": s.fn, "recall": s.recall}, **s.by_operator}.items():
+        table.add_row(name, str(b["tp"]), str(b["fn"]), f"{b['recall']:.2f}")
+    console.print(table)
+    console.print(
+        f"precision={s.precision:.2f}  recall={s.recall:.2f}  f1={s.f1:.2f}  "
+        f"[bold]false positives on the unmutated original: {s.baseline_fp}[/bold]"
+    )
+    console.print(f"\nFull report: {out_path}")
 
 
 @corpus.command("stats")

@@ -35,16 +35,17 @@ out at the default concurrency — see the "Choosing a model" table in README.
 
 ## Layout
 
-- `src/cpgvd/` — `cli.py`, `config.py`, `repo_manager.py`, `joern_runner.py`,
-  `cpg_client.py`, `context_extractor.py`, `rules.py`, `llm_providers.py`
-  (Ollama/Anthropic), `llm_analyzer.py` (prompt + schema + FP guards),
+- `src/cpgvd/` — `cli.py` (thin), `pipeline.py` (CPG→Joern→context→LLM,
+  reusable, Joern server injectable), `config.py`, `repo_manager.py`,
+  `joern_runner.py`, `cpg_client.py`, `context_extractor.py`, `rules.py`,
+  `llm_providers.py`, `llm_analyzer.py` (prompt + schema + FP guards),
   `models.py`, `report.py`, `dashboard.py`.
 - `rules/sinks_sources.yaml` — per-language sink/source regexes (injection mode).
 - `rules/control_absence.yaml` — per-language `triggers` / `guards` for
   `--mode absence` (missing-access-control detection).
-- `mutation.py` (M1-M5 control-removal operators, `node --check` verify) +
-  `corpus.py` (JSONL labels, by-app split) — the control-absence eval corpus.
-  CLI: `cpgvd corpus mutate <repo>` / `cpgvd corpus stats`.
+- `mutation.py` (M1-M5 control-removal operators, `node --check` verify),
+  `corpus.py` (JSONL labels, by-app split), `evaluation.py` (score detector
+  vs labels: P/R/F1 + FP-on-original). CLI: `cpgvd corpus mutate|stats|eval`.
 - `tests/` — mocked unit tests (no live Joern/Ollama/Anthropic).
 - `docs/presentation-script.md` — final-year demo runbook.
 
@@ -123,10 +124,19 @@ Mutation harness (`corpus mutate` / `corpus stats`, landed this session — v1):
   order-independent, so re-collecting apps never reshuffles).
 - Dry run on NodeGoat: 19 mutations, all parse-valid (16x M1, 3x M4). M2/M3/M5
   need apps with per-route inline handlers — NodeGoat centralises routing.
-- Still to build (D3-D5): GitHub-API corpus collection script (express +
+- `evaluation.run_eval` (landed D4): baseline run on the clean tree (its
+  findings = the FP negative control), then per-mutant apply→analyse→score→
+  restore, holding ONE Joern server open the whole time (`pipeline.run_pipeline`
+  / `joern_session` — the D1 "one server across runs" item, done where it pays
+  off). Scoring: finding within `--match-window` lines of the removed control,
+  same file, not a baseline line. P/R/F1 overall + per operator + per control
+  class. `cpgvd corpus eval <labels.jsonl>`.
+- `analyze` now persists the analyzed `contexts` (with `guard_evidence` +
+  node ids) into `report.json` — findings are checkable against what the
+  model saw. Absence-mode context selection now ranks route handlers first.
+- Still to build (D5-D6): GitHub-API corpus collection script (express +
   passport/express-session/jsonwebtoken, >=50 stars, permissive licence);
-  a batch runner that applies each mutation, runs `--mode absence`, scores
-  the finding against the label, restores; hand-verify ~10 mutations at D6.
+  scale the corpus to ~30 apps; hand-verify ~10 mutations at D6.
 
 Candidate next features (pick with the user, don't assume):
 1. Widen `_NO_ATTACKER_PATH_RE` to catch "no … taint … reach… sink" phrasing.
