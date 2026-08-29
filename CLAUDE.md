@@ -185,13 +185,23 @@ Mutation harness (`corpus mutate` / `corpus stats`, landed this session — v1):
   (2 valid after the fix). By operator: M1 58, M2 3, M4 9, M5 26; no M3 in
   these 5 apps (real `if (!isAdmin) return 403` would still match). sahat is
   66 of 96. Short of B4's 25/500 -- needs `corpus collect` with GITHUB_TOKEN.
-- **D6-D8 eval runs (in progress):** `cpgvd corpus eval corpus/labels` and
-  `... --grounding raw`, capped `--max-mutations 12`/app, qwen2.5-coder:7b.
-  Writes `corpus/eval/<app>[-raw].json` + `corpus/eval/_aggregate[-raw].json`
-  (overall + per-operator P/R/F1, FP-on-originals). This is the H2
-  grounded-vs-ungrounded comparison. [numbers pending]
+- **D6-D8 eval runs (in progress):** `scripts/run_corpus_eval_paced.sh 12 1200`
+  -- grounded then raw over every label file, 20-min cooldown after each app,
+  resumable via `corpus eval --skip-existing`. qwen2.5-coder:7b, max_contexts
+  12. Writes `corpus/eval/<app>[-raw].json` + `_aggregate[-raw].json`.
+  Reports `recall` (new finding on the removed control = discriminative) AND
+  `recall_raw` (any finding there, ignoring baseline suppression -- the
+  ceiling when the baseline is noisy). ~8-9 h wall clock with the cooldowns.
+- Early signal (storybooks, killed grounded run): 0/6 discriminative recall
+  -- the detector flags the same protected routes in the baseline, so
+  removing `ensureAuth` produces a suppressed finding. `recall_raw` will
+  show whether the detector saw the operation at all. Also: storybooks
+  label #1 (drop `passport.authenticate` from `/google/callback`) is invalid
+  -- an OAuth callback needs it to work, it's not an access control. M1
+  should skip `passport.authenticate` on `*/callback` / public routes
+  (next fix, same class as the parse-server M3s).
 - Still to do: GITHUB_TOKEN corpus run to ~25+ apps, then re-run the eval at
-  scale (uncapped).
+  scale.
 
 Candidate next features (pick with the user, don't assume):
 1. Widen `_NO_ATTACKER_PATH_RE` to catch "no … taint … reach… sink" phrasing.
