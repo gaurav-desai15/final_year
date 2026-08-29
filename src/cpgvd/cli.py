@@ -574,6 +574,20 @@ def corpus_eval_semgrep(
     )
 
 
+@corpus.command("report")
+@click.option("--eval-dir", type=click.Path(exists=True, path_type=Path), default=Path("corpus/eval"), show_default=True)
+@click.option("--out", type=click.Path(path_type=Path), default=Path("corpus/eval/RESULTS.md"), show_default=True)
+def corpus_report(eval_dir: Path, out: Path) -> None:
+    """Roll every eval JSON into one Markdown comparison table (cpgvd grounded
+    vs ungrounded vs semgrep, overall + per operator, H3/H5)."""
+    from .results import build_markdown
+
+    md = build_markdown(eval_dir)
+    out.write_text(md, encoding="utf-8")
+    console.print(md)
+    console.print(f"\n[bold]Written:[/bold] {out}")
+
+
 @corpus.command("stats")
 @click.argument("labels", nargs=-1, type=click.Path(exists=True, path_type=Path))
 @click.option("--holdout-frac", default=0.3, show_default=True)
