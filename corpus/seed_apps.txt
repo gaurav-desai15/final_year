@@ -6,43 +6,33 @@
 #
 # `cpgvd corpus collect --from-list corpus/seed_apps.txt` clones each, screens
 # the local package.json for express + an auth lib, mutates, and drops any that
-# yield < --min-mutations. Curate the survivors: the manifest records the
-# licence it found (or "unknown"); drop anything that isn't a real app.
+# yield < --min-mutations.
 #
-# NOT for tuning against the held-out set (OWASP Juice Shop / NodeGoat) --
-# those are never listed here.
+# This list alone does NOT reach the ~25-app / ~500-instance target -- for that,
+# run `cpgvd corpus collect` with GITHUB_TOKEN set (repo search finds hundreds
+# of live candidates). This file is the curated core.
+#
+# Held-out apps (OWASP Juice Shop / NodeGoat) are deliberately absent.
 
-# --- passport / express-session apps with isAuthenticated-style route guards
+# --- passport isAuthenticated-style route guards (classic pattern) ---------
 https://github.com/sahat/hackathon-starter
-https://github.com/santiq/bulletproof-nodejs
+https://github.com/bradtraversy/storybooks
+https://github.com/bradtraversy/node_passport_login
+https://github.com/bradtraversy/vidjot
 https://github.com/madhums/node-express-mongoose-demo
 
-# --- JWT REST APIs with auth() / protect middleware on routes
+# --- JWT REST APIs: auth()/protect/authorize middleware on routes ----------
 https://github.com/gothinkster/node-express-realworld-example-app
 https://github.com/hagopj13/node-express-boilerplate
-https://github.com/danielfsousa/express-rest-boilerplate
-https://github.com/kunalkapadia/express-mongoose-es6-rest-api
-https://github.com/rwanghao3616/node-api-boilerplate
-https://github.com/CleanArchitecture-NodeJS/clean-architecture-nodejs
-
-# --- MERN back-ends with protect + admin/authorize middleware
-https://github.com/bradtraversy/devcamper_api
-https://github.com/bradtraversy/proshop_mern
-https://github.com/bradtraversy/mern_shopping_list
-https://github.com/nemanjam/mern-boilerplate
-https://github.com/rhalbritter/mern-auth-boilerplate
-
-# --- role / ownership checks in route handlers
-https://github.com/cornflourblue/node-mongo-registration-login-api
 https://github.com/bezkoder/node-js-jwt-auth
-https://github.com/bezkoder/node-express-mongodb
-https://github.com/Devnear/express-typescript-boilerplate
-https://github.com/rzgry/Express-REST-API-Template
-https://github.com/DimiMikadze/create-social-network
+https://github.com/cornflourblue/node-mongo-registration-login-api
+https://github.com/diegohaz/rest
 
-# --- larger apps
-https://github.com/HospitalRun/hospitalrun-server
-https://github.com/reactioncommerce/reaction
-https://github.com/ghiscoding/aurelia-slickgrid
-https://github.com/strapi/strapi-examples
+# --- MERN back-ends with protect + admin/authorize middleware -------------
+https://github.com/bradtraversy/proshop_mern
+https://github.com/gitdagray/mern_stack_course
+
+# --- larger real apps ----------------------------------------------------
 https://github.com/keystonejs/keystone-classic
+https://github.com/strapi/strapi
+https://github.com/parse-community/parse-server
