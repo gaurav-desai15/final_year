@@ -392,7 +392,8 @@ class MutationEvalResult(BaseModel):
     file: str
     line: int
     route_path: str = ""
-    detected: bool = False
+    detected: bool = False  # a NEW finding on the removed control (discriminative)
+    detected_raw: bool = False  # any finding on the removed control (incl. baseline-flagged lines)
     matched_title: str = ""
     matched_line: int = 0
     matched_control_ok: bool = False  # detected finding's class matches the removed one
@@ -408,6 +409,7 @@ class EvalSummary(BaseModel):
     fp: int = 0
     fn: int = 0
     recall: float = 0.0
+    recall_raw: float = 0.0  # detection rate ignoring baseline suppression
     precision: float = 0.0
     f1: float = 0.0
     by_operator: dict[str, dict] = Field(default_factory=dict)

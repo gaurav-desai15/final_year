@@ -333,6 +333,7 @@ def corpus_collect(
 @click.option("--match-window", default=20, show_default=True, help="Lines of slack when matching a finding to a removed control.")
 @click.option("--grounding", type=click.Choice(["cpg", "raw"]), default="cpg", show_default=True, help="'raw' = ungrounded whole-file baseline (H2).")
 @click.option("--out-dir", type=click.Path(path_type=Path), default=Path("corpus/eval"), show_default=True)
+@click.option("--skip-existing", is_flag=True, help="Skip an app whose <app>[-raw].json is already in --out-dir (resume a paced run).")
 @click.option("--keep-repo", is_flag=True)
 @click.option("-v", "--verbose", is_flag=True)
 def corpus_eval(
@@ -343,6 +344,7 @@ def corpus_eval(
     match_window: int,
     grounding: str,
     out_dir: Path,
+    skip_existing: bool,
     keep_repo: bool,
     verbose: bool,
 ) -> None:
@@ -380,6 +382,13 @@ def corpus_eval(
         if max_mutations:
             records = records[:max_mutations]
         app = records[0].app
+        existing = out_dir / f"{app}{suffix}.json"
+        if skip_existing and existing.exists():
+            from .models import EvalReport
+
+            summaries.append(EvalReport.model_validate_json(existing.read_text()).summary)
+            console.print(f"[dim]{app}: already done, using {existing.name}[/dim]")
+            continue
         src = repo_override or records[0].repo
         if not src:
             console.print(f"[yellow]{app}: labels have no repo; skipping[/yellow]")
@@ -411,6 +420,8 @@ def corpus_eval(
     fp = sum(s.fp for s in summaries)
     fn = sum(s.fn for s in summaries)
     base = sum(s.baseline_fp for s in summaries)
+    n_mut = sum(s.n_mutations for s in summaries)
+    tp_raw = round(sum(s.recall_raw * s.n_mutations for s in summaries))
     by_op: dict[str, dict] = {}
     for s in summaries:
         for op, b in s.by_operator.items():
@@ -426,10 +437,11 @@ def corpus_eval(
     agg = {
         "grounding": grounding,
         "apps": len(summaries),
-        "mutations": tp + fn,
+        "mutations": n_mut,
         "tp": tp, "fp": fp, "fn": fn,
         "baseline_fp_total": base,
         "precision": prec, "recall": rec, "f1": f1,
+        "recall_raw": round(tp_raw / n_mut, 3) if n_mut else 0.0,
         "by_operator": dict(sorted(by_op.items())),
         "per_app": {s.app: {"precision": s.precision, "recall": s.recall, "f1": s.f1, "baseline_fp": s.baseline_fp} for s in summaries},
     }
@@ -444,8 +456,8 @@ def corpus_eval(
         table.add_row(op, str(b["tp"]), str(b["fn"]), f"{b['recall']:.2f}")
     console.print(table)
     console.print(
-        f"[bold]precision={prec:.2f}  recall={rec:.2f}  f1={f1:.2f}  "
-        f"FP on unmutated originals: {base}[/bold]\n{agg_path}"
+        f"[bold]precision={prec:.2f}  recall={rec:.2f} (raw {agg['recall_raw']:.2f})  "
+        f"f1={f1:.2f}  FP on unmutated originals: {base}[/bold]\n{agg_path}"
     )
 
 

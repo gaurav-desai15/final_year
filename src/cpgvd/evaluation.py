@@ -81,16 +81,21 @@ def _score_one(
     for f in findings:
         if not _same_file(f.file, rec.file):
             continue
-        if (Path(f.file).name, f.start_line) in baseline_line_keys:
-            continue  # the detector reports this line even with the control present
         if not (lo <= f.start_line <= hi or lo <= f.end_line <= hi):
             continue
-        res.detected = True
-        res.matched_title = f.title
-        res.matched_line = f.start_line
-        res.matched_control_ok = rec.control_class in _finding_control_classes(f)
-        if res.matched_control_ok:
-            break  # prefer a class-matching finding
+        # `detected_raw`: a finding lands on the mutated control regardless of
+        # whether the baseline flagged it too. `detected`: it's a NEW finding
+        # (the discriminative signal -- the detector noticed the *removal*).
+        res.detected_raw = True
+        novel = (Path(f.file).name, f.start_line) not in baseline_line_keys
+        if novel:
+            res.detected = True
+        if novel or not res.matched_title:
+            res.matched_title = f.title
+            res.matched_line = f.start_line
+            res.matched_control_ok = rec.control_class in _finding_control_classes(f)
+        if res.detected and res.matched_control_ok:
+            break
     return res
 
 
@@ -171,6 +176,7 @@ def _summarize(
 ) -> EvalSummary:
     tp = sum(1 for r in results if r.detected)
     fn = len(results) - tp
+    tp_raw = sum(1 for r in results if r.detected_raw)
     # A run's false positives: baseline findings (control present, still flagged)
     # plus any mutant finding that didn't line up with the removed control.
     stray = sum(max(0, r.n_findings - (1 if r.detected else 0)) for r in results)
@@ -196,6 +202,7 @@ def _summarize(
         fp=fp,
         fn=fn,
         recall=overall["recall"],
+        recall_raw=round(tp_raw / len(results), 3) if results else 0.0,
         precision=overall["precision"],
         f1=overall["f1"],
         by_operator=bucket(lambda r: r.operator),

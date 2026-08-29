@@ -37,6 +37,7 @@ def test_score_one_ignores_baseline_line():
     baseline = {("index.js", 48)}
     res = _score_one(_rec(line=45), [_finding(start=48)], baseline, window=20)
     assert not res.detected  # the detector flags this line even with the control present
+    assert res.detected_raw  # ... but raw detection still counts it
 
 
 def test_score_one_class_mismatch_still_detected_but_flagged():
@@ -62,6 +63,7 @@ def test_summarize_recall_and_buckets():
     s = _summarize("demo", "abc123", records, results, baseline_fp=2)
     assert s.tp == 2 and s.fn == 1
     assert s.recall == round(2 / 3, 3)
+    assert s.recall_raw == round(2 / 3, 3)  # no baseline suppression in this fixture
     assert s.baseline_fp == 2
     assert s.by_operator["M1"] == {"tp": 1, "fn": 1, "recall": 0.5}
     assert s.by_control_class["session"]["recall"] == 1.0
