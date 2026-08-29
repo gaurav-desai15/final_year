@@ -31,7 +31,7 @@ from .models import (
     MutationRecord,
 )
 from .mutation import mutation_applied
-from .pipeline import RuleSets, extract_contexts, analyze_contexts, ensure_cpg, joern_session
+from .pipeline import RuleSets, _rawify, analyze_contexts, ensure_cpg, extract_contexts, joern_session
 from .models import RunStats
 
 logger = logging.getLogger(__name__)
@@ -108,6 +108,8 @@ def _analyze(client: CpgClient, repo_path: Path, config: Config, rulesets: RuleS
         client, repo_path, "javascript", config, rulesets,
         mode="absence", no_dataflow=True, stats=stats,
     )
+    if config.grounding == "raw":
+        absence_ctx = [_rawify(c, repo_path) for c in absence_ctx]
     return analyze_contexts(config, [], absence_ctx, stats)
 
 
@@ -152,6 +154,7 @@ def run_eval(
     return EvalReport(
         model=model,
         mode="absence",
+        grounding=config.grounding,
         match_window=match_window,
         summary=summary,
         results=results,

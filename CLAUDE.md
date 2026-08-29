@@ -167,9 +167,22 @@ Mutation harness (`corpus mutate` / `corpus stats`, landed this session — v1):
   both `/contributions`, which the model insists needs *role* control when
   it has `isLoggedIn` — an ambiguous route, n=1 on a held-out app). Real
   numbers come from the corpus.
-- Still to do (D5-D6): run `corpus collect` with a token, curate to ~30 real
-  apps / >=500 labelled instances, hand-verify ~10 mutations. Ungrounded
-  (raw-file) baseline mode for the H2 comparison.
+- **Ungrounded baseline (landed D6):** `--grounding raw` (Config.grounding /
+  CPGVD_GROUNDING). `pipeline._rawify` swaps a context's CPG slice for the
+  whole source file (truncated around the candidate line), clears all
+  CPG-derived fields, keeps file/line/route_path for scoring.
+  `FunctionContext.to_raw_prompt_text` renders the minimal prompt (same
+  system prompt, no guard list / node ids / callers). `corpus eval
+  --grounding raw` -> `corpus/eval/<app>-raw.json`. Candidate shortlist is
+  unchanged, so `raw` vs `cpg` on the same corpus isolates H2.
+- **Corpus (landed D6):** `corpus/seed_apps.txt` + `corpus collect
+  --from-list` gave **7 apps / 107 instances** (all 5 operators, all 5
+  control classes; hackathon-starter is 67 of them). Short of B4's 25/500 --
+  that needs `corpus collect` with GITHUB_TOKEN (repo search). Several seed
+  URLs 404'd (unauth git can't 404 cleanly).
+- Still to do (D6-D8): GITHUB_TOKEN corpus run to ~25+ apps; hand-verify ~10
+  mutations; then the D6-D8 eval runs -- grounded and `--grounding raw` on
+  the same corpus, same model.
 
 Candidate next features (pick with the user, don't assume):
 1. Widen `_NO_ATTACKER_PATH_RE` to catch "no … taint … reach… sink" phrasing.

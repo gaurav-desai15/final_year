@@ -94,6 +94,15 @@ cpgvd analyze ./my-project --mode both
   control it needs, check that against the guard list.
 - `--mode both`: run both, one LLM pass each.
 
+### Grounding (`--grounding cpg|raw`)
+
+`--grounding raw` swaps the CPG-derived context slice for the **whole source
+file** — same model, same prompt, same candidate shortlist, no call graph /
+guard extraction / node ids. This is the ungrounded baseline: comparing
+`raw` vs `cpg` on the same corpus isolates whether the CPG grounding helps
+(hypothesis H2). `cpgvd corpus eval --grounding raw` writes
+`corpus/eval/<app>-raw.json` alongside the grounded run.
+
 ## Mutation corpus (control-absence evaluation)
 
 Real Express apps that *have* working access controls are turned into labelled

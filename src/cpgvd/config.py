@@ -44,6 +44,11 @@ class Config:
     llm_concurrency: int = int(os.environ.get("CPGVD_LLM_CONCURRENCY", "4"))
     effort: str = os.environ.get("CPGVD_EFFORT", "high")  # anthropic only
 
+    # "cpg" (default): the LLM sees the CPG-derived context slice (guards with
+    # node ids, resolved handler, callers). "raw": it sees the whole source
+    # file instead -- the ungrounded baseline for the H2 comparison.
+    grounding: str = os.environ.get("CPGVD_GROUNDING", "cpg")
+
     # Analysis scope
     max_contexts: int = int(os.environ.get("CPGVD_MAX_CONTEXTS", "200"))
     caller_depth: int = 1

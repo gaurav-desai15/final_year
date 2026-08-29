@@ -57,6 +57,12 @@ def main() -> None:
     default="injection",
     help="'injection' (taint -> sink, default), 'absence' (missing access control), or 'both'.",
 )
+@click.option(
+    "--grounding",
+    type=click.Choice(["cpg", "raw"]),
+    default="cpg",
+    help="'cpg' (default): LLM sees the CPG context slice. 'raw': whole source file -- the ungrounded H2 baseline.",
+)
 @click.option("--max-contexts", default=None, type=int, help="Cap on how many candidate functions get sent to the LLM.")
 @click.option("--no-dataflow", is_flag=True, help="Skip Joern dataflow queries (faster, less precise). Implied by --mode absence.")
 @click.option("--keep-repo", is_flag=True, help="Don't delete a cloned repo after analysis.")
@@ -77,6 +83,7 @@ def analyze(
     model: str | None,
     rules_path: Path | None,
     mode: str,
+    grounding: str,
     max_contexts: int | None,
     no_dataflow: bool,
     keep_repo: bool,
@@ -100,6 +107,7 @@ def analyze(
     if max_contexts:
         config.max_contexts = max_contexts
     config.keep_cpg = keep_cpg
+    config.grounding = grounding
 
     active_model = config.ollama_model if config.llm_provider == "ollama" else config.model
 
@@ -323,7 +331,8 @@ def corpus_collect(
 @click.option("--ref", default=None, help="Ref to check out (default: the labels' commit SHA).")
 @click.option("--max-mutations", default=None, type=int, help="Cap mutations evaluated (for a quick run).")
 @click.option("--match-window", default=20, show_default=True, help="Lines of slack when matching a finding to a removed control.")
-@click.option("--out", type=click.Path(path_type=Path), default=None, help="Eval report JSON (default: corpus/eval/<app>.json).")
+@click.option("--grounding", type=click.Choice(["cpg", "raw"]), default="cpg", show_default=True, help="'raw' = ungrounded whole-file baseline (H2).")
+@click.option("--out", type=click.Path(path_type=Path), default=None, help="Eval report JSON (default: corpus/eval/<app>[-raw].json).")
 @click.option("--keep-repo", is_flag=True)
 @click.option("-v", "--verbose", is_flag=True)
 def corpus_eval(
@@ -332,6 +341,7 @@ def corpus_eval(
     ref: str | None,
     max_mutations: int | None,
     match_window: int,
+    grounding: str,
     out: Path | None,
     keep_repo: bool,
     verbose: bool,
@@ -358,6 +368,7 @@ def corpus_eval(
     commit_sha = records[0].commit_sha
 
     config = Config()
+    config.grounding = grounding
     check_joern_available(config)
     if config.llm_provider == "ollama":
         check_ollama_available(config)
@@ -380,7 +391,8 @@ def corpus_eval(
         if not keep_repo:
             repo_manager.cleanup(repo_info)
 
-    out_path = out or (Path("corpus/eval") / f"{app}.json")
+    suffix = "" if grounding == "cpg" else "-raw"
+    out_path = out or (Path("corpus/eval") / f"{app}{suffix}.json")
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(report.model_dump_json(indent=2), encoding="utf-8")
 

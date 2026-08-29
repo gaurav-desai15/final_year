@@ -480,11 +480,16 @@ class LlmAnalyzer:
         self._usage_lock = threading.Lock()
 
     def analyze_context(self, context: FunctionContext) -> list[Finding]:
+        raw = context.grounding == "raw"
         if self.mode == "absence":
             system, schema = ABSENCE_SYSTEM_PROMPT, ABSENCE_RESPONSE_SCHEMA
-            user_text = context.to_absence_prompt_text(max_related_chars=self.config.max_context_chars)
         else:
             system, schema = SYSTEM_PROMPT, RESPONSE_SCHEMA
+        if raw:
+            user_text = context.to_raw_prompt_text(max_related_chars=self.config.max_context_chars)
+        elif self.mode == "absence":
+            user_text = context.to_absence_prompt_text(max_related_chars=self.config.max_context_chars)
+        else:
             user_text = context.to_prompt_text(max_related_chars=self.config.max_context_chars)
 
         result = self.provider.complete_json(system, user_text, schema)

@@ -85,6 +85,39 @@ def joern_session(config: Config) -> Iterator[CpgClient]:
         yield CpgClient(server.host, server.port)
 
 
+def _rawify(ctx: FunctionContext, repo_root: Path, max_chars: int = 24000) -> FunctionContext:
+    """Replace a CPG context with the whole source file -- the ungrounded H2
+    baseline. Keeps file/line/route_path (for scoring), drops everything CPG."""
+    path = Path(repo_root) / ctx.file
+    try:
+        src = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        src = ctx.code
+    if len(src) > max_chars:
+        lines = src.splitlines()
+        mid = max(0, ctx.start_line - 1)
+        half = max_chars // 160  # ~lines each side, assuming ~80 chars/line
+        lo, hi = max(0, mid - half), min(len(lines), mid + half)
+        src = f"// ... {lo} earlier lines omitted ...\n" if lo else ""
+        src += "\n".join(lines[lo:hi])
+        if hi < len(lines):
+            src += f"\n// ... {len(lines) - hi} later lines omitted ..."
+    return ctx.model_copy(
+        update={
+            "code": src,
+            "grounding": "raw",
+            "control_triggers": [],
+            "guard_evidence": [],
+            "callers": [],
+            "callees": [],
+            "imports": [],
+            "data_flow_paths": [],
+            "matched_sink_patterns": [],
+            "matched_source_patterns": [],
+        }
+    )
+
+
 def _prioritize_absence(items: list[tuple[str, list]]) -> list[tuple[str, list]]:
     """Route handlers first (a missing control on a route is the headline
     case), then by trigger count."""
@@ -178,6 +211,10 @@ def extract_contexts(
                     method, lang, hits, max_related=config.max_related_functions
                 )
             )
+
+    if config.grounding == "raw":
+        injection_contexts = [_rawify(c, repo_path) for c in injection_contexts]
+        absence_contexts = [_rawify(c, repo_path) for c in absence_contexts]
 
     stats.candidate_contexts_analyzed = len(injection_contexts) + len(absence_contexts)
     stats.dataflow_seconds += extractor.dataflow_seconds

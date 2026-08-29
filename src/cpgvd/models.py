@@ -153,6 +153,9 @@ class FunctionContext(BaseModel):
     guard_evidence: list[GuardEvidence] = Field(default_factory=list)
     route_path: str = ""  # set for per-route absence contexts
 
+    # "cpg" (CPG-derived slice) or "raw" (whole file -- the ungrounded H2 baseline).
+    grounding: str = "cpg"
+
     def to_prompt_text(self, max_related_chars: int = 4000) -> str:
         """Render this context as plain text for the LLM prompt."""
         parts = [
@@ -277,6 +280,24 @@ class FunctionContext(BaseModel):
 
         return "\n".join(parts)
 
+    def to_raw_prompt_text(self, max_related_chars: int = 4000) -> str:
+        """The ungrounded baseline (H2): the whole source file, no CPG-derived
+        context. Same question, no call graph / guard extraction / node ids."""
+        loc = f"{self.file}:{self.start_line}"
+        header = [
+            f"### Source file: {self.file}",
+            f"The operation to judge is around line {self.start_line}"
+            + (f' (route `{self.route_path}`).' if self.route_path else "."),
+            "No call graph or guard list has been extracted for you -- read the "
+            "file to determine what checks are or aren't applied before that "
+            "operation, including middleware on the route registration.",
+            "",
+            "```" + self.language,
+            self.code,
+            "```",
+        ]
+        return "\n".join(header)
+
 
 class Finding(BaseModel):
     """A single vulnerability finding emitted by the LLM analyzer."""
@@ -397,6 +418,7 @@ class EvalReport(BaseModel):
     generated_at: _dt.datetime = Field(default_factory=lambda: _dt.datetime.now(_dt.timezone.utc))
     model: str = ""
     mode: str = "absence"
+    grounding: str = "cpg"
     match_window: int = 20
     summary: EvalSummary
     results: list[MutationEvalResult] = Field(default_factory=list)
