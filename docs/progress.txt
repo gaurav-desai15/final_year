@@ -1,9 +1,14 @@
 ================================================================================
 cpgvd -- Track B (implementation) progress log
-Two-day work block, plan days D1-D6
+Two-day work block, plan days D1-D9
 Branch: claude/cpg-vulnerability-detection-ds74ac
-Written: 2026-08-29
+Written: 2026-08-29, extended 2026-08-30 (overnight)
 ================================================================================
+
+    See section 9 (bottom) for the D7-D9 overnight extension: the
+    over-escalation fix, H3/H5 metrics, the Semgrep baseline, the results
+    report command, and the corpus expansion once a GITHUB_TOKEN arrived.
+
 
 Starting point (commit 28bade5): the injection-mode detector only. A repo is
 cloned, Joern builds a CPG, sink/source regexes shortlist candidate functions,
@@ -533,3 +538,125 @@ Deliverable status (plan table):
   20 commits, +4360 / -91 lines, 37 files. Not pushed.
 
 ================================================================================
+
+
+================================================================================
+9. D7-D9 OVERNIGHT EXTENSION (2026-08-30)
+================================================================================
+
+Context: after D6 the eval was blocked on two things -- corpus size (needs a
+GITHUB_TOKEN) and the absence detector's over-flagging. Worked through the
+detector fix + the remaining comparative machinery overnight; the token
+arrived partway through and the corpus was expanded.
+
+--------------------------------------------------------------------------------
+D7  --  Stop the over-escalation                          commit 0b00a73
+--------------------------------------------------------------------------------
+The storybooks / NodeGoat-`/contributions` failure: authentication IS present
+on the route, but the model reports "missing ownership/authorization" purely
+from the absence of an `if (resource.owner === req.user)` line. This tanked
+precision directly and (via baseline suppression) discriminative recall --
+storybooks grounded was recall 0.18 / recall_raw 0.73 / precision 0.03.
+
+- ABSENCE_SYSTEM_PROMPT: when `guard_evidence` contains an AUTHENTICATION
+  entry, authentication is SATISFIED -- do not report missing authentication,
+  and do not escalate to missing ownership/authorization just because there
+  is no explicit ownership `if`. Report ownership/authz ONLY with a concrete
+  cross-user access path (name the resource, the id parameter, why it is
+  per-user). Step 2 also notes that not every resource is per-user (a shared
+  list, a catalogue item, a lookup table need no ownership check).
+- llm_analyzer._over_escalation_is_noise: drop an ownership/authorization
+  finding when the context has an auth/session guard AND the reasoning cites
+  no concrete cross-user access (_SENSITIVE_ON_PUBLIC_RE doubles as that
+  detector).
+
+--------------------------------------------------------------------------------
+D7  --  H3 compression + H5 grounded-findings ratios      commit 3848706
+--------------------------------------------------------------------------------
+src/cpgvd/metrics.py -- both cheap local computations, no Joern/LLM:
+  * compression_summary: slice LoC vs file LoC vs repo LoC and the ratios
+    (H3 -- how much the CPG slice compresses what the model must read).
+  * grounded_findings_ratio: fraction of findings whose cited line range
+    overlaps what the model was actually shown (H5). Raw contexts count the
+    whole file.
+Wired into `analyze` (AnalysisReport.metrics) and `corpus eval`
+(EvalSummary.compression / .grounded_findings, surfaced in _aggregate.json).
+
+--------------------------------------------------------------------------------
+D8  --  Semgrep rule-only baseline (comparative axis 2)   commit c8291f7
+--------------------------------------------------------------------------------
+rules/semgrep/unprotected_route.yml -- flags an Express route registered with
+the handler directly after the path (no middleware). The strongest a
+pattern-only tool can do for missing route-level access control.
+
+- src/cpgvd/baselines.py: run_semgrep() -> Finding objects in the same shape
+  the LLM detector produces, so evaluation.py scoring applies unchanged.
+- evaluation.run_eval_semgrep(): same baseline + per-mutant + score loop,
+  no Joern, no LLM.
+- cli `cpgvd corpus eval-semgrep <labels>` -> corpus/eval/<app>-semgrep.json
+  + _aggregate-semgrep.json.
+- pyproject: [baseline] extra (semgrep).
+
+RESULT (5-app corpus, 96 mutations):
+  semgrep : precision 0.01, recall 0.53, FP-on-originals 85
+  by operator: M1 0.76 (44/58 -- misses M1s that leave >=2 middlewares),
+               M2 0.00, M4 0.00, M5 0.27 -- a rule cannot see a removed `if`.
+This is the "a pattern match is not a vulnerability" straw man the thesis
+argues against: high M1 recall, zero M2-M4 recall, precision destroyed by
+public / no-middleware routes.
+
+--------------------------------------------------------------------------------
+D9  --  Results report command                            commit 2acc59b
+--------------------------------------------------------------------------------
+src/cpgvd/results.py + `cpgvd corpus report`: reads every corpus/eval/*.json
+and emits one Markdown doc -- cpgvd grounded vs ungrounded vs semgrep side by
+side (overall + recall per operator), the H3 / H5 ratios, and a per-app
+breakdown. Writes corpus/eval/RESULTS.md. Raw material for the paper's
+results section.
+
+--------------------------------------------------------------------------------
+fix -- concurrent-eval clone collision                    commit 732073e
+--------------------------------------------------------------------------------
+repo_manager put every URL clone at .cpgvd_cache/<name> and rmtree'd it
+before re-cloning, so running `corpus eval` and `corpus eval-semgrep` on the
+same app at once had the second run delete the first run's working tree
+mid-mutation (observed: a grounded eval skipped 9/11 mutants with [Errno 2]).
+Clone dest is now <name>-<pid>.
+
+--------------------------------------------------------------------------------
+Corpus expansion (GITHUB_TOKEN)
+--------------------------------------------------------------------------------
+`cpgvd corpus collect --min-stars 40 --limit 45 --max-search 250
+--min-mutations 4` running once the token was supplied. Repo search ->
+screen package.json (express + passport/express-session/jsonwebtoken +
+permissive licence) -> clone -> mutate + verify -> drop apps below 4
+mutations. Results recorded in corpus/manifest.jsonl and corpus/labels/.
+[final app / instance count -- see corpus/manifest.jsonl]
+
+--------------------------------------------------------------------------------
+Overnight compute
+--------------------------------------------------------------------------------
+1. `scripts/run_corpus_eval_paced.sh 12 1200` -- grounded then raw over every
+   label file, 20-min cooldown after each app, resumable via --skip-existing.
+   On the full (expanded) corpus. ~overnight.
+2. `cpgvd corpus eval-semgrep corpus/labels` -- the rule-only baseline on the
+   full corpus (fast).
+3. deepseek-coder-v2:16b pulled for an optional model-swap run (comparative
+   axis 5) -- NOT run tonight (CPU contention with the paced eval); the
+   command is `CPGVD_OLLAMA_MODEL=deepseek-coder-v2:16b cpgvd corpus eval
+   corpus/labels/<one-app>.jsonl`.
+
+--------------------------------------------------------------------------------
+D10 remaining (morning)
+--------------------------------------------------------------------------------
+- `cpgvd corpus report` once the paced eval finishes -> the grounded vs raw
+  vs semgrep table (B5 + comparative axis 2).
+- Held-out: OWASP Juice Shop scored against its published challenge list
+  (B6). Needs the challenge -> control-class -> file/route mapping; Juice
+  Shop is TypeScript so check the extractor handles its routes.
+- Optional: model-swap run (axis 5), Layer-3 CVE cases (cut first).
+- Hand results tables to Track A (C1).
+
+SECURITY NOTE: the GITHUB_TOKEN is in .env (git-ignored). Revoke it at
+github.com/settings/tokens once the corpus is built -- it was pasted in
+cleartext and only needs to live as long as the collection run.
