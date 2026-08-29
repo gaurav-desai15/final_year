@@ -18,8 +18,8 @@ METHODS_JSON = [
         "name": "adminHandler",
         "fullName": ADMIN_HANDLER,
         "filename": "routes.js",
-        "lineNumber": 10,
-        "lineNumberEnd": 13,
+        "lineNumber": 7,
+        "lineNumberEnd": 11,
         "parameters": ["req", "res"],
         "returnType": "ANY",
     },
@@ -28,8 +28,8 @@ METHODS_JSON = [
         "name": "profileHandler",
         "fullName": PROFILE_HANDLER,
         "filename": "routes.js",
-        "lineNumber": 20,
-        "lineNumberEnd": 24,
+        "lineNumber": 14,
+        "lineNumberEnd": 18,
         "parameters": ["req", "res"],
         "returnType": "ANY",
     },
@@ -39,7 +39,7 @@ METHODS_JSON = [
         "fullName": REGISTER_ADMIN,
         "filename": "routes.js",
         "lineNumber": 1,
-        "lineNumberEnd": 6,
+        "lineNumberEnd": 4,
         "parameters": [],
         "returnType": "ANY",
     },
@@ -61,7 +61,7 @@ CALLS_JSON = [
         "name": "find",
         "code": "usersCol.find({}).toArray(cb)",
         "filename": "routes.js",
-        "lineNumber": 12,
+        "lineNumber": 8,
         "calleeFullName": "mongo.find",
         "containingMethodFullName": ADMIN_HANDLER,
     },
@@ -80,7 +80,7 @@ CALLS_JSON = [
         "name": "findOne",
         "code": "usersCol.findOne({_id: req.user.id})",
         "filename": "routes.js",
-        "lineNumber": 22,
+        "lineNumber": 15,
         "calleeFullName": "mongo.findOne",
         "containingMethodFullName": PROFILE_HANDLER,
     },
@@ -142,7 +142,46 @@ def test_guard_evidence_finds_middleware_on_caller(extractor):
     assert evidence, "requireAuth on the route registration should be picked up"
     controls = {e.control for e in evidence}
     assert "authentication" in controls
-    assert any(e.scope == "caller" for e in evidence)
+    assert any(e.scope == "route-middleware" for e in evidence)
+
+
+def _route_hit(extractor, path):
+    for hits in extractor.find_control_triggers("javascript").values():
+        for h in hits:
+            if h.operation == "route" and h.route_path == path:
+                return h
+    raise AssertionError(f"no route hit for {path}")
+
+
+def test_build_route_absence_context_unprotected_route(extractor):
+    ctx = extractor.build_route_absence_context(_route_hit(extractor, "/admin/users"), "javascript")
+
+    assert ctx.context_id.startswith("absence-route:")
+    assert ctx.start_line == 2  # the registration line, matches an M1 label
+    assert ctx.guard_evidence == []
+    assert any(t.operation == "route" and t.route_path == "/admin/users" for t in ctx.control_triggers)
+    # the resolved handler body is shown, and its db read surfaces as a trigger
+    assert "usersCol.find({})" in ctx.code
+    assert any(t.operation == "db_read" for t in ctx.control_triggers)
+
+
+def test_build_route_absence_context_picks_up_route_middleware(extractor):
+    ctx = extractor.build_route_absence_context(_route_hit(extractor, "/profile"), "javascript")
+
+    assert ctx.guard_evidence
+    g = ctx.guard_evidence[0]
+    assert g.control == "authentication" and g.scope == "route-middleware"
+    assert g.node_id >= 0  # anchored on the registration call node
+
+
+def test_split_call_args_keeps_inline_function_whole():
+    from cpgvd.context_extractor import _split_call_args
+
+    args = _split_call_args("app.get('/x', requireAuth, function (req, res) { return res.end(); })")
+    assert len(args) == 3
+    assert args[0].strip() == "'/x'"
+    assert args[1].strip() == "requireAuth"
+    assert args[2].strip().startswith("function")
 
 
 def test_build_absence_context_populates_fields_and_prompt(extractor):

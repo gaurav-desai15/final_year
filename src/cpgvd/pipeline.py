@@ -147,11 +147,29 @@ def extract_contexts(
 
     if want_absence:
         triggers = extractor.find_control_triggers(lang)
+        # One candidate per route *registration* (a centralised router is one
+        # method with dozens of routes -- per-method context can't localise a
+        # single missing guard). Everything else stays per method.
+        route_hits = []
+        seen_routes: set[tuple[str, int]] = set()
+        method_hits: dict[str, list] = {}
+        for full_name, hits in triggers.items():
+            for h in hits:
+                if h.operation == "route":
+                    key = (h.call.filename, h.call.line_number)
+                    if key not in seen_routes:
+                        seen_routes.add(key)
+                        route_hits.append(h)
+                else:
+                    method_hits.setdefault(full_name, []).append(h)
         progress(
-            f"  {sum(len(v) for v in triggers.values())} control-trigger matches "
-            f"across {len(triggers)} functions"
+            f"  {len(route_hits)} route registrations, "
+            f"{sum(len(v) for v in method_hits.values())} other trigger matches"
         )
-        for full_name, hits in _prioritize_absence(list(triggers.items()))[: config.max_contexts]:
+        for h in route_hits[: config.max_contexts]:
+            absence_contexts.append(extractor.build_route_absence_context(h, lang))
+        remaining = max(0, config.max_contexts - len(absence_contexts))
+        for full_name, hits in _prioritize_absence(list(method_hits.items()))[:remaining]:
             method = extractor.method_by_full_name(full_name)
             if method is None:
                 continue

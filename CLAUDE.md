@@ -134,21 +134,20 @@ Mutation harness (`corpus mutate` / `corpus stats`, landed this session — v1):
 - `analyze` now persists the analyzed `contexts` (with `guard_evidence` +
   node ids) into `report.json` — findings are checkable against what the
   model saw. Absence-mode context selection now ranks route handlers first.
-- **D4 harness smoke test — NodeGoat, 3 M1 mutants, max_contexts 6:** ran
-  end-to-end (one Joern server across all 4 runs, ~6.5 min, valid eval.json).
-  Numbers: recall 0/3, **5 FP on the unmutated original**, precision 0.
-  Root cause (a real finding, not a harness bug): NodeGoat registers ~60
-  routes in ONE `<module>` method, so the absence context for that method is
-  the whole router and a single dropped `isLoggedIn` is invisible to the LLM
-  — it flags other things (a hardcoded `/learn` redirect ×2) but never the
-  mutated line. **The absence mode needs per-route-registration context, not
-  per-method**, when routing is centralised. This is the top D5 tuning item;
-  do it against mutation-corpus apps, and expect the honest write-up the
-  plan's risk table calls for. `qwen2.5-coder:7b` also over-flags DAO reads.
-- Still to build (D5-D6): per-route-registration absence context (above);
-  GitHub-API corpus collection script (express +
+- **Per-route absence context (landed):** `build_route_absence_context` makes
+  ONE candidate per `app.get(...)` registration — its middleware list, the
+  resolved handler body (`_resolve_handler` maps `ctrl.displayFoo` -> method),
+  guards on either, anchored on the registration line so it matches an M1
+  label. `pipeline.extract_contexts` splits route triggers (per-registration)
+  from the rest (per-method, e.g. DAOs). Fixes the D4 smoke-test 0-recall
+  cause: a centralised router is one `<module>` method with ~60 routes, and
+  per-method context couldn't localise one dropped `isLoggedIn`.
+- D4 smoke test (pre-fix, NodeGoat 3 M1 mutants): recall 0/3, 5 FP on the
+  original. Re-running post-fix to confirm recall recovers.
+- Still to build (D5-D6): GitHub-API corpus collection script (express +
   passport/express-session/jsonwebtoken, >=50 stars, permissive licence);
   scale the corpus to ~30 apps; hand-verify ~10 mutations at D6.
+  Ungrounded (raw-file) baseline mode for the H2 comparison.
 
 Candidate next features (pick with the user, don't assume):
 1. Widen `_NO_ATTACKER_PATH_RE` to catch "no … taint … reach… sink" phrasing.

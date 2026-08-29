@@ -98,6 +98,74 @@ class TriggerHit:
 
 
 _ROUTE_PATH_RE = re.compile(r"""['"]([^'"]{1,200})['"]""")
+_ROUTE_VERB_RE = re.compile(r"\b(?:app|router)\s*\.\s*(get|post|put|patch|delete|all)\s*\(", re.IGNORECASE)
+
+
+def _split_call_args(code: str) -> list[str]:
+    """Top-level argument strings of the first call in `code`.
+
+    `app.get('/x', mwA, mwB, handler)` -> ["'/x'", " mwA", " mwB", " handler"].
+    Brace/bracket/paren/string aware so an inline `function (req, res) {...}`
+    handler stays one argument.
+    """
+    open_paren = code.find("(")
+    if open_paren == -1:
+        return []
+    depth = 0
+    i = open_paren
+    n = len(code)
+    args: list[str] = []
+    cur: list[str] = []
+    while i < n:
+        c = code[i]
+        if c in "\"'`":
+            j = i + 1
+            while j < n and code[j] != c:
+                j += 2 if code[j] == "\\" else 1
+            cur.append(code[i : j + 1])
+            i = j + 1
+            continue
+        if c in "([{":
+            depth += 1
+            if depth == 1 and c == "(":
+                i += 1
+                continue
+        elif c in ")]}":
+            depth -= 1
+            if depth == 0:
+                args.append("".join(cur))
+                return args
+        if c == "," and depth == 1:
+            args.append("".join(cur))
+            cur = []
+            i += 1
+            continue
+        cur.append(c)
+        i += 1
+    if cur:
+        args.append("".join(cur))
+    return args
+
+
+class _GuardAcc:
+    """Accumulates GuardEvidence, de-duplicating on (control, file, line, code)."""
+
+    def __init__(self) -> None:
+        self._seen: set[tuple[str, str, int, str]] = set()
+        self.items: list[GuardEvidence] = []
+
+    def add(self, *, control: str, category: str, code: str, file: str, line: int, node_id: int, scope: str) -> None:
+        code = code.strip()
+        key = (control, file, line, code)
+        if key in self._seen:
+            return
+        self._seen.add(key)
+        self.items.append(
+            GuardEvidence(
+                control=control, category=category, code=code[:400],
+                file=file, line=line, node_id=node_id, scope=scope,
+            )
+        )
 
 
 _METHOD_LIST_QUERY = r"""
@@ -281,88 +349,91 @@ class ContextExtractor:
                     break
         return by_method
 
-    def collect_guard_evidence(self, method: RawMethod, language: str) -> list[GuardEvidence]:
-        """Every guard-pattern match on `method` and on its direct callers.
+    def _calls_in(self, method_full_name: str) -> list[RawCall]:
+        return [c for c in self._calls if c.containing_method_full_name == method_full_name]
 
-        This is a pragmatic stand-in for a true CPG control-dependence slice:
-        guards usually sit either in the handler body or in the middleware
-        chain at the route-registration site. A route handler is *passed as an
-        argument* to `app.get(path, mw, handler)`, so it has no call-graph
-        caller -- we instead find calls whose code names this method and read
-        the middleware list straight out of that call's code. Matches come
-        from both the flat call list (keeping the CPG node id) and a regex
-        pass over source text (so comparisons / decorators that aren't calls
-        -- `if (req.user.id !== doc.ownerId)`, `@login_required` -- are caught).
+    def _scan_guards_call(self, acc: _GuardAcc, call: RawCall, guards, scope: str) -> None:
+        for rule in guards:
+            if rule.pattern.search(call.code) or rule.pattern.search(call.name):
+                acc.add(
+                    control=rule.control, category=rule.category, code=call.code,
+                    file=call.filename, line=call.line_number, node_id=call.id, scope=scope,
+                )
+                return
+
+    def _scan_guards_text(self, acc: _GuardAcc, text: str, file: str, first_line: int, guards, scope: str, node_id: int = -1) -> None:
+        for offset, line in enumerate(text.splitlines()):
+            for rule in guards:
+                if rule.pattern.search(line):
+                    acc.add(
+                        control=rule.control, category=rule.category, code=line,
+                        file=file, line=first_line + offset, node_id=node_id, scope=scope,
+                    )
+                    break
+
+    def _scan_guards_method_body(self, acc: _GuardAcc, method: RawMethod, guards, scope: str) -> None:
+        for call in self._calls_in(method.full_name):
+            self._scan_guards_call(acc, call, guards, scope)
+        src = self.read_source(method.filename, method.start_line, method.end_line, max_lines=200)
+        self._scan_guards_text(acc, src, method.filename, method.start_line, guards, scope)
+
+    def _resolve_handler(self, handler_expr: str) -> RawMethod | None:
+        """Map a route handler argument (`ctrl.displayFoo`, `displayFoo`) to its method."""
+        name = re.split(r"[.\s(\[]", handler_expr.strip())[-1].strip()
+        if not name.isidentifier() or name in ("function", "async"):
+            return None
+        cands = [m for m in self._methods_by_id.values() if m.name == name]
+        if not cands:
+            return None
+        cands.sort(key=lambda m: (m.name == "<module>", "handler" not in m.filename and "route" not in m.filename, m.filename))
+        return cands[0]
+
+    def _control_triggers_in(self, method_full_name: str, language: str) -> list[ControlTrigger]:
+        lang_rules = self.absence_rules.get(language)
+        if lang_rules is None:
+            return []
+        out: list[ControlTrigger] = []
+        for call in self._calls_in(method_full_name):
+            for rule in lang_rules.triggers:
+                if rule.operation == "route":
+                    continue
+                if rule.pattern.search(call.code) or rule.pattern.search(call.name):
+                    out.append(
+                        ControlTrigger(
+                            operation=rule.operation, category=rule.category, code=call.code,
+                            file=call.filename, line=call.line_number, node_id=call.id,
+                        )
+                    )
+                    break
+        return out
+
+    def collect_guard_evidence(self, method: RawMethod, language: str) -> list[GuardEvidence]:
+        """Every guard-pattern match on `method`, its route-registration sites,
+        and its direct callers -- for a per-method (non-route) candidate.
+
+        A route handler is *passed as an argument* to `app.get(path, mw, handler)`
+        so it has no call-graph caller; we find calls whose code names this
+        method and read the middleware list out of that call's code. Matches
+        come from the flat call list (keeping the CPG node id) and a regex pass
+        over source text (comparisons / decorators that aren't calls).
         """
         lang_rules = self.absence_rules.get(language)
         if lang_rules is None:
             return []
+        acc = _GuardAcc()
 
-        seen: set[tuple[str, str, int, str]] = set()
-        evidence: list[GuardEvidence] = []
-
-        def add(control: str, category: str, code: str, file: str, line: int, node_id: int, scope: str) -> None:
-            key = (control, file, line, code.strip())
-            if key in seen:
-                return
-            seen.add(key)
-            evidence.append(
-                GuardEvidence(
-                    control=control,
-                    category=category,
-                    code=code.strip()[:400],
-                    file=file,
-                    line=line,
-                    node_id=node_id,
-                    scope=scope,
-                )
-            )
-
-        # Registration sites: calls elsewhere that reference this handler by
-        # name (typically `app.get('/x', requireAuth, handler)`). The middleware
-        # list is in the call's own `code`, so test it directly.
         name_re = re.compile(rf"\b{re.escape(method.name)}\b") if method.name else None
         if name_re is not None:
             for call in self._calls:
                 if call.containing_method_full_name == method.full_name:
                     continue
-                if not name_re.search(call.code):
-                    continue
-                for rule in lang_rules.guards:
-                    if rule.pattern.search(call.code):
-                        add(rule.control, rule.category, call.code, call.filename, call.line_number, call.id, "caller")
+                if name_re.search(call.code):
+                    self._scan_guards_call(acc, call, lang_rules.guards, "route-middleware")
 
-        # Body scan only for the handler itself and its real call-graph callers
-        # (wrapper functions). Route-registration modules are deliberately
-        # excluded here -- one module registers many routes, so scanning its
-        # whole body would attribute another route's `requireAuth` to this one.
-        targets: list[tuple[RawMethod, str]] = [(method, "handler")]
-        targets += [(c, "caller") for c in self.callers_of(method.full_name)[:8]]
-
-        for meth, scope in targets:
-            method_calls = [
-                c for c in self._calls if c.containing_method_full_name == meth.full_name
-            ]
-            for call in method_calls:
-                for rule in lang_rules.guards:
-                    if rule.pattern.search(call.code) or rule.pattern.search(call.name):
-                        add(rule.control, rule.category, call.code, call.filename, call.line_number, call.id, scope)
-                        break
-            source = self.read_source(meth.filename, meth.start_line, meth.end_line, max_lines=200)
-            for offset, text in enumerate(source.splitlines()):
-                for rule in lang_rules.guards:
-                    if rule.pattern.search(text):
-                        add(
-                            rule.control,
-                            rule.category,
-                            text,
-                            meth.filename,
-                            meth.start_line + offset,
-                            -1,
-                            scope,
-                        )
-                        break
-        return evidence
+        self._scan_guards_method_body(acc, method, lang_rules.guards, "handler")
+        for c in self.callers_of(method.full_name)[:8]:
+            self._scan_guards_method_body(acc, c, lang_rules.guards, "caller")
+        return acc.items
 
     def callers_of(self, method_full_name: str) -> list[RawMethod]:
         caller_names = {
@@ -590,4 +661,88 @@ class ContextExtractor:
             imports=imports,
             control_triggers=triggers,
             guard_evidence=self.collect_guard_evidence(method, language),
+        )
+
+    def build_route_absence_context(self, route_hit: TriggerHit, language: str) -> FunctionContext:
+        """One control-absence candidate per route *registration*.
+
+        Centralised routers (`app.get(...)` x60 in one module) make a
+        per-method context useless -- the model sees the whole router and
+        can't localise a single missing `requireAuth`. This anchors on the
+        one registration: its middleware list, the resolved handler body, and
+        the guards found on either. `start_line` is the registration line, so
+        it lines up with an M1 mutation label.
+        """
+        lang_rules = self.absence_rules.get(language)
+        guards = lang_rules.guards if lang_rules else []
+        call = route_hit.call
+        args = _split_call_args(call.code)
+        mw_exprs = args[1:-1] if len(args) >= 2 else []
+        handler_expr = args[-1] if len(args) >= 2 else ""
+        handler = self._resolve_handler(handler_expr)
+
+        acc = _GuardAcc()
+        for mw in mw_exprs:
+            for rule in guards:
+                if rule.pattern.search(mw):
+                    acc.add(
+                        control=rule.control, category=rule.category,
+                        code=f"{mw.strip()}  (middleware on {call.code.strip()[:120]})",
+                        file=call.filename, line=call.line_number, node_id=call.id,
+                        scope="route-middleware",
+                    )
+                    break
+        if handler is not None:
+            self._scan_guards_method_body(acc, handler, guards, "handler")
+            for c in self.callers_of(handler.full_name)[:4]:
+                self._scan_guards_method_body(acc, c, guards, "caller")
+        else:
+            self._scan_guards_text(acc, call.code, call.filename, call.line_number, guards, "handler", node_id=call.id)
+
+        triggers = [
+            ControlTrigger(
+                operation="route", category=route_hit.category, code=call.code,
+                file=call.filename, line=call.line_number, node_id=call.id,
+                route_path=route_hit.route_path,
+            )
+        ]
+        verb_m = _ROUTE_VERB_RE.search(call.code)
+        verb = verb_m.group(1).upper() if verb_m else "?"
+
+        parts = [
+            f"// {verb} {route_hit.route_path or '?'}  registered at {call.filename}:{call.line_number}",
+            self.read_source(call.filename, call.line_number, call.line_number, max_lines=3) or call.code,
+        ]
+        if handler is not None:
+            triggers += self._control_triggers_in(handler.full_name, language)
+            parts += [
+                "",
+                f"// handler: {handler.full_name}  ({handler.filename}:{handler.start_line})",
+                self.read_source(handler.filename, handler.start_line, handler.end_line, max_lines=200),
+            ]
+            end_line = handler.end_line if handler.filename == call.filename else call.line_number
+            full_name, method_name, params = handler.full_name, handler.name, handler.parameters
+            imports_file = handler.filename
+        else:
+            parts += ["", "// inline handler (following lines):",
+                      self.read_source(call.filename, call.line_number, call.line_number + 40, max_lines=40)]
+            end_line = call.line_number
+            full_name = f"{call.containing_method_full_name}#{route_hit.route_path or call.line_number}"
+            method_name = f"route {verb} {route_hit.route_path}"
+            params = []
+            imports_file = call.filename
+
+        return FunctionContext(
+            context_id=f"absence-route:{call.filename}:{route_hit.route_path or call.line_number}:{call.line_number}",
+            language=language,
+            file=call.filename,
+            method_name=method_name,
+            full_name=full_name,
+            start_line=call.line_number,
+            end_line=end_line,
+            code="\n".join(parts),
+            parameters=params,
+            imports=self.extract_imports(imports_file, language),
+            control_triggers=triggers,
+            guard_evidence=acc.items,
         )
