@@ -57,43 +57,27 @@ _SKIP_FILE_RE = re.compile(r"\.(test|spec|min|bundle)\.[cm]?js$")
 
 # -- guard vocabularies (mutator-local; NOT shared with the detector) --------
 
-_AUTH_MW_NAMES = (
-    "requireauth",
-    "requirelogin",
-    "requireslogin",
-    "requiresauth",
-    "isloggedin",
-    "isauthenticated",
-    "ensureloggedin",
-    "ensureauthenticated",
-    "ensureauth",
-    "checkauth",
-    "checkauthentication",
-    "verifytoken",
-    "verifyjwt",
-    "authrequired",
-    "authenticate",
-    "protect",
-    "loginrequired",
-    "needsauth",
-    "restrict",
-)
 _PASSPORT_AUTH_RE = re.compile(r"passport\s*\.\s*authenticate\s*\(")
 
-_ROLE_MW_NAMES = (
-    "isadmin",
-    "ensureadmin",
-    "requireadmin",
-    "adminonly",
-    "adminrequired",
-    "isauthorized",
-    "checkrole",
-    "hasrole",
-    "requirerole",
-    "authorize",
-    "authorization",
-    "rolerequired",
-    "permit",
+# Route-middleware classifiers, matched against the argument (and its last
+# `.`-segment). Ordered validation -> authorization -> authentication.
+_MW_VALIDATION_RE = re.compile(
+    r"^(?:validate|validator|validation|celebrate|checkschema|sanitize|schemavalidator|runvalidation)\w*",
+    re.IGNORECASE,
+)
+_MW_AUTHZ_RE = re.compile(
+    r"^(?:authoriz|restrictto|restrict$|restrict\b|is_?admin|ensure_?admin|require_?admin|admin_?only"
+    r"|has_?role|check_?role|require_?role|role_?required|has_?permission|check_?permission"
+    r"|require_?permission|grant_?access|\bacl\b|\brbac\b|permit\b|check_?abilities|allow_?for"
+    r"|only_?admin|is_?authorized)",
+    re.IGNORECASE,
+)
+_MW_AUTHN_RE = re.compile(
+    r"^(?:auth$|auth\b|authenticat|require_?(?:auth|login|user|s?login)|ensure_?(?:auth|logged_?in|authenticated)"
+    r"|is_?(?:auth|logged_?in|authenticated)|check_?auth|verify_?(?:token|jwt|auth|user)"
+    r"|jwt_?(?:auth|guard|verify)|login_?required|needs_?auth|protect|secured|with_?auth"
+    r"|check_?(?:jwt|token)|bearer|token_?required|must_?be_?logged_?in)",
+    re.IGNORECASE,
 )
 
 _OWNERSHIP_RE = re.compile(
@@ -356,15 +340,16 @@ def _drop_auth_middleware(text: str, lines: list[str]) -> Iterator[_Target]:
         tail = text[handler_start:line_end]  # the handler arg + rest of that line
 
         for k, mw in enumerate(args[1:-1], start=1):
-            control = _middleware_control_class(mw)
-            if control is None:
+            classified = _classify_middleware(mw)
+            if classified is None:
                 continue
+            operator, control = classified
             kept = [a.strip() for i, a in enumerate(args[:-1]) if i != k]
             new_region = head + ", ".join(kept) + ", " + tail.lstrip()
             pad = (e_line - s_line) - new_region.count("\n")
             mutated = new_region + ("\n" * pad if pad > 0 else "")
             yield _Target(
-                operator="M1",
+                operator=operator,
                 control_class=control,
                 start_line=s_line,
                 end_line=e_line,
@@ -375,18 +360,40 @@ def _drop_auth_middleware(text: str, lines: list[str]) -> Iterator[_Target]:
             )
 
 
-def _middleware_control_class(arg: str) -> str | None:
+def _classify_middleware(arg: str) -> tuple[str, str] | None:
+    """(operator, control_class) for a route-middleware argument, or None.
+
+    Handles the common shapes: a bare name (`requireAuth`), a call
+    (`auth('getUsers')`, `authorize(['admin'])`), and an object member
+    (`mw.isLoggedIn`, `middleware.protect`).
+    """
     a = arg.strip()
+    if not a or _looks_like_handler(a):
+        return None
     if _PASSPORT_AUTH_RE.search(a):
-        return "authentication"
-    tail = re.split(r"[.\s(]", a)[-1] if a else ""
-    base = re.sub(r"[^a-z]", "", a.lower())
-    tailn = re.sub(r"[^a-z]", "", tail.lower())
-    if any(name in base or name == tailn for name in _ROLE_MW_NAMES):
-        return "authorization"
-    if any(name in base or name == tailn for name in _AUTH_MW_NAMES):
-        return "authentication"
+        return ("M1", "authentication")
+    candidates = [a, a.split(".")[-1].strip()]
+    for cand in candidates:
+        if _MW_VALIDATION_RE.match(cand):
+            return ("M5", "validation")
+    for cand in candidates:
+        if _MW_AUTHZ_RE.match(cand):
+            return ("M1", "authorization")
+    for cand in candidates:
+        if _MW_AUTHN_RE.match(cand):
+            return ("M1", "authentication")
     return None
+
+
+def _looks_like_handler(arg: str) -> bool:
+    """A `(req, res) => ...` or `function (req, res)` inline handler passed
+    mid-list -- not a middleware we should drop."""
+    a = arg.strip()
+    return bool(
+        re.match(r"^(?:async\s+)?function\b", a)
+        or re.match(r"^\([^)]*\)\s*=>", a)
+        or re.match(r"^\w+\s*=>", a)
+    )
 
 
 def _drop_validation_before_write(text: str, lines: list[str]) -> Iterator[_Target]:

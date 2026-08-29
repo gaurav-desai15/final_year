@@ -5,7 +5,10 @@ import shutil
 
 import pytest
 
+import pytest
+
 from cpgvd.mutation import (
+    _classify_middleware,
     _mutate_text,
     find_file_mutations,
     find_mutations,
@@ -13,6 +16,35 @@ from cpgvd.mutation import (
     node_check,
     verify_mutations,
 )
+
+
+@pytest.mark.parametrize(
+    "mw,expected",
+    [
+        ("requireAuth", ("M1", "authentication")),
+        ("isLoggedIn", ("M1", "authentication")),
+        ("auth('getUsers')", ("M1", "authentication")),
+        ("passport.authenticate('jwt')", ("M1", "authentication")),
+        ("mw.protect", ("M1", "authentication")),
+        ("verifyToken", ("M1", "authentication")),
+        ("ensureAdmin", ("M1", "authorization")),
+        ("authorize(['admin'])", ("M1", "authorization")),
+        ("restrictTo('admin')", ("M1", "authorization")),
+        ("checkRole('editor')", ("M1", "authorization")),
+        ("validate(authValidation.register)", ("M5", "validation")),
+        ("celebrate(schema)", ("M5", "validation")),
+    ],
+)
+def test_classify_middleware_recognises_common_shapes(mw, expected):
+    assert _classify_middleware(mw) == expected
+
+
+@pytest.mark.parametrize(
+    "mw",
+    ["ctrl.index", "controller.list", "next", "bodyParser", "cors()", "function (req, res)", "(req, res) => {}"],
+)
+def test_classify_middleware_ignores_non_controls(mw):
+    assert _classify_middleware(mw) is None
 
 ROUTES_JS = """\
 const express = require('express');
