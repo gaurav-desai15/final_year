@@ -5,9 +5,12 @@ from cpgvd.corpus_collect import (
     RepoCandidate,
     _package_auth_libs,
     build_query,
+    candidate_from_url,
     find_candidates,
+    parse_repo_list,
     read_manifest,
     screen_candidate,
+    screen_local,
     write_manifest,
 )
 
@@ -129,3 +132,40 @@ def test_github_client_paginates_search():
 def test_github_client_sets_auth_header():
     gh = GitHubClient(token="ghp_x", session=_FakeSession([]))
     assert gh.session.headers["Authorization"] == "Bearer ghp_x"
+
+
+# -- --from-list path -----------------------------------------------------
+
+
+def test_parse_repo_list_ignores_comments_and_blanks():
+    text = "# header\n\nhttps://github.com/a/b\n  https://github.com/c/d  # inline\n\n"
+    assert parse_repo_list(text) == ["https://github.com/a/b", "https://github.com/c/d"]
+
+
+def test_candidate_from_url():
+    c = candidate_from_url("https://github.com/owner/my-repo")
+    assert c.full_name == "owner/my-repo"
+    assert c.clone_url == "https://github.com/owner/my-repo.git"
+    assert c.app == "owner__my-repo"
+
+
+def test_screen_local_accepts_express_auth_with_permissive_license(tmp_path):
+    (tmp_path / "package.json").write_text(
+        json.dumps({"license": "MIT", "dependencies": {"express": "4", "passport": "0.7"}})
+    )
+    cand = candidate_from_url("https://github.com/a/b")
+    assert screen_local(cand, tmp_path)
+    assert cand.auth_libs == ["passport"] and cand.license_key == "mit"
+
+
+def test_screen_local_rejects_non_express(tmp_path):
+    (tmp_path / "package.json").write_text(json.dumps({"license": "MIT", "dependencies": {"koa": "2"}}))
+    assert not screen_local(candidate_from_url("https://github.com/a/b"), tmp_path)
+
+
+def test_screen_local_reads_license_file_when_package_json_silent(tmp_path):
+    (tmp_path / "package.json").write_text(json.dumps({"dependencies": {"express": "4", "jsonwebtoken": "9"}}))
+    (tmp_path / "LICENSE").write_text("MIT License\n\nCopyright (c) 2024 ...")
+    cand = candidate_from_url("https://github.com/a/b")
+    assert screen_local(cand, tmp_path)
+    assert cand.license_key == "mit"

@@ -1,0 +1,48 @@
+# Curated seed list for the control-absence mutation corpus.
+#
+# Real Node/Express applications that ship working route-level access control
+# (auth middleware, ownership/role checks) -- so the mutation harness has real
+# controls to remove. One repo URL per line; `#` for comments.
+#
+# `cpgvd corpus collect --from-list corpus/seed_apps.txt` clones each, screens
+# the local package.json for express + an auth lib, mutates, and drops any that
+# yield < --min-mutations. Curate the survivors: the manifest records the
+# licence it found (or "unknown"); drop anything that isn't a real app.
+#
+# NOT for tuning against the held-out set (OWASP Juice Shop / NodeGoat) --
+# those are never listed here.
+
+# --- passport / express-session apps with isAuthenticated-style route guards
+https://github.com/sahat/hackathon-starter
+https://github.com/santiq/bulletproof-nodejs
+https://github.com/madhums/node-express-mongoose-demo
+
+# --- JWT REST APIs with auth() / protect middleware on routes
+https://github.com/gothinkster/node-express-realworld-example-app
+https://github.com/hagopj13/node-express-boilerplate
+https://github.com/danielfsousa/express-rest-boilerplate
+https://github.com/kunalkapadia/express-mongoose-es6-rest-api
+https://github.com/rwanghao3616/node-api-boilerplate
+https://github.com/CleanArchitecture-NodeJS/clean-architecture-nodejs
+
+# --- MERN back-ends with protect + admin/authorize middleware
+https://github.com/bradtraversy/devcamper_api
+https://github.com/bradtraversy/proshop_mern
+https://github.com/bradtraversy/mern_shopping_list
+https://github.com/nemanjam/mern-boilerplate
+https://github.com/rhalbritter/mern-auth-boilerplate
+
+# --- role / ownership checks in route handlers
+https://github.com/cornflourblue/node-mongo-registration-login-api
+https://github.com/bezkoder/node-js-jwt-auth
+https://github.com/bezkoder/node-express-mongodb
+https://github.com/Devnear/express-typescript-boilerplate
+https://github.com/rzgry/Express-REST-API-Template
+https://github.com/DimiMikadze/create-social-network
+
+# --- larger apps
+https://github.com/HospitalRun/hospitalrun-server
+https://github.com/reactioncommerce/reaction
+https://github.com/ghiscoding/aurelia-slickgrid
+https://github.com/strapi/strapi-examples
+https://github.com/keystonejs/keystone-classic

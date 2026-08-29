@@ -225,6 +225,7 @@ def corpus_mutate(
 
 
 @corpus.command("collect")
+@click.option("--from-list", "from_list", type=click.Path(exists=True, path_type=Path), default=None, help="A file of repo URLs (one per line) -- skip GitHub search.")
 @click.option("--min-stars", default=50, show_default=True)
 @click.option("--pushed-after", default="2024-01-01", show_default=True, help="ISO date; repo must have activity since.")
 @click.option("--limit", default=35, show_default=True, help="How many screened apps to keep.")
@@ -236,6 +237,7 @@ def corpus_mutate(
 @click.option("--min-mutations", default=5, show_default=True, help="Drop cloned apps that yield fewer mutations (frameworks / boilerplates).")
 @click.option("-v", "--verbose", is_flag=True)
 def corpus_collect(
+    from_list: Path | None,
     min_stars: int,
     pushed_after: str,
     limit: int,
@@ -247,33 +249,49 @@ def corpus_collect(
     min_mutations: int,
     verbose: bool,
 ) -> None:
-    """Search GitHub for Express+auth apps, clone them, and (by default) mutate.
+    """Collect Express+auth apps, clone them, and (by default) mutate.
 
-    Needs GITHUB_TOKEN / GH_TOKEN for anything beyond a tiny run.
+    Either from GitHub search (needs GITHUB_TOKEN for a real run) or from a
+    curated URL list via --from-list.
     """
     _setup_logging(verbose)
+    import shutil
+
     from .corpus import summarize, write_labels
-    from .corpus_collect import GitHubClient, clone_candidate, find_candidates, token_from_env, write_manifest
+    from .corpus_collect import (
+        GitHubClient, candidate_from_url, clone_candidate, find_candidates,
+        parse_repo_list, screen_local, token_from_env, write_manifest,
+    )
     from .mutation import find_mutations, verify_mutations
 
-    token = token_from_env()
-    if not token:
-        console.print("[yellow]No GITHUB_TOKEN set[/yellow] -- expect rate limiting after ~10 requests.")
-    gh = GitHubClient(token=token)
+    if from_list:
+        urls = parse_repo_list(from_list.read_text(encoding="utf-8"))
+        cands = [candidate_from_url(u) for u in urls]
+        console.print(f"[bold]From list:[/bold] {len(cands)} repos -- screening after clone")
+        screen_after_clone = True
+    else:
+        token = token_from_env()
+        if not token:
+            console.print("[yellow]No GITHUB_TOKEN set[/yellow] -- expect rate limiting after ~10 requests.")
+        console.print(f"[bold]Searching[/bold] stars>={min_stars}, pushed>={pushed_after} ...")
+        cands = find_candidates(
+            GitHubClient(token=token),
+            min_stars=min_stars, pushed_after=pushed_after, max_search=max_search, limit=limit,
+        )
+        console.print(f"  {len(cands)} apps passed API screening")
+        screen_after_clone = False
 
-    console.print(f"[bold]Searching[/bold] stars>={min_stars}, pushed>={pushed_after} ...")
-    cands = find_candidates(
-        gh, min_stars=min_stars, pushed_after=pushed_after, max_search=max_search, limit=limit
-    )
-    console.print(f"  {len(cands)} apps passed screening (Express + auth lib + permissive licence)")
-
-    all_records = []
+    all_records: list = []
     kept: list = []
     for i, cand in enumerate(cands, 1):
         try:
             clone_candidate(cand, dest)
         except Exception as e:  # noqa: BLE001 - a dead repo shouldn't kill the batch
             console.print(f"  [{i}/{len(cands)}] {cand.full_name}: clone failed ({e})")
+            continue
+        if screen_after_clone and not screen_local(cand, Path(cand.local_path)):
+            console.print(f"  [{i}/{len(cands)}] {cand.full_name}: not an Express+auth app / non-permissive -- dropped")
+            shutil.rmtree(cand.local_path, ignore_errors=True)
             continue
         if not mutate:
             kept.append(cand)
@@ -285,11 +303,7 @@ def corpus_collect(
         if verify:
             records = verify_mutations(Path(cand.local_path), records)
         if len(records) < min_mutations:
-            console.print(
-                f"  [{i}/{len(cands)}] {cand.full_name}: only {len(records)} mutations -- dropped"
-            )
-            import shutil
-
+            console.print(f"  [{i}/{len(cands)}] {cand.full_name}: only {len(records)} mutations -- dropped")
             shutil.rmtree(cand.local_path, ignore_errors=True)
             continue
         kept.append(cand)
@@ -298,8 +312,8 @@ def corpus_collect(
         console.print(f"  [{i}/{len(cands)}] {cand.full_name}: {len(records)} mutations")
 
     write_manifest(kept, manifest)
-    console.print(f"[bold]Manifest:[/bold] {manifest}  ({len(kept)} apps cloned)")
-    if mutate:
+    console.print(f"[bold]Manifest:[/bold] {manifest}  ({len(kept)} apps kept)")
+    if mutate and all_records:
         console.print_json(data=summarize(all_records))
 
 

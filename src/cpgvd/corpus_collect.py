@@ -170,6 +170,60 @@ def find_candidates(
     return out
 
 
+def parse_repo_list(text: str) -> list[str]:
+    """One repo URL per line; `#` comments and blank lines ignored."""
+    urls = []
+    for raw in text.splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if line:
+            urls.append(line)
+    return urls
+
+
+def candidate_from_url(url: str) -> RepoCandidate:
+    slug = re.sub(r"\.git$", "", url.rstrip("/"))
+    parts = slug.split("/")
+    full_name = "/".join(parts[-2:]) if len(parts) >= 2 else parts[-1]
+    return RepoCandidate(
+        full_name=full_name,
+        clone_url=url if url.endswith(".git") else url + ".git",
+        default_branch="",
+        stars=0,
+        pushed_at="",
+    )
+
+
+def screen_local(cand: RepoCandidate, path: Path) -> bool:
+    """Screen an already-cloned repo: Express + an auth lib in package.json,
+    and a permissive licence (package.json `license` field or a LICENSE file)."""
+    pkg_path = path / "package.json"
+    if not pkg_path.exists():
+        return False
+    try:
+        pkg_text = pkg_path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return False
+    libs = _package_auth_libs(pkg_text)
+    if not libs:
+        return False
+    cand.auth_libs = libs
+    try:
+        lic = (json.loads(pkg_text).get("license") or "")
+    except (json.JSONDecodeError, AttributeError):
+        lic = ""
+    lic = (lic if isinstance(lic, str) else lic.get("type", "")).lower().strip()
+    if lic not in _PERMISSIVE_LICENSES:
+        # fall back to a LICENSE file's first line
+        for name in ("LICENSE", "LICENSE.md", "LICENSE.txt", "license"):
+            f = path / name
+            if f.exists():
+                head = f.read_text(encoding="utf-8", errors="replace")[:400].lower()
+                lic = next((k for k in _PERMISSIVE_LICENSES if k.split("-")[0] in head), lic)
+                break
+    cand.license_key = lic or "unknown"
+    return cand.license_key in _PERMISSIVE_LICENSES or cand.license_key == "unknown"
+
+
 def clone_candidate(cand: RepoCandidate, dest_dir: Path) -> RepoCandidate:
     import git
 
