@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-29T18:43:32.326135Z",
+  "generated_at": "2026-08-29T18:45:10.233120Z",
   "model": "semgrep",
   "mode": "absence",
   "grounding": "rules-only",
@@ -191,7 +191,7 @@
   ],
   "baseline_findings": [
     {
-      "id": "a0a0e603-c8e1-412d-b0a8-9d03a588716a",
+      "id": "49e0d94f-bfbe-4de9-8305-bda5c75af498",
       "context_id": "semgrep:routes/auth.js:7",
       "file": "routes/auth.js",
       "start_line": 7,
@@ -209,7 +209,7 @@
       "model": "semgrep/unprotected_route"
     },
     {
-      "id": "70607a07-3b55-47ba-93e0-735f26611964",
+      "id": "c200012e-382e-42f4-9a17-da7f1b6dc652",
       "context_id": "semgrep:routes/auth.js:21",
       "file": "routes/auth.js",
       "start_line": 21,

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
 import re
 import shutil
 from collections import Counter
@@ -134,7 +135,9 @@ class RepoManager:
 
     def _clone(self, url: str, *, ref: str | None, shallow: bool) -> RepoInfo:
         repo_name = re.sub(r"[^a-zA-Z0-9_.-]", "_", url.rstrip("/").split("/")[-1])
-        dest = self.work_dir / f"{repo_name}"
+        # PID-scoped so two `corpus eval*` runs on the same app don't rmtree
+        # each other's working clone mid-run.
+        dest = self.work_dir / f"{repo_name}-{os.getpid()}"
         if dest.exists():
             shutil.rmtree(dest)
 

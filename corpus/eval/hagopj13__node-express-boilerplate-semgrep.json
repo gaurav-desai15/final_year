@@ -1,0 +1,180 @@
+{
+  "generated_at": "2026-08-29T18:45:39.639467Z",
+  "model": "semgrep",
+  "mode": "absence",
+  "grounding": "rules-only",
+  "match_window": 20,
+  "summary": {
+    "app": "hagopj13__node-express-boilerplate",
+    "commit_sha": "179ae84efec61b14206d0305d941daed6c6d07f9",
+    "n_mutations": 8,
+    "baseline_fp": 1,
+    "tp": 8,
+    "fp": 9,
+    "fn": 0,
+    "recall": 1.0,
+    "recall_raw": 1.0,
+    "precision": 0.471,
+    "f1": 0.64,
+    "by_operator": {
+      "M1": {
+        "tp": 1,
+        "fn": 0,
+        "recall": 1.0
+      },
+      "M5": {
+        "tp": 7,
+        "fn": 0,
+        "recall": 1.0
+      }
+    },
+    "by_control_class": {
+      "authentication": {
+        "tp": 1,
+        "fn": 0,
+        "recall": 1.0
+      },
+      "validation": {
+        "tp": 7,
+        "fn": 0,
+        "recall": 1.0
+      }
+    },
+    "compression": {},
+    "grounded_findings": {}
+  },
+  "results": [
+    {
+      "record_id": "hagopj13__node-express-boilerplate::M5::src/routes/v1/auth.route.js::9",
+      "operator": "M5",
+      "control_class": "validation",
+      "file": "src/routes/v1/auth.route.js",
+      "line": 9,
+      "route_path": "/register",
+      "detected": true,
+      "detected_raw": true,
+      "matched_title": "Unprotected Express route (semgrep)",
+      "matched_line": 9,
+      "matched_control_ok": false,
+      "n_findings": 2
+    },
+    {
+      "record_id": "hagopj13__node-express-boilerplate::M5::src/routes/v1/auth.route.js::10",
+      "operator": "M5",
+      "control_class": "validation",
+      "file": "src/routes/v1/auth.route.js",
+      "line": 10,
+      "route_path": "/login",
+      "detected": true,
+      "detected_raw": true,
+      "matched_title": "Unprotected Express route (semgrep)",
+      "matched_line": 10,
+      "matched_control_ok": false,
+      "n_findings": 2
+    },
+    {
+      "record_id": "hagopj13__node-express-boilerplate::M5::src/routes/v1/auth.route.js::11",
+      "operator": "M5",
+      "control_class": "validation",
+      "file": "src/routes/v1/auth.route.js",
+      "line": 11,
+      "route_path": "/logout",
+      "detected": true,
+      "detected_raw": true,
+      "matched_title": "Unprotected Express route (semgrep)",
+      "matched_line": 11,
+      "matched_control_ok": false,
+      "n_findings": 2
+    },
+    {
+      "record_id": "hagopj13__node-express-boilerplate::M5::src/routes/v1/auth.route.js::12",
+      "operator": "M5",
+      "control_class": "validation",
+      "file": "src/routes/v1/auth.route.js",
+      "line": 12,
+      "route_path": "/refresh-tokens",
+      "detected": true,
+      "detected_raw": true,
+      "matched_title": "Unprotected Express route (semgrep)",
+      "matched_line": 12,
+      "matched_control_ok": false,
+      "n_findings": 2
+    },
+    {
+      "record_id": "hagopj13__node-express-boilerplate::M5::src/routes/v1/auth.route.js::13",
+      "operator": "M5",
+      "control_class": "validation",
+      "file": "src/routes/v1/auth.route.js",
+      "line": 13,
+      "route_path": "/forgot-password",
+      "detected": true,
+      "detected_raw": true,
+      "matched_title": "Unprotected Express route (semgrep)",
+      "matched_line": 13,
+      "matched_control_ok": false,
+      "n_findings": 2
+    },
+    {
+      "record_id": "hagopj13__node-express-boilerplate::M5::src/routes/v1/auth.route.js::14",
+      "operator": "M5",
+      "control_class": "validation",
+      "file": "src/routes/v1/auth.route.js",
+      "line": 14,
+      "route_path": "/reset-password",
+      "detected": true,
+      "detected_raw": true,
+      "matched_title": "Unprotected Express route (semgrep)",
+      "matched_line": 14,
+      "matched_control_ok": false,
+      "n_findings": 2
+    },
+    {
+      "record_id": "hagopj13__node-express-boilerplate::M1::src/routes/v1/auth.route.js::15",
+      "operator": "M1",
+      "control_class": "authentication",
+      "file": "src/routes/v1/auth.route.js",
+      "line": 15,
+      "route_path": "/send-verification-email",
+      "detected": true,
+      "detected_raw": true,
+      "matched_title": "Unprotected Express route (semgrep)",
+      "matched_line": 15,
+      "matched_control_ok": false,
+      "n_findings": 2
+    },
+    {
+      "record_id": "hagopj13__node-express-boilerplate::M5::src/routes/v1/auth.route.js::16",
+      "operator": "M5",
+      "control_class": "validation",
+      "file": "src/routes/v1/auth.route.js",
+      "line": 16,
+      "route_path": "/verify-email",
+      "detected": true,
+      "detected_raw": true,
+      "matched_title": "Unprotected Express route (semgrep)",
+      "matched_line": 16,
+      "matched_control_ok": false,
+      "n_findings": 2
+    }
+  ],
+  "baseline_findings": [
+    {
+      "id": "f4e58db0-23ef-410e-a144-0209a9a29efe",
+      "context_id": "semgrep:src/routes/v1/docs.route.js:14",
+      "file": "src/routes/v1/docs.route.js",
+      "start_line": 14,
+      "end_line": 19,
+      "function": "",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-862: Missing Authorization",
+      "severity": "medium",
+      "confidence": "low",
+      "title": "Unprotected Express route (semgrep)",
+      "description": "Express route registered with no middleware between the path and the handler -- no route-level access control.",
+      "context_reasoning": "pattern match only -- no context, no exploitability judgement",
+      "data_flow_summary": "",
+      "suggested_fix": "",
+      "model": "semgrep/unprotected_route"
+    }
+  ]
+}
