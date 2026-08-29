@@ -1,0 +1,28 @@
+{
+  "grounding": "cpg",
+  "apps": 1,
+  "mutations": 11,
+  "tp": 2,
+  "fp": 57,
+  "fn": 9,
+  "baseline_fp_total": 5,
+  "precision": 0.034,
+  "recall": 0.182,
+  "f1": 0.057,
+  "recall_raw": 0.727,
+  "by_operator": {
+    "M1": {
+      "tp": 2,
+      "fn": 9,
+      "recall": 0.182
+    }
+  },
+  "per_app": {
+    "bradtraversy__storybooks": {
+      "precision": 0.034,
+      "recall": 0.182,
+      "f1": 0.057,
+      "baseline_fp": 5
+    }
+  }
+}

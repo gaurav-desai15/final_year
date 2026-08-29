@@ -345,6 +345,51 @@ def test_absence_keeps_finding_on_non_public_route():
     assert len(analyzer.analyze_context(_absence_context("/admin/users"))) == 1
 
 
+def _authed_context(route_path="/stories/:id"):
+    from cpgvd.models import GuardEvidence
+
+    ctx = _absence_context(route_path)
+    ctx.guard_evidence = [
+        GuardEvidence(control="authentication", category="auth mw", code="ensureAuth", file="r.js", line=9)
+    ]
+    return ctx
+
+
+def test_absence_drops_ownership_escalation_when_auth_present_and_no_cross_user_path():
+    payload = dict(ABSENCE_PAYLOAD)
+    payload["vulnerability_type"] = "Missing Ownership Check"
+    payload["required_control"] = "ownership"
+    payload["missing_control_reasoning"] = (
+        "The handler fetches the story by id and there is no check that the story belongs to the user."
+    )
+    provider = FakeProvider([result_with_findings([payload])])
+    analyzer = LlmAnalyzer(Config(), provider=provider, mode="absence")
+    assert analyzer.analyze_context(_authed_context()) == []
+
+
+def test_absence_keeps_ownership_finding_with_concrete_cross_user_path():
+    payload = dict(ABSENCE_PAYLOAD)
+    payload["vulnerability_type"] = "Broken Access Control (IDOR)"
+    payload["required_control"] = "ownership"
+    payload["missing_control_reasoning"] = (
+        "Any authenticated user can pass another user's order id and read that other user's address."
+    )
+    provider = FakeProvider([result_with_findings([payload])])
+    analyzer = LlmAnalyzer(Config(), provider=provider, mode="absence")
+    assert len(analyzer.analyze_context(_authed_context("/orders/:id"))) == 1
+
+
+def test_absence_keeps_ownership_finding_when_no_auth_guard_present():
+    payload = dict(ABSENCE_PAYLOAD)
+    payload["vulnerability_type"] = "Missing Ownership Check"
+    payload["required_control"] = "ownership"
+    payload["missing_control_reasoning"] = "No check that the record belongs to the requester."
+    provider = FakeProvider([result_with_findings([payload])])
+    analyzer = LlmAnalyzer(Config(), provider=provider, mode="absence")
+    # no guard_evidence -> the escalation filter must not fire
+    assert len(analyzer.analyze_context(_absence_context("/orders/:id"))) == 1
+
+
 def test_absence_drops_finding_when_model_says_required_control_none():
     payload = dict(ABSENCE_PAYLOAD)
     payload["required_control"] = "none"

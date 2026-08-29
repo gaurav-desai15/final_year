@@ -137,7 +137,10 @@ Work in three explicit steps, for each operation:
    static-asset route, or a public read of non-sensitive data. If the context \
    is flagged as a conventional public endpoint, the required control is \
    'none' unless the handler exposes another user's data or makes a \
-   privileged change.
+   privileged change. NOTE: not every resource is per-user -- a shared list, \
+   a catalogue item, a public post, a lookup table need no ownership check. \
+   Ownership is required only when the resource clearly belongs to one user \
+   (a private message, a draft, an account setting, an order).
 3. CHECK presence: is that control actually present in `guard_evidence` or \
    plainly visible in the function or a shown caller? Middleware on the route \
    registration counts. A hardcoded non-attacker-controlled value counts as \
@@ -150,6 +153,15 @@ it absent or clearly insufficient. Rules:
   endpoint with no auth is not a finding.
 - If a required control IS present in the evidence or the shown callers, there \
   is NO finding. Do not report "defense in depth" additions.
+- If `guard_evidence` contains an AUTHENTICATION entry (isLoggedIn, \
+  requireAuth, ensureAuthenticated, passport.authenticate, a session check, \
+  ...), then authentication is SATISFIED -- do not report missing \
+  authentication, and do not escalate to "missing authorization/ownership" \
+  just because you cannot see an explicit `if (resource.owner === req.user)` \
+  line. Report missing ownership/authorization ONLY when you can describe a \
+  concrete path by which one authenticated user reads or changes ANOTHER \
+  user's resource (name the resource, the id parameter, and why it is \
+  per-user). The mere absence of an ownership comparison is NOT a finding.
 - If the callers that would enforce the control are NOT shown (you cannot see \
   the route registration), say so in `missing_control_reasoning` and lower \
   confidence rather than asserting the control is absent.
@@ -391,6 +403,30 @@ def _public_route_finding_is_noise(context: FunctionContext, item: dict) -> bool
     return not _SENSITIVE_ON_PUBLIC_RE.search(text)
 
 
+_ESCALATED_CLASS_RE = re.compile(
+    r"owner|ownership|idor|authoriz|\brole\b|privilege|\brbac\b|\bacl\b", re.IGNORECASE
+)
+
+
+def _over_escalation_is_noise(context: FunctionContext, item: dict) -> bool:
+    """The storybooks / NodeGoat-`/contributions` pattern: authentication IS
+    present on the route, but the model reports "missing ownership/authorization"
+    purely from the absence of an `if (resource.owner === req.user)` line.
+
+    Drop it unless the reasoning describes a concrete cross-user access
+    (`_SENSITIVE_ON_PUBLIC_RE` doubles as that detector -- "another user's",
+    "IDOR", "enumerate", ...).
+    """
+    has_authn = any(g.control in ("authentication", "session") for g in context.guard_evidence)
+    if not has_authn:
+        return False
+    claimed = f"{item.get('required_control', '')} {item.get('vulnerability_type', '')} {item.get('title', '')}"
+    if not _ESCALATED_CLASS_RE.search(claimed):
+        return False
+    text = f"{item.get('missing_control_reasoning', '')} {item.get('title', '')}"
+    return not _SENSITIVE_ON_PUBLIC_RE.search(text)
+
+
 _CWE_ID_RE = re.compile(r"cwe-\d+", re.IGNORECASE)
 
 _SEVERITY_RANK = {
@@ -582,6 +618,14 @@ class LlmAnalyzer:
                     "no sensitive-exposure / privileged-change argument",
                     item.get("title", item.get("vulnerability_type", "?")),
                     context.route_path,
+                )
+                continue
+            if _over_escalation_is_noise(context, item):
+                logger.info(
+                    "Dropping absence finding %r in %s: authentication is present and "
+                    "no concrete cross-user access is described (over-escalation)",
+                    item.get("title", item.get("vulnerability_type", "?")),
+                    context.context_id,
                 )
                 continue
             vulnerability_type = _clean_vulnerability_type(
