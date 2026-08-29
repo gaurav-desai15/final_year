@@ -224,6 +224,85 @@ def corpus_mutate(
     console.print_json(summarize_json(records))
 
 
+@corpus.command("collect")
+@click.option("--min-stars", default=50, show_default=True)
+@click.option("--pushed-after", default="2024-01-01", show_default=True, help="ISO date; repo must have activity since.")
+@click.option("--limit", default=35, show_default=True, help="How many screened apps to keep.")
+@click.option("--max-search", default=180, show_default=True, help="How many search hits to screen.")
+@click.option("--dest", type=click.Path(path_type=Path), default=Path("corpus/repos"), show_default=True)
+@click.option("--manifest", type=click.Path(path_type=Path), default=Path("corpus/manifest.jsonl"), show_default=True)
+@click.option("--mutate/--no-mutate", default=True, help="Also run the mutation harness on each app.")
+@click.option("--verify/--no-verify", default=True, help="Drop mutations that fail `node --check`.")
+@click.option("--min-mutations", default=5, show_default=True, help="Drop cloned apps that yield fewer mutations (frameworks / boilerplates).")
+@click.option("-v", "--verbose", is_flag=True)
+def corpus_collect(
+    min_stars: int,
+    pushed_after: str,
+    limit: int,
+    max_search: int,
+    dest: Path,
+    manifest: Path,
+    mutate: bool,
+    verify: bool,
+    min_mutations: int,
+    verbose: bool,
+) -> None:
+    """Search GitHub for Express+auth apps, clone them, and (by default) mutate.
+
+    Needs GITHUB_TOKEN / GH_TOKEN for anything beyond a tiny run.
+    """
+    _setup_logging(verbose)
+    from .corpus import summarize, write_labels
+    from .corpus_collect import GitHubClient, clone_candidate, find_candidates, token_from_env, write_manifest
+    from .mutation import find_mutations, verify_mutations
+
+    token = token_from_env()
+    if not token:
+        console.print("[yellow]No GITHUB_TOKEN set[/yellow] -- expect rate limiting after ~10 requests.")
+    gh = GitHubClient(token=token)
+
+    console.print(f"[bold]Searching[/bold] stars>={min_stars}, pushed>={pushed_after} ...")
+    cands = find_candidates(
+        gh, min_stars=min_stars, pushed_after=pushed_after, max_search=max_search, limit=limit
+    )
+    console.print(f"  {len(cands)} apps passed screening (Express + auth lib + permissive licence)")
+
+    all_records = []
+    kept: list = []
+    for i, cand in enumerate(cands, 1):
+        try:
+            clone_candidate(cand, dest)
+        except Exception as e:  # noqa: BLE001 - a dead repo shouldn't kill the batch
+            console.print(f"  [{i}/{len(cands)}] {cand.full_name}: clone failed ({e})")
+            continue
+        if not mutate:
+            kept.append(cand)
+            console.print(f"  [{i}/{len(cands)}] {cand.full_name}: cloned")
+            continue
+        records = find_mutations(
+            Path(cand.local_path), cand.app, commit_sha=cand.commit_sha, repo=cand.clone_url
+        )
+        if verify:
+            records = verify_mutations(Path(cand.local_path), records)
+        if len(records) < min_mutations:
+            console.print(
+                f"  [{i}/{len(cands)}] {cand.full_name}: only {len(records)} mutations -- dropped"
+            )
+            import shutil
+
+            shutil.rmtree(cand.local_path, ignore_errors=True)
+            continue
+        kept.append(cand)
+        write_labels(records, Path("corpus/labels") / f"{cand.app}.jsonl")
+        all_records.extend(records)
+        console.print(f"  [{i}/{len(cands)}] {cand.full_name}: {len(records)} mutations")
+
+    write_manifest(kept, manifest)
+    console.print(f"[bold]Manifest:[/bold] {manifest}  ({len(kept)} apps cloned)")
+    if mutate:
+        console.print_json(data=summarize(all_records))
+
+
 @corpus.command("eval")
 @click.argument("labels", type=click.Path(exists=True, path_type=Path))
 @click.option("--repo", "repo_override", default=None, help="App repo URL/path (default: taken from the labels).")

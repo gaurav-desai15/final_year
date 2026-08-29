@@ -44,8 +44,9 @@ out at the default concurrency — see the "Choosing a model" table in README.
 - `rules/control_absence.yaml` — per-language `triggers` / `guards` for
   `--mode absence` (missing-access-control detection).
 - `mutation.py` (M1-M5 control-removal operators, `node --check` verify),
-  `corpus.py` (JSONL labels, by-app split), `evaluation.py` (score detector
-  vs labels: P/R/F1 + FP-on-original). CLI: `cpgvd corpus mutate|stats|eval`.
+  `corpus.py` (JSONL labels, by-app split), `corpus_collect.py` (GitHub
+  search + screen + clone), `evaluation.py` (score detector vs labels:
+  P/R/F1 + FP-on-original). CLI: `cpgvd corpus collect|mutate|stats|eval`.
 - `tests/` — mocked unit tests (no live Joern/Ollama/Anthropic).
 - `docs/presentation-script.md` — final-year demo runbook.
 
@@ -144,10 +145,18 @@ Mutation harness (`corpus mutate` / `corpus stats`, landed this session — v1):
   per-method context couldn't localise one dropped `isLoggedIn`.
 - D4 smoke test (pre-fix, NodeGoat 3 M1 mutants): recall 0/3, 5 FP on the
   original. Re-running post-fix to confirm recall recovers.
-- Still to build (D5-D6): GitHub-API corpus collection script (express +
-  passport/express-session/jsonwebtoken, >=50 stars, permissive licence);
-  scale the corpus to ~30 apps; hand-verify ~10 mutations at D6.
-  Ungrounded (raw-file) baseline mode for the H2 comparison.
+- `corpus_collect.py` + `cpgvd corpus collect` (landed D5): GitHub repo
+  search -> screen on package.json (express + auth lib) + permissive licence
+  -> shallow clone -> mutate -> `--min-mutations` gate drops frameworks /
+  boilerplates. Smoke-tested unauthenticated (2 apps): works, but naive
+  search pulls frameworks (parse-server) and FE boilerplates (0 mutations)
+  — **the final ~30 needs a curation pass**, and a real run needs GITHUB_TOKEN
+  (unauth is ~10 search req/min).
+- Still to do (D5-D6): run `corpus collect` with a token, curate to ~30 real
+  apps / >=500 labelled instances, hand-verify ~10 mutations. Then the
+  precision fix: teach the absence prompt/rules that public auth routes
+  (/login, /signup, static) need no control — tune against corpus negatives,
+  never NodeGoat/Juice Shop. Ungrounded (raw-file) baseline mode for H2.
 
 Candidate next features (pick with the user, don't assume):
 1. Widen `_NO_ATTACKER_PATH_RE` to catch "no … taint … reach… sink" phrasing.

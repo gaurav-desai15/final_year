@@ -102,11 +102,20 @@ the label is exact -- file, line range, route path, control class, original
 source -- with no human judgement.
 
 ```bash
+# collect + clone + mutate a whole corpus (needs GITHUB_TOKEN for a real run)
+GITHUB_TOKEN=... cpgvd corpus collect --min-stars 50 --limit 30
+#   -> corpus/repos/<app>/ , corpus/manifest.jsonl , corpus/labels/<app>.jsonl
+
+# or one app at a time
 cpgvd corpus mutate https://github.com/some/express-app --app express-app
-#   -> corpus/labels/express-app.jsonl  (one MutationRecord per line)
 cpgvd corpus stats corpus/labels/         # totals + the by-application split
 cpgvd corpus eval corpus/labels/express-app.jsonl   # score the detector
 ```
+
+`corpus collect` screens GitHub search hits for `express` + one of `passport`
+/ `express-session` / `jsonwebtoken` in `package.json`, a permissive licence,
+and recent activity, then drops any cloned app that yields fewer than
+`--min-mutations` (frameworks / boilerplates).
 
 `corpus eval` runs the control-absence detector once on the **unmutated** tree
 (every finding there is a false positive -- the negative control the report
