@@ -34,5 +34,9 @@ https://github.com/gitdagray/mern_stack_course
 
 # --- larger real apps ----------------------------------------------------
 https://github.com/keystonejs/keystone-classic
-https://github.com/strapi/strapi
-https://github.com/parse-community/parse-server
+
+# Dropped after D6 hand-verification: parse-server's M3 hits were inside its
+# permission engine (removing a `return Promise.resolve()` grant branch makes
+# the code MORE restrictive -- not a valid "removed a control" positive).
+# strapi / reaction: not plain Express apps.
+# node_passport_login: only 2 valid mutations after tightening _DENIAL_RE.

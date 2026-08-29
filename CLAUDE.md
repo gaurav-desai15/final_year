@@ -176,10 +176,15 @@ Mutation harness (`corpus mutate` / `corpus stats`, landed this session — v1):
   --grounding raw` -> `corpus/eval/<app>-raw.json`. Candidate shortlist is
   unchanged, so `raw` vs `cpg` on the same corpus isolates H2.
 - **Corpus (landed D6):** `corpus/seed_apps.txt` + `corpus collect
-  --from-list` gave **7 apps / 107 instances** (all 5 operators, all 5
-  control classes; hackathon-starter is 67 of them). Short of B4's 25/500 --
-  that needs `corpus collect` with GITHUB_TOKEN (repo search). Several seed
-  URLs 404'd (unauth git can't 404 cleanly).
+  --from-list` -> **5 apps / 96 instances** after D6 hand-verification.
+  Verified 12 sampled mutations by hand: 10 clean; the 2 bad ones were
+  parse-server M3s removing a `return Promise.resolve()` GRANT branch (makes
+  code fail-closed -- not a valid positive). Fixed corpus-wide by tightening
+  `_DENIAL_RE` (bare `return` yes; `return Promise.resolve()` / `return true`
+  / `next()` no), then dropped parse-server (framework) and node_passport_login
+  (2 valid after the fix). By operator: M1 58, M2 3, M4 9, M5 26; no M3 in
+  these 5 apps (real `if (!isAdmin) return 403` would still match). sahat is
+  66 of 96. Short of B4's 25/500 -- needs `corpus collect` with GITHUB_TOKEN.
 - Still to do (D6-D8): GITHUB_TOKEN corpus run to ~25+ apps; hand-verify ~10
   mutations; then the D6-D8 eval runs -- grounded and `--grounding raw` on
   the same corpus, same model.

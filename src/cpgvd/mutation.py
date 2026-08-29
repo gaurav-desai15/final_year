@@ -95,9 +95,13 @@ _SESSION_RE = re.compile(
     r"req\s*\.\s*session|req\s*\.\s*isauthenticated\s*\(\s*\)|\bsession\s*\.\s*(?:user|userid|uid)\b",
     re.IGNORECASE,
 )
-# A denial-shaped `if` body: bounce the request rather than continue.
+# A denial-shaped `if` body: bounce the request rather than continue. A bare
+# `return` counts, but NOT `return Promise.resolve()` / `return true` / `next()`
+# -- those are "grant" branches (removing them makes the code fail closed, so
+# it isn't a valid "removed a control" positive).
 _DENIAL_RE = re.compile(
-    r"\breturn\b|\bthrow\b|res\s*\.\s*(?:status\s*\(\s*4\d\d|sendstatus\s*\(\s*4\d\d|redirect|render\s*\(\s*['\"]login)"
+    r"\breturn\b(?!\s*(?:promise\s*\.\s*resolve|resolve\s*\(|true\b|next\s*\(\s*\)))"
+    r"|\bthrow\b|res\s*\.\s*(?:status\s*\(\s*4\d\d|sendstatus\s*\(\s*4\d\d|redirect|render\s*\(\s*['\"]login)"
     r"|next\s*\(\s*(?:new\s+)?\w*error|\bunauthorized\b|\bforbidden\b",
     re.IGNORECASE,
 )
