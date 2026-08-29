@@ -1,0 +1,32 @@
+rules:
+  # Baseline A for the paper: a pure pattern matcher for "unprotected Express
+  # route" -- a route registered with the handler directly after the path and
+  # no middleware in between. This is the strongest a rule-only tool can do for
+  # missing route-level access control: it cannot tell a deliberately public
+  # route (/login, /, static assets) from one that lost its guard, and it
+  # cannot see a missing ownership/role/session `if` at all. cpgvd's LLM step
+  # is exactly the precision filter this rule lacks.
+  - id: express-route-without-middleware
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      Express route registered with no middleware between the path and the
+      handler -- no route-level access control.
+    metadata:
+      category: security
+      cwe: "CWE-862: Missing Authorization"
+      baseline: cpgvd-semgrep-A
+    patterns:
+      - pattern-either:
+          - pattern: $APP.get($PATH, $HANDLER)
+          - pattern: $APP.post($PATH, $HANDLER)
+          - pattern: $APP.put($PATH, $HANDLER)
+          - pattern: $APP.delete($PATH, $HANDLER)
+          - pattern: $APP.patch($PATH, $HANDLER)
+          - pattern: $APP.all($PATH, $HANDLER)
+      - metavariable-regex:
+          metavariable: $APP
+          regex: ^(app|router|api|route|r)$
+      - metavariable-regex:
+          metavariable: $PATH
+          regex: ^['"]

@@ -27,6 +27,10 @@ dev = [
     "pytest-mock>=3.14.0",
     "anthropic>=0.40.0",
 ]
+# Only needed for the Semgrep rule-only baseline (`cpgvd corpus eval-semgrep`).
+baseline = [
+    "semgrep>=1.100.0",
+]
 # Only needed if you opt into the paid Claude backend (--provider anthropic).
 # The default (free, local Ollama) backend doesn't need this at all.
 anthropic = [

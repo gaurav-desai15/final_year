@@ -178,6 +178,45 @@ def run_eval(
     )
 
 
+def run_eval_semgrep(
+    repo_path: Path,
+    records: list[MutationRecord],
+    *,
+    app: str,
+    commit_sha: str = "",
+    match_window: int = 20,
+    progress: Progress = _noop,
+) -> EvalReport:
+    """Same scoring, but the detector is Semgrep's unprotected-route rule --
+    no Joern, no LLM (plan's comparative axis 2, Baseline A)."""
+    from .baselines import run_semgrep
+
+    repo_path = Path(repo_path)
+    progress("baseline: running semgrep on the unmutated tree")
+    baseline = run_semgrep(repo_path)
+    baseline_line_keys = {(Path(f.file).name, f.start_line) for f in baseline}
+    progress(f"baseline: {len(baseline)} finding(s) (all false positives)")
+
+    results: list[MutationEvalResult] = []
+    for i, rec in enumerate(records, 1):
+        try:
+            with mutation_applied(repo_path, rec):
+                findings = run_semgrep(repo_path)
+        except (OSError, ValueError) as e:
+            progress(f"[{i}/{len(records)}] {rec.id}: skipped ({e})")
+            continue
+        res = _score_one(rec, findings, baseline_line_keys, match_window)
+        results.append(res)
+        progress(f"[{i}/{len(records)}] {rec.operator} {'HIT' if res.detected else 'miss'}")
+
+    summary = _summarize(app, commit_sha, records, results, len(baseline))
+    return EvalReport(
+        model="semgrep", mode="absence", grounding="rules-only",
+        match_window=match_window, summary=summary, results=results,
+        baseline_findings=baseline,
+    )
+
+
 def _summarize(
     app: str,
     commit_sha: str,

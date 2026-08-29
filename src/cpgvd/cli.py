@@ -486,6 +486,94 @@ def corpus_eval(
     )
 
 
+@corpus.command("eval-semgrep")
+@click.argument("labels", type=click.Path(exists=True, path_type=Path))
+@click.option("--repo", "repo_override", default=None)
+@click.option("--ref", default=None)
+@click.option("--max-mutations", default=None, type=int)
+@click.option("--match-window", default=20, show_default=True)
+@click.option("--out-dir", type=click.Path(path_type=Path), default=Path("corpus/eval"), show_default=True)
+@click.option("--skip-existing", is_flag=True)
+@click.option("--keep-repo", is_flag=True)
+@click.option("-v", "--verbose", is_flag=True)
+def corpus_eval_semgrep(
+    labels: Path, repo_override, ref, max_mutations, match_window, out_dir, skip_existing, keep_repo, verbose
+) -> None:
+    """Rule-only baseline (plan comparative axis 2): score Semgrep's
+    unprotected-route rule against the same mutation labels. Fast -- no Joern,
+    no LLM, no cooldown needed."""
+    _setup_logging(verbose)
+    import json as _json
+
+    from .baselines import semgrep_available
+    from .corpus import read_labels
+    from .evaluation import run_eval_semgrep
+
+    if not semgrep_available():
+        raise click.ClickException("semgrep not on PATH -- `pip install semgrep`.")
+
+    label_files = sorted(labels.glob("*.jsonl")) if labels.is_dir() else [labels]
+    out_dir.mkdir(parents=True, exist_ok=True)
+    repo_manager = RepoManager(Config().work_dir)
+    summaries = []
+    for lf in label_files:
+        records = read_labels(lf)
+        if not records:
+            continue
+        if max_mutations:
+            records = records[:max_mutations]
+        app = records[0].app
+        existing = out_dir / f"{app}-semgrep.json"
+        if skip_existing and existing.exists():
+            from .models import EvalReport
+
+            summaries.append(EvalReport.model_validate_json(existing.read_text()).summary)
+            continue
+        src = repo_override or records[0].repo
+        if not src:
+            continue
+        repo_info = repo_manager.acquire(src, ref=ref or records[0].commit_sha or None)
+        try:
+            report = run_eval_semgrep(
+                repo_info.path, records, app=app,
+                commit_sha=records[0].commit_sha or repo_info.commit_sha,
+                match_window=match_window, progress=lambda m: console.print(m),
+            )
+        finally:
+            if not keep_repo:
+                repo_manager.cleanup(repo_info)
+        existing.write_text(report.model_dump_json(indent=2), encoding="utf-8")
+        s = report.summary
+        summaries.append(s)
+        console.print(f"  {app}: precision={s.precision:.2f} recall={s.recall:.2f} f1={s.f1:.2f} baseline_fp={s.baseline_fp}")
+
+    if not summaries:
+        raise click.ClickException("nothing evaluated")
+    tp = sum(s.tp for s in summaries); fp = sum(s.fp for s in summaries); fn = sum(s.fn for s in summaries)
+    prec = round(tp / (tp + fp), 3) if (tp + fp) else 0.0
+    rec = round(tp / (tp + fn), 3) if (tp + fn) else 0.0
+    f1 = round(2 * prec * rec / (prec + rec), 3) if (prec + rec) else 0.0
+    agg = {
+        "detector": "semgrep", "apps": len(summaries), "mutations": tp + fn,
+        "tp": tp, "fp": fp, "fn": fn, "baseline_fp_total": sum(s.baseline_fp for s in summaries),
+        "precision": prec, "recall": rec, "f1": f1,
+        "by_operator": {},
+        "per_app": {s.app: {"precision": s.precision, "recall": s.recall, "f1": s.f1, "baseline_fp": s.baseline_fp} for s in summaries},
+    }
+    for s in summaries:
+        for op, b in s.by_operator.items():
+            d = agg["by_operator"].setdefault(op, {"tp": 0, "fn": 0})
+            d["tp"] += b["tp"]; d["fn"] += b["fn"]
+    for b in agg["by_operator"].values():
+        t = b["tp"] + b["fn"]
+        b["recall"] = round(b["tp"] / t, 3) if t else 0.0
+    (out_dir / "_aggregate-semgrep.json").write_text(_json.dumps(agg, indent=2), encoding="utf-8")
+    console.print(
+        f"[bold]SEMGREP baseline: precision={prec:.2f} recall={rec:.2f} f1={f1:.2f} "
+        f"FP-on-originals={agg['baseline_fp_total']}[/bold]"
+    )
+
+
 @corpus.command("stats")
 @click.argument("labels", nargs=-1, type=click.Path(exists=True, path_type=Path))
 @click.option("--holdout-frac", default=0.3, show_default=True)

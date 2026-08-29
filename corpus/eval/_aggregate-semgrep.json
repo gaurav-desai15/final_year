@@ -1,0 +1,27 @@
+{
+  "detector": "semgrep",
+  "apps": 1,
+  "mutations": 11,
+  "tp": 11,
+  "fp": 24,
+  "fn": 0,
+  "baseline_fp_total": 2,
+  "precision": 0.314,
+  "recall": 1.0,
+  "f1": 0.478,
+  "by_operator": {
+    "M1": {
+      "tp": 11,
+      "fn": 0,
+      "recall": 1.0
+    }
+  },
+  "per_app": {
+    "bradtraversy__storybooks": {
+      "precision": 0.314,
+      "recall": 1.0,
+      "f1": 0.478,
+      "baseline_fp": 2
+    }
+  }
+}
