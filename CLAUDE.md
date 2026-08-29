@@ -152,16 +152,21 @@ Mutation harness (`corpus mutate` / `corpus stats`, landed this session — v1):
   search pulls frameworks (parse-server) and FE boilerplates (0 mutations)
   — **the final ~30 needs a curation pass**, and a real run needs GITHUB_TOKEN
   (unauth is ~10 search req/min).
-- **Precision fix (landed D5):** `models.is_public_route` — a conventional
-  public-endpoint classifier (auth flow: login/logout/signup/register/reset/
-  verify/oauth-callback; probes: health/status/metrics; static assets).
-  Three layers: (1) `to_absence_prompt_text` adds a NOTE when the route is
-  public, (2) `ABSENCE_SYSTEM_PROMPT` step 2 carves out public endpoints,
-  (3) `_public_route_finding_is_noise` post-filter drops an absence finding
-  on a public route unless its own reasoning cites sensitive-data exposure
-  or a privileged change (`_SENSITIVE_ON_PUBLIC_RE`). `FunctionContext`
-  gains `route_path`. Targets the 6 NodeGoat baseline FPs (all /login,
-  /signup, /logout, /). Re-running the eval to confirm.
+- **Precision fix (landed D5):** `models.is_public_route` — conventional
+  public-endpoint classifier (auth flow, health/status probes, static
+  assets). Four layers: (1) prompt NOTE for public routes, (2)
+  `ABSENCE_SYSTEM_PROMPT` step-2 carve-out, (3) `_required_control_is_none`
+  drops a finding when the model's own `required_control` field is "none"
+  (generalises past public routes — NodeGoat's `/` finding literally had
+  required_control="none"), (4) `_public_route_finding_is_noise` drops a
+  public-route finding unless its *reasoning* (not its boilerplate
+  `description`) cites sensitive exposure. `FunctionContext.route_path` added.
+- **NodeGoat eval across the D5 fixes** (4 M1 mutants, max_contexts 10):
+  baseline FP 6 -> 2 -> **1**; precision 0.12 -> 0.23 -> **0.375**; F1
+  0.21 -> **0.50**; recall 0.75 (the one miss and the one remaining FP are
+  both `/contributions`, which the model insists needs *role* control when
+  it has `isLoggedIn` — an ambiguous route, n=1 on a held-out app). Real
+  numbers come from the corpus.
 - Still to do (D5-D6): run `corpus collect` with a token, curate to ~30 real
   apps / >=500 labelled instances, hand-verify ~10 mutations. Ungrounded
   (raw-file) baseline mode for the H2 comparison.
