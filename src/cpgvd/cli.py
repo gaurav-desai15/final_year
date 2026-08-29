@@ -396,13 +396,23 @@ def corpus_eval(
             summaries.append(EvalReport.model_validate_json(existing.read_text()).summary)
             console.print(f"[dim]{app}: already done, using {existing.name}[/dim]")
             continue
-        src = repo_override or records[0].repo
+        # Prefer an already-cloned repo under corpus/repos/<app> -- no network,
+        # and no re-clone per app. Fall back to the labels' URL.
+        local = Path("corpus/repos") / app
+        src = repo_override or (str(local) if local.is_dir() else records[0].repo)
         if not src:
             console.print(f"[yellow]{app}: labels have no repo; skipping[/yellow]")
             continue
         commit_sha = records[0].commit_sha
-        console.print(f"\n[bold]=== {app} ({len(records)} mutations, grounding={grounding}) ===[/bold]")
-        repo_info = repo_manager.acquire(src, ref=ref or commit_sha or None)
+        is_local = Path(src).is_dir()
+        console.print(
+            f"\n[bold]=== {app} ({len(records)} mutations, grounding={grounding}) ==="
+            f"[/bold]  {'(local clone)' if is_local else src}"
+        )
+        if is_local:
+            # undo any mutation a previous crashed run left applied in place
+            subprocess.run(["git", "-C", src, "checkout", "--", "."], capture_output=True, check=False)
+        repo_info = repo_manager.acquire(src, ref=None if is_local else (ref or commit_sha or None))
         try:
             report = run_eval(
                 repo_info.path, records, config, app=app,
@@ -410,7 +420,7 @@ def corpus_eval(
                 match_window=match_window, progress=lambda m: console.print(m),
             )
         finally:
-            if not keep_repo:
+            if not keep_repo and not is_local:
                 repo_manager.cleanup(repo_info)
         (out_dir / f"{app}{suffix}.json").write_text(report.model_dump_json(indent=2), encoding="utf-8")
         s = report.summary
