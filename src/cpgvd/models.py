@@ -414,6 +414,8 @@ class EvalSummary(BaseModel):
     f1: float = 0.0
     by_operator: dict[str, dict] = Field(default_factory=dict)
     by_control_class: dict[str, dict] = Field(default_factory=dict)
+    compression: dict = Field(default_factory=dict)  # H3: slice / file / repo LoC
+    grounded_findings: dict = Field(default_factory=dict)  # H5: cited lines in the slice
 
 
 class EvalReport(BaseModel):
@@ -440,6 +442,9 @@ class AnalysisReport(BaseModel):
     # against the CPG: an absence finding can be traced to the `guard_evidence`
     # (with node ids) that was, or wasn't, in front of the model.
     contexts: list[FunctionContext] = Field(default_factory=list)
+
+    # H3 (slice / file / repo LoC) and H5 (findings whose cited lines were shown).
+    metrics: dict = Field(default_factory=dict)
 
     def findings_by_severity(self) -> dict[str, list[Finding]]:
         buckets: dict[str, list[Finding]] = {}

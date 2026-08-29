@@ -106,7 +106,9 @@ def _rate(tp: int, fp: int, fn: int) -> dict:
     return {"tp": tp, "fp": fp, "fn": fn, "precision": round(precision, 3), "recall": round(recall, 3), "f1": round(f1, 3)}
 
 
-def _analyze(client: CpgClient, repo_path: Path, config: Config, rulesets: RuleSets, stats: RunStats) -> list[Finding]:
+def _analyze(
+    client: CpgClient, repo_path: Path, config: Config, rulesets: RuleSets, stats: RunStats
+) -> tuple[list[Finding], list]:
     cpg_path = ensure_cpg(repo_path, config, "javascript", stats)
     client.load_cpg(cpg_path)
     _, absence_ctx = extract_contexts(
@@ -115,7 +117,7 @@ def _analyze(client: CpgClient, repo_path: Path, config: Config, rulesets: RuleS
     )
     if config.grounding == "raw":
         absence_ctx = [_rawify(c, repo_path) for c in absence_ctx]
-    return analyze_contexts(config, [], absence_ctx, stats)
+    return analyze_contexts(config, [], absence_ctx, stats), absence_ctx
 
 
 def run_eval(
@@ -133,20 +135,27 @@ def run_eval(
     rulesets = RuleSets.load("absence")
     model = config.ollama_model if config.llm_provider == "ollama" else config.model
 
+    from .metrics import compression_summary, grounded_findings_ratio
+
     with joern_session(config) as client:
         progress("baseline: analysing the unmutated tree")
-        baseline = _analyze(client, repo_path, config, rulesets, RunStats())
+        baseline, baseline_ctx = _analyze(client, repo_path, config, rulesets, RunStats())
         baseline_line_keys = {(Path(f.file).name, f.start_line) for f in baseline}
         progress(f"baseline: {len(baseline)} finding(s) (all are false positives)")
+        compression = compression_summary(baseline_ctx, repo_path)
+        all_findings = list(baseline)
+        all_contexts = list(baseline_ctx)
 
         results: list[MutationEvalResult] = []
         for i, rec in enumerate(records, 1):
             try:
                 with mutation_applied(repo_path, rec):
-                    findings = _analyze(client, repo_path, config, rulesets, RunStats())
+                    findings, ctxs = _analyze(client, repo_path, config, rulesets, RunStats())
             except (OSError, ValueError) as e:
                 progress(f"[{i}/{len(records)}] {rec.id}: skipped ({e})")
                 continue
+            all_findings.extend(findings)
+            all_contexts.extend(ctxs)
             res = _score_one(rec, findings, baseline_line_keys, match_window)
             results.append(res)
             progress(
@@ -156,6 +165,8 @@ def run_eval(
             )
 
     summary = _summarize(app, commit_sha, records, results, len(baseline))
+    summary.compression = compression
+    summary.grounded_findings = grounded_findings_ratio(all_findings, all_contexts)
     return EvalReport(
         model=model,
         mode="absence",

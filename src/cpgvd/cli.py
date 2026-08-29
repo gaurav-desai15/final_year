@@ -149,6 +149,12 @@ def analyze(
             no_dataflow=no_dataflow,
             progress=lambda m: console.print(m),
         )
+        from .metrics import compression_summary, grounded_findings_ratio
+
+        metrics = {
+            "compression": compression_summary(outcome.contexts, repo_info.path),
+            "grounded_findings": grounded_findings_ratio(outcome.findings, outcome.contexts),
+        }
     finally:
         if not keep_repo:
             repo_manager.cleanup(repo_info)
@@ -166,6 +172,7 @@ def analyze(
         findings=findings,
         stats=stats,
         contexts=outcome.contexts,
+        metrics=metrics,
     )
 
     paths = write_report(report, config.output_dir)
@@ -434,6 +441,10 @@ def corpus_eval(
     prec = round(tp / (tp + fp), 3) if (tp + fp) else 0.0
     rec = round(tp / (tp + fn), 3) if (tp + fn) else 0.0
     f1 = round(2 * prec * rec / (prec + rec), 3) if (prec + rec) else 0.0
+    def _mean(vals):
+        vals = [v for v in vals if v is not None]
+        return round(sum(vals) / len(vals), 4) if vals else None
+
     agg = {
         "grounding": grounding,
         "apps": len(summaries),
@@ -442,8 +453,22 @@ def corpus_eval(
         "baseline_fp_total": base,
         "precision": prec, "recall": rec, "f1": f1,
         "recall_raw": round(tp_raw / n_mut, 3) if n_mut else 0.0,
+        "compression_slice_over_file_mean": _mean(
+            [s.compression.get("slice_over_file_mean") for s in summaries]
+        ),
+        "grounded_findings_ratio_mean": _mean(
+            [s.grounded_findings.get("ratio") for s in summaries]
+        ),
         "by_operator": dict(sorted(by_op.items())),
-        "per_app": {s.app: {"precision": s.precision, "recall": s.recall, "f1": s.f1, "baseline_fp": s.baseline_fp} for s in summaries},
+        "per_app": {
+            s.app: {
+                "precision": s.precision, "recall": s.recall, "recall_raw": s.recall_raw,
+                "f1": s.f1, "baseline_fp": s.baseline_fp,
+                "slice_over_file": s.compression.get("slice_over_file_mean"),
+                "grounded_ratio": s.grounded_findings.get("ratio"),
+            }
+            for s in summaries
+        },
     }
     agg_path = out_dir / f"_aggregate{suffix}.json"
     agg_path.write_text(_json.dumps(agg, indent=2), encoding="utf-8")
