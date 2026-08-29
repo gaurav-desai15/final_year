@@ -152,11 +152,19 @@ Mutation harness (`corpus mutate` / `corpus stats`, landed this session — v1):
   search pulls frameworks (parse-server) and FE boilerplates (0 mutations)
   — **the final ~30 needs a curation pass**, and a real run needs GITHUB_TOKEN
   (unauth is ~10 search req/min).
+- **Precision fix (landed D5):** `models.is_public_route` — a conventional
+  public-endpoint classifier (auth flow: login/logout/signup/register/reset/
+  verify/oauth-callback; probes: health/status/metrics; static assets).
+  Three layers: (1) `to_absence_prompt_text` adds a NOTE when the route is
+  public, (2) `ABSENCE_SYSTEM_PROMPT` step 2 carves out public endpoints,
+  (3) `_public_route_finding_is_noise` post-filter drops an absence finding
+  on a public route unless its own reasoning cites sensitive-data exposure
+  or a privileged change (`_SENSITIVE_ON_PUBLIC_RE`). `FunctionContext`
+  gains `route_path`. Targets the 6 NodeGoat baseline FPs (all /login,
+  /signup, /logout, /). Re-running the eval to confirm.
 - Still to do (D5-D6): run `corpus collect` with a token, curate to ~30 real
-  apps / >=500 labelled instances, hand-verify ~10 mutations. Then the
-  precision fix: teach the absence prompt/rules that public auth routes
-  (/login, /signup, static) need no control — tune against corpus negatives,
-  never NodeGoat/Juice Shop. Ungrounded (raw-file) baseline mode for H2.
+  apps / >=500 labelled instances, hand-verify ~10 mutations. Ungrounded
+  (raw-file) baseline mode for the H2 comparison.
 
 Candidate next features (pick with the user, don't assume):
 1. Widen `_NO_ATTACKER_PATH_RE` to catch "no … taint … reach… sink" phrasing.

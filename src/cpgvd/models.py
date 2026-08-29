@@ -3,10 +3,35 @@
 from __future__ import annotations
 
 import datetime as _dt
+import re as _re
 from enum import Enum
 from typing import Optional
 
 from pydantic import BaseModel, Field
+
+# Route paths that are public by convention: the authentication flow itself,
+# health/status probes, and static assets. A missing access control on one of
+# these is almost always intentional. Used by the control-absence mode to
+# avoid the most common false positive (flagging `/login` as unprotected).
+_PUBLIC_ROUTE_RE = _re.compile(
+    r"^/?(?:"
+    r"|login|logout|log-in|log-out|signin|sign-in|signout|sign-out"
+    r"|signup|sign-up|register|registration"
+    r"|auth(?:[/-].*)?|oauth(?:[/-].*)?|sso(?:[/-].*)?|saml(?:[/-].*)?"
+    r"|(?:.*[/-])?callback|(?:forgot|reset)[/-]?password|password[/-](?:forgot|reset)"
+    r"|verify[/-]?email|confirm(?:[/-].*)?|activate(?:[/-].*)?"
+    r"|health(?:z|check)?|healthcheck|status|ping|ready|readiness|live|liveness|metrics|version|info"
+    r"|favicon\.ico|robots\.txt|sitemap\.xml|manifest\.json|\.well-known(?:/.*)?"
+    r"|public(?:/.*)?|static(?:/.*)?|assets(?:/.*)?|css(?:/.*)?|js(?:/.*)?"
+    r"|img(?:/.*)?|images(?:/.*)?|fonts(?:/.*)?|dist(?:/.*)?|build(?:/.*)?|vendor(?:/.*)?"
+    r")/?$",
+    _re.IGNORECASE,
+)
+
+
+def is_public_route(path: str) -> bool:
+    """True if `path` is a conventionally-public endpoint (auth flow / probe / asset)."""
+    return bool(path) and bool(_PUBLIC_ROUTE_RE.match(path.strip()))
 
 
 class Severity(str, Enum):
@@ -126,6 +151,7 @@ class FunctionContext(BaseModel):
     # Control-absence mode only (empty in injection mode).
     control_triggers: list[ControlTrigger] = Field(default_factory=list)
     guard_evidence: list[GuardEvidence] = Field(default_factory=list)
+    route_path: str = ""  # set for per-route absence contexts
 
     def to_prompt_text(self, max_related_chars: int = 4000) -> str:
         """Render this context as plain text for the LLM prompt."""
@@ -201,6 +227,15 @@ class FunctionContext(BaseModel):
             self.code,
             "```",
         ]
+
+        if self.route_path and is_public_route(self.route_path):
+            parts.append(
+                f"\n### NOTE: `{self.route_path}` matches a conventional PUBLIC endpoint "
+                "(authentication flow, health/status probe, or static asset). A missing "
+                "access control here is almost always intentional -- do NOT report it "
+                "unless the handler demonstrably exposes another user's data or performs "
+                "a privileged state change."
+            )
 
         parts.append("\n### Operations found in this function that may require an access control")
         for t in self.control_triggers:

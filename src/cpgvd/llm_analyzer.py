@@ -131,7 +131,13 @@ Work in three explicit steps, for each operation:
 1. CLASSIFY the operation: what is it and what does it expose or change?
 2. INFER the control it requires: none / authentication / authorization \
    (role) / ownership (this user may only touch their own records) / session \
-   / input-validation. A public read may legitimately need nothing.
+   / input-validation. Many endpoints legitimately need NOTHING: a route that \
+   IS the authentication flow (login, logout, signup, register, password \
+   reset, email verify, OAuth callback), a health/status/metrics probe, a \
+   static-asset route, or a public read of non-sensitive data. If the context \
+   is flagged as a conventional public endpoint, the required control is \
+   'none' unless the handler exposes another user's data or makes a \
+   privileged change.
 3. CHECK presence: is that control actually present in `guard_evidence` or \
    plainly visible in the function or a shown caller? Middleware on the route \
    registration counts. A hardcoded non-attacker-controlled value counts as \
@@ -343,6 +349,34 @@ def _asserts_control_present(item: dict) -> bool:
     return bool(_CONTROL_PRESENT_RE.search(text))
 
 
+# A finding on a conventionally-public route is only kept if its own reasoning
+# actually argues the endpoint exposes another user's data or performs a
+# privileged change -- otherwise flagging `/login` for "no auth" is noise.
+_SENSITIVE_ON_PUBLIC_RE = re.compile(
+    "|".join(
+        [
+            r"\banother user'?s?\b", r"\bother users?'?\b", r"\bany user'?s?\b",
+            r"\benumerat", r"\bIDOR\b", r"\bhorizontal privilege",
+            r"\bPII\b", r"\bpersonal(?:ly identifiable)? (?:data|information)\b",
+            r"\bpassword hash", r"\bsecret", r"\btoken\b", r"\bcredential",
+            r"\bdelete[sd]?\b", r"\bmodif(?:y|ies|ied)\b", r"\bupdate[sd]?\b",
+            r"\bcreate[sd]?\b.*\b(?:admin|account|user)\b", r"\bprivileg",
+            r"\bmass assignment\b", r"\barbitrary (?:file|write|read)\b",
+        ]
+    ),
+    re.IGNORECASE,
+)
+
+
+def _public_route_finding_is_noise(context: FunctionContext, item: dict) -> bool:
+    from .models import is_public_route
+
+    if not is_public_route(context.route_path):
+        return False
+    text = f"{item.get('missing_control_reasoning', '')} {item.get('description', '')} {item.get('title', '')}"
+    return not _SENSITIVE_ON_PUBLIC_RE.search(text)
+
+
 _CWE_ID_RE = re.compile(r"cwe-\d+", re.IGNORECASE)
 
 _SEVERITY_RANK = {
@@ -513,6 +547,14 @@ class LlmAnalyzer:
                     "reasoning states the control is present or delegated",
                     item.get("title", item.get("vulnerability_type", "?")),
                     context.context_id,
+                )
+                continue
+            if _public_route_finding_is_noise(context, item):
+                logger.info(
+                    "Dropping absence finding %r on conventional public route %r: "
+                    "no sensitive-exposure / privileged-change argument",
+                    item.get("title", item.get("vulnerability_type", "?")),
+                    context.route_path,
                 )
                 continue
             vulnerability_type = _clean_vulnerability_type(

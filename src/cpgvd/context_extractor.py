@@ -745,4 +745,5 @@ class ContextExtractor:
             imports=self.extract_imports(imports_file, language),
             control_triggers=triggers,
             guard_evidence=acc.items,
+            route_path=route_hit.route_path,
         )

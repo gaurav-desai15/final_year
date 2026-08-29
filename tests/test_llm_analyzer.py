@@ -311,6 +311,47 @@ def test_absence_mode_drops_finding_that_concedes_control_is_present():
     assert analyzer.analyze_context(make_context("absence:x:y:1")) == []
 
 
+def _absence_context(route_path, context_id="absence-route:app/routes/index.js:/x:10"):
+    ctx = make_context(context_id)
+    ctx.route_path = route_path
+    return ctx
+
+
+def test_absence_drops_missing_control_finding_on_public_login_route():
+    payload = dict(ABSENCE_PAYLOAD)
+    payload["missing_control_reasoning"] = "guard_evidence is empty; no auth middleware on the route."
+    provider = FakeProvider([result_with_findings([payload])])
+    analyzer = LlmAnalyzer(Config(), provider=provider, mode="absence")
+
+    assert analyzer.analyze_context(_absence_context("/login")) == []
+
+
+def test_absence_keeps_public_route_finding_that_argues_sensitive_exposure():
+    payload = dict(ABSENCE_PAYLOAD)
+    payload["missing_control_reasoning"] = (
+        "The /auth/reset handler returns another user's password reset token given only an email."
+    )
+    provider = FakeProvider([result_with_findings([payload])])
+    analyzer = LlmAnalyzer(Config(), provider=provider, mode="absence")
+
+    findings = analyzer.analyze_context(_absence_context("/auth/reset"))
+    assert len(findings) == 1
+
+
+def test_absence_keeps_finding_on_non_public_route():
+    provider = FakeProvider([result_with_findings([ABSENCE_PAYLOAD])])
+    analyzer = LlmAnalyzer(Config(), provider=provider, mode="absence")
+
+    assert len(analyzer.analyze_context(_absence_context("/admin/users"))) == 1
+
+
+def test_absence_prompt_flags_public_route_in_text():
+    ctx = _absence_context("/login")
+    ctx.control_triggers = []
+    text = ctx.to_absence_prompt_text()
+    assert "conventional PUBLIC endpoint" in text
+
+
 def test_clean_vulnerability_type_normalises_snake_case():
     assert _clean_vulnerability_type("missing_access_control") == "Missing Access Control"
     assert _clean_vulnerability_type("broken-access-control") == "Broken Access Control"
