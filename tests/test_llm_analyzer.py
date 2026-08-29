@@ -345,6 +345,28 @@ def test_absence_keeps_finding_on_non_public_route():
     assert len(analyzer.analyze_context(_absence_context("/admin/users"))) == 1
 
 
+def test_absence_drops_finding_when_model_says_required_control_none():
+    payload = dict(ABSENCE_PAYLOAD)
+    payload["required_control"] = "none"
+    payload["missing_control_reasoning"] = "This is a public welcome page; no control is required."
+    provider = FakeProvider([result_with_findings([payload])])
+    analyzer = LlmAnalyzer(Config(), provider=provider, mode="absence")
+
+    assert analyzer.analyze_context(_absence_context("/admin/users")) == []
+
+
+def test_absence_public_route_boilerplate_description_does_not_save_finding():
+    payload = dict(ABSENCE_PAYLOAD)
+    payload["required_control"] = "authentication"
+    payload["missing_control_reasoning"] = "guard_evidence is empty for this route."
+    payload["description"] = "This could allow unauthorized users to perform privileged actions."
+    provider = FakeProvider([result_with_findings([payload])])
+    analyzer = LlmAnalyzer(Config(), provider=provider, mode="absence")
+
+    # /login is public and the *reasoning* cites nothing sensitive -> dropped
+    assert analyzer.analyze_context(_absence_context("/login")) == []
+
+
 def test_absence_prompt_flags_public_route_in_text():
     ctx = _absence_context("/login")
     ctx.control_triggers = []

@@ -368,12 +368,26 @@ _SENSITIVE_ON_PUBLIC_RE = re.compile(
 )
 
 
+_REQUIRED_CONTROL_NONE_RE = re.compile(
+    r"^\s*(?:none|n/?a|not (?:required|needed|applicable)|no (?:control|auth\w*)"
+    r"|public|nothing)\b",
+    re.IGNORECASE,
+)
+
+
+def _required_control_is_none(item: dict) -> bool:
+    """The model's own step-2 answer says the operation needs no control."""
+    return bool(_REQUIRED_CONTROL_NONE_RE.match(item.get("required_control", "")))
+
+
 def _public_route_finding_is_noise(context: FunctionContext, item: dict) -> bool:
     from .models import is_public_route
 
     if not is_public_route(context.route_path):
         return False
-    text = f"{item.get('missing_control_reasoning', '')} {item.get('description', '')} {item.get('title', '')}"
+    # Only the step-3 reasoning + the title -- `description` is boilerplate that
+    # says "could allow privileged actions" on every finding.
+    text = f"{item.get('missing_control_reasoning', '')} {item.get('title', '')}"
     return not _SENSITIVE_ON_PUBLIC_RE.search(text)
 
 
@@ -547,6 +561,14 @@ class LlmAnalyzer:
                     "reasoning states the control is present or delegated",
                     item.get("title", item.get("vulnerability_type", "?")),
                     context.context_id,
+                )
+                continue
+            if _required_control_is_none(item):
+                logger.info(
+                    "Dropping absence finding %r in %s: model's own required_control is %r",
+                    item.get("title", item.get("vulnerability_type", "?")),
+                    context.context_id,
+                    item.get("required_control", ""),
                 )
                 continue
             if _public_route_finding_is_noise(context, item):
