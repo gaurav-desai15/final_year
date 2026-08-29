@@ -1,0 +1,535 @@
+================================================================================
+cpgvd -- Track B (implementation) progress log
+Two-day work block, plan days D1-D6
+Branch: claude/cpg-vulnerability-detection-ds74ac
+Written: 2026-08-29
+================================================================================
+
+Starting point (commit 28bade5): the injection-mode detector only. A repo is
+cloned, Joern builds a CPG, sink/source regexes shortlist candidate functions,
+an LLM judges exploitability, a Markdown/JSON/SARIF report is written. One
+total wall-clock number in RunStats. No control-absence detector, no mutation
+harness, no evaluation, no corpus.
+
+End state (commit a4daea0): a second detector (control-absence / missing access
+control), a five-operator mutation harness, a reusable pipeline holding one
+Joern server across runs, an evaluation runner that scores the detector against
+mutation labels, an ungrounded (raw-file) baseline for the H2 comparison, a
+corpus-collection tool, and a 5-app / 96-instance curated corpus. 20 commits,
++4360 / -91 lines across 37 files, 187 unit tests (all mocked, all passing;
+was 64).
+
+Nothing has been pushed -- the GitHub remote is SSH and the key is
+passphrase-protected with no ssh-agent in the working environment. Run
+`git push origin HEAD` from a shell that can unlock the key.
+
+
+================================================================================
+1. WHAT WAS BUILT, BY PLAN DAY
+================================================================================
+
+--------------------------------------------------------------------------------
+D1  --  Speed and instrumentation                          commit 694a1ae
+--------------------------------------------------------------------------------
+Goal: everything downstream depends on run speed; instrument before optimising.
+
+Changes
+  * models.RunStats: six per-stage wall-clock timers (clone, cpg-build,
+    cpg-load, context, dataflow, llm). `stage_breakdown()` omits unmeasured
+    stages. `analyze` prints a timing table; the Markdown report lists it.
+  * cli.py: removed the `or source_calls` fallback that fed EVERY source in
+    the repo into Joern's `reachableByFlows` (the most expensive operation)
+    when a function had no source call of its own.
+  * Content-addressed CPG cache: cpg.bin is stored under the work dir named
+    by `repo_manager.source_fingerprint()` -- a SHA-256 over the CONTENT of
+    every source file, not the commit SHA. Rationale: the mutation harness
+    rewrites tracked files in place without committing, so every mutant of an
+    app shares its SHA; a SHA-keyed cache would hand every mutant the
+    unmutated CPG and silently invalidate the whole evaluation. Re-running
+    the same tree now skips joern-parse. `keep_cpg` defaults true;
+    `--no-keep-cpg` opts out.
+
+Instrumented baselines (qwen2.5-coder:7b, on the real machine)
+  * bundled python example : ~110s total, LLM ~88s
+  * OWASP NodeGoat, --no-dataflow, 15 contexts : ~270s total, LLM ~262s (97%)
+
+Finding that shaped the rest of the work: Joern is already ~8s end to end.
+The <=90s/run target cannot be reached by touching Joern -- it is entirely the
+LLM invocation (prompt length, output length, context count, concurrency).
+The absence-mode prompt (D2) is deliberately shorter for this reason.
+
+--------------------------------------------------------------------------------
+D2  --  Control-absence analysis mode                      commit 52e237b
+--------------------------------------------------------------------------------
+Goal: a second detector asking "does a sensitive operation run WITHOUT an
+access control that should be there" -- a control-dependence question, not a
+taint question, so no dataflow.
+
+New: rules/control_absence.yaml
+  * `triggers` per language: operations that plausibly need a control --
+    Express/Flask route registrations, DB reads/writes, file sends, credential
+    handling. Each carries an `operation` tag (route|db_read|db_write|
+    file_send|credential|session).
+  * `guards` per language: syntactic evidence a control IS present -- auth
+    middleware, role checks, ownership comparisons, session guards, validators.
+    Each carries a `control` tag (authentication|authorization|ownership|
+    session|validation).
+  * Header documents the deliberate inversion vs sinks_sources.yaml: sink
+    patterns must require invocation syntax so bare property access never
+    mislabels code; GUARD patterns deliberately match bare property access
+    (`req.user`, `req.session.userId`) because the failure mode is inverted
+    (a missed guard makes us over-report).
+
+rules.py: `ControlRule`, `AbsenceRules`, `load_absence_rules()`.
+
+models.py
+  * `ControlTrigger` and `GuardEvidence` -- each carries the CPG call node id
+    and line, so a finding is checkable back against the graph.
+  * `FunctionContext` gains `control_triggers`, `guard_evidence`.
+  * `to_absence_prompt_text()` -- renders an empty guard list as an explicit
+    "(none)". Absence is a field, not an inference.
+
+context_extractor.py
+  * `find_control_triggers()` -- pure-python match over the flat call list,
+    same shape as `find_sink_candidates()`.
+  * `collect_guard_evidence()` -- guards on the handler body + its real
+    call-graph callers. Express route handlers are PASSED AS ARGUMENTS to
+    `app.get(path, mw, handler)` and so have no call-graph caller; the
+    registration site is found by "a call whose code names this handler",
+    and the middleware list is read straight out of that call's code.
+  * `build_absence_context()` -- like build_function_context but no dataflow;
+    callers included verbatim (the control usually lives in the middleware).
+
+llm_analyzer.py
+  * `ABSENCE_SYSTEM_PROMPT` + `ABSENCE_RESPONSE_SCHEMA` -- a 3-step prompt:
+    (1) classify the operation, (2) infer the control it requires,
+    (3) check that against the guard list.
+  * `LlmAnalyzer(mode="injection"|"absence")`; `_parse_absence_findings()`.
+  * `_asserts_control_present()` -- drops a finding whose own reasoning
+    concedes the control is present or legitimately delegated to a caller.
+  * `_clean_vulnerability_type()` now also normalises snake_case
+    ("missing_access_control" -> "Missing Access Control").
+
+cli.py: `--mode injection|absence|both`. In `both`, one LLM pass per mode,
+findings merged.
+
+Verified end-to-end on NodeGoat: mode runs, the contradiction guard and the
+dedup both fire. Known weakness at this point (expected -- tune on the corpus,
+not here): the local model over-reports DAO methods as missing-control, and
+context prioritisation by hit-count buries route handlers under DAO files.
+
+--------------------------------------------------------------------------------
+D3  --  Mutation harness                                   commit d8c4cdc
+--------------------------------------------------------------------------------
+Goal: turn real Express apps that HAVE working access controls into labelled
+missing-control positives by removing one control at a time. Each removal is
+scripted, so the ground truth is exact (file, line range, route, control
+class) with no human judgement.
+
+New: src/cpgvd/mutation.py -- five operators, regex + brace-balanced text
+(NOT an AST; no JS-parser dependency):
+  M1  drop an access-control middleware argument from a route registration
+      -- one mutation per removable middleware, classified by name
+      (auth vs admin/role). Only the prefix up to the handler is rewritten,
+      so an inline-function handler body is left byte-for-byte intact.
+  M2  drop an ownership comparison `if` (condition names req.user + an
+      owner/userId field with a comparison; body is denial-shaped)
+  M3  drop a role/privilege check `if`
+  M4  drop a session-validation `if`
+  M5  drop an input-validation guard sitting within ~60 lines above a DB write
+      (an errors-check `if` block, or a standalone validator call)
+
+  * Operator vocabulary is kept SEPARATE from control_absence.yaml on purpose
+    -- if the mutator and the detector shared pattern definitions the
+    evaluation would be circular.
+  * Line-count preserving: removed lines become blank, so a record's
+    start_line/end_line are valid against BOTH the original file and the
+    mutant -- scoring findings against labels needs no offset bookkeeping.
+  * `mutation_applied()` context manager applies a mutation in place and
+    restores the exact original bytes.
+  * `verify_mutations()` runs `node --check` on every mutant and drops any
+    that no longer parses.
+
+models.MutationRecord: id, app, repo, commit_sha, operator, control_class,
+file, line range, route_path, original_text, mutated_text, note.
+
+src/cpgvd/corpus.py: JSONL label I/O (`write_labels` / `read_labels`),
+`split_by_app()` (stable per-app SHA-256 hash -> holdout; deterministic and
+independent of collection order, so re-collecting apps never reshuffles an
+app between train and holdout), `summarize()`.
+
+cli.py: `cpgvd corpus mutate <repo>` -> corpus/labels/<app>.jsonl;
+`cpgvd corpus stats` -> totals + the by-app split.
+
+Dry run on real NodeGoat: 19 mutations, all survive `node --check`
+(16 M1, 3 M4). M2/M3/M5 = 0 because NodeGoat centralises routing with no
+per-route inline ownership checks.
+
+--------------------------------------------------------------------------------
+D4  --  Reusable pipeline + the evaluation runner          commits 6229fdd, fba4150
+--------------------------------------------------------------------------------
+Goal: finish B3 (control-absence mode) and build the runner the whole corpus
+feeds into.
+
+New: src/cpgvd/pipeline.py -- the analysis pipeline (CPG -> Joern -> context
+-> LLM) as a reusable unit with the Joern server INJECTABLE. cli.analyze is
+now a thin wrapper (~130 lines removed from cli.py). `run_pipeline(...,
+client=<shared>)` reuses one Joern server across many repo states -- this is
+the D1 "one server across runs" item, landed where it actually pays off
+(a cold JVM per run is ~15s of pure overhead; the 600-mutant eval would
+otherwise spend hours just starting JVMs).
+
+Per-route absence context (context_extractor.build_route_absence_context):
+ONE candidate per `app.get(...)` REGISTRATION rather than per method. A
+centralised router is one `<module>` method with dozens of routes, so a
+per-method context is the whole router and the model cannot localise a
+single dropped `requireAuth`. The new context is anchored on the
+registration line (so it matches an M1 label), carries that route's
+middleware list + the resolved handler body (`_resolve_handler` maps
+`ctrl.displayFoo` -> its method) + guards on either.
+`_split_call_args` parses the registration call (brace/string aware; an
+inline handler stays one argument). Guard-scanning refactored into
+`_GuardAcc` + `_scan_guards_*` helpers.
+pipeline.extract_contexts splits route triggers (per-registration) from the
+rest (per-method, e.g. DAOs).
+
+New: src/cpgvd/evaluation.py -- `run_eval()`:
+  1. Analyse the UNMUTATED tree first. Every finding there is a false
+     positive (the negative control the plan calls non-negotiable -- the
+     false-positive rate on unmutated originals).
+  2. Per mutation: apply -> analyse -> score -> restore, all under ONE Joern
+     session.
+  3. A finding is a hit if it lands within `--match-window` lines of the
+     removed control, same file. Two recall numbers:
+       - `recall`      : the finding is NEW (not a line the baseline also
+                         flagged) -- the detector noticed the *removal*.
+                         This is the discriminative number.
+       - `recall_raw`  : any finding lands there, baseline suppression
+                         ignored -- the ceiling when the baseline is noisy.
+  4. P / R / F1 overall and per operator / control class.
+
+models: `MutationEvalResult`, `EvalSummary`, `EvalReport`.
+`AnalysisReport` gains `contexts` -- `analyze` now persists the analysed
+contexts (guard_evidence + node ids) into report.json so a finding is
+checkable against what the model actually saw.
+
+cli.py: `cpgvd corpus eval <labels.jsonl>`.
+
+D4 smoke test on NodeGoat (3 M1 mutants, max_contexts 6):
+  * pre per-route-context fix : recall 0/3, 5 FP on the unmutated original.
+    Cause: the whole-router context (above). NOT a harness bug.
+  * post fix (4 M1 mutants, max_contexts 10) : recall 4/4 = 1.00,
+    precision 0.12, F1 0.21, 6 FP on the original. The precision is the
+    known local-model weakness -- it flags NodeGoat's genuinely public
+    routes (/login, /signup, /logout) as missing-control.
+
+--------------------------------------------------------------------------------
+D5  --  Precision fix + GitHub corpus collection    commits 1ef9e9e, ea62369,
+                                                          cc401b8, 3a9f42e, 588e1d4
+--------------------------------------------------------------------------------
+
+Precision fix -- public-route awareness (4 layers, all general, none tuned
+to NodeGoat):
+  1. models.is_public_route() -- classifier for conventionally-public
+     endpoints: the auth flow itself (login, logout, signup, register,
+     reset/forgot password, verify email, OAuth callback), health/status/
+     metrics probes, and static-asset paths.
+  2. to_absence_prompt_text() adds an explicit NOTE for a public route.
+  3. ABSENCE_SYSTEM_PROMPT step 2 carves out public endpoints (required
+     control = none unless the handler exposes another user's data or makes
+     a privileged change).
+  4. Post-filters in _parse_absence_findings:
+       - _required_control_is_none : drop a finding when the model's own
+         `required_control` schema field is "none" / "n/a" / "public".
+         NodeGoat's `/` finding literally had required_control="none" and
+         still emitted -- the same self-contradiction as
+         _asserts_control_present, via the schema field, and it generalises
+         past public routes.
+       - _public_route_finding_is_noise : drop a public-route finding unless
+         its *reasoning* (not its boilerplate `description`, which pads
+         "could allow privileged actions" onto every finding) cites
+         sensitive-data exposure or a privileged change.
+  FunctionContext gains `route_path`.
+
+NodeGoat eval across the D5 fixes (4 M1 mutants, max_contexts 10):
+       fix stage            baseline FP   precision   F1
+  ---------------------------------------------------------
+  pre                            6           0.12     0.21
+  + public-route filter          2           0.23     0.35
+  + tightened filters            1           0.375    0.50
+  recall stayed 0.75: the one miss and the one remaining FP are both
+  `/contributions`, which the model insists needs *role* control when it
+  has isLoggedIn -- an ambiguous route, n=1 on a held-out app.
+
+GitHub corpus collection -- src/cpgvd/corpus_collect.py:
+  * GitHubClient (pagination + rate-limit backoff; reads GITHUB_TOKEN /
+    GH_TOKEN).
+  * Repo search (JavaScript, stars, recent, not archived) -> screen each
+    hit's package.json for `express` + one of passport / express-session /
+    jsonwebtoken + a permissive licence -> shallow clone.
+  * cli `corpus collect`: search -> clone -> mutate -> verify. `--min-mutations`
+    (default 5) drops cloned apps that yield too few mutations -- frameworks
+    and front-end boilerplates that pass the package screen but have no
+    route-level access control to remove.
+  * Smoke-tested unauthenticated (limit 2): searches, screens, clones, writes
+    corpus/manifest.jsonl. Caveat: naive search still pulls in frameworks
+    (parse-server) and FE boilerplates (0 mutations); a real run needs a
+    token, and the final ~30 needs a curation pass.
+
+--------------------------------------------------------------------------------
+D6  --  Corpus build + ungrounded baseline + eval runs   commits ca40604, 5c4c39f,
+                                                               3eb8f81, 29efc41,
+                                                               8f3d137, 7bf2b8b,
+                                                               ca7eabf, 1e8ba6e, a4daea0
+--------------------------------------------------------------------------------
+
+corpus collect --from-list (ca40604):
+  * GitHub search needs a token and pulls in frameworks. --from-list <file>
+    skips the API: clone each URL, screen the local package.json + LICENSE,
+    mutate + gate as before.
+  * corpus_collect.py: parse_repo_list, candidate_from_url, screen_local.
+  * corpus/seed_apps.txt: a curated list of real Express apps with
+    route-level access control (held-out apps deliberately absent).
+
+Widen M1/M5 route-middleware recognition (5c4c39f):
+  * The first corpus build found 0 mutations in most real apps -- the
+    classifier only knew `isLoggedIn`-style bare names.
+  * `_classify_middleware` replaces `_middleware_control_class`: returns
+    (operator, control_class); regex-matches the argument AND its last
+    `.`-segment against validation -> authorization -> authentication
+    patterns; handles call form (`auth('rights')`), member form
+    (`mw.protect`), passport. `_looks_like_handler` guards against dropping
+    an inline `(req,res)=>` / `function` handler passed mid-list.
+  * `validate(...)` / `celebrate(...)` on a route now emit M5.
+
+Hand-verification (8f3d137):
+  * Verified 12 sampled mutations across operators. 10 were clean textbook
+    control removals (route `auth()` middleware; `if (owner != user)
+    redirect`; `if (!req.session.x) redirect`; `if (validationErrors.length)
+    redirect`).
+  * 2 were INVALID: parse-server M3s that removed `if (perms ok) return
+    Promise.resolve()` -- a GRANT branch, so removing it makes the code MORE
+    restrictive, not a "removed a control" positive.
+  * Fix: mutation._DENIAL_RE now rejects `return Promise.resolve()` /
+    `return true` / `next()` (grant branches) while still accepting a bare
+    `return`.
+  * Dropped parse-server (framework, unusual permission internals) and
+    node_passport_login (only 2 valid mutations after the fix).
+
+Ungrounded (raw-file) baseline mode -- `--grounding raw` (29efc41):
+  The H2 comparison the plan calls non-negotiable: same model, same prompt,
+  same candidate shortlist -- the LLM gets the whole source file instead of
+  the CPG-derived context slice.
+  * config.grounding ("cpg" default / "raw"), env CPGVD_GROUNDING.
+  * pipeline._rawify: swap a context's `code` for the whole file (truncated
+    around the candidate line for large files); clear every CPG-derived
+    field (guard_evidence, control_triggers, callers, callees, imports,
+    dataflow); keep file / start_line / route_path so scoring still works.
+    Applied in run_pipeline and evaluation._analyze.
+  * models.FunctionContext.grounding + to_raw_prompt_text (minimal: same
+    system prompt, no guard list / node ids / call graph).
+  * cli: `analyze --grounding`, `corpus eval --grounding` -> writes
+    corpus/eval/<app>-raw.json; EvalReport.grounding.
+
+Batch corpus eval (7bf2b8b):
+  * `cpgvd corpus eval corpus/labels` loops every *.jsonl, writes per-app
+    reports plus corpus/eval/_aggregate[-raw].json (overall + per-operator
+    P/R/F1, FP-on-originals, per-app breakdown).
+
+Resumable eval + recall_raw (ca7eabf):
+  * `corpus eval --skip-existing`: skip an app whose <app>[-raw].json is
+    already in --out-dir, reusing its summary for the aggregate.
+  * MutationEvalResult.detected_raw / EvalSummary.recall_raw (see D4).
+
+Paced eval runner (1e8ba6e): scripts/run_corpus_eval_paced.sh
+  * Grounded then raw, over every label file, 20-minute CPU cooldown after
+    each app, resumable via --skip-existing.
+  * Usage: bash scripts/run_corpus_eval_paced.sh [max_mutations] [cooldown_s]
+
+
+================================================================================
+2. THE CORPUS (as of a4daea0)
+================================================================================
+
+corpus/labels/*.jsonl  --  5 apps, 96 verified instances
+
+  app                                   instances
+  --------------------------------------  --------
+  sahat/hackathon-starter                    66
+  bradtraversy/storybooks                    11
+  hagopj13/node-express-boilerplate           8
+  madhums/node-express-mongoose-demo          6
+  keystonejs/keystone-classic                 5
+
+  by operator      : M1 58,  M2 3,  M4 9,  M5 26   (no M3 in these apps --
+                     real `if (!isAdmin) return 403` would still match)
+  by control class : authentication 47, validation 26, authorization 11,
+                     session 9, ownership 3
+  by-app split     : 3 train / 2 holdout  (stable per-app hash)
+  negative control : the 5 unmutated originals
+
+This is the CURATED CORE, not the full corpus. B4's target is >=25 apps /
+>=500 instances. Reaching it needs `cpgvd corpus collect` with a GITHUB_TOKEN
+-- the repo search finds hundreds of live candidates, and the operators are
+now wide enough to mutate them. Several seed URLs 404'd (unauthenticated git
+cannot 404 cleanly -- it prompts for a username).
+
+
+================================================================================
+3. EVALUATION RESULTS SO FAR
+================================================================================
+
+The paced eval run was started and then stopped after the first app. One
+grounded data point is saved (corpus/eval/bradtraversy__storybooks.json):
+
+  storybooks, grounded, 11 M1 mutants
+  --------------------------------------------------
+  recall (discriminative)  0.18   (2/11)
+  recall_raw               0.73   (8/11)
+  precision                0.03
+  F1                       0.06
+  FP on unmutated original 5
+
+Reading: the detector LOCALISES 8 of the 11 removed `ensureAuth` guards
+(recall_raw 0.73) but flags the same protected routes in the BASELINE too
+(it wants an in-handler ownership check even when route-level auth is
+present), so:
+  * precision craters -- every mutant emits ~5 findings, mostly noise
+  * the real detection is suppressed as "flagged anyway" -> discriminative
+    recall drops to 0.18
+
+This is the SAME failure seen on NodeGoat's `/contributions`. It is the
+current bottleneck for every downstream number (B5 grounded-vs-raw, B6
+held-out, B7 ratios). It is a prompt-tuning problem: the absence prompt
+over-weights "handler has no ownership `if`" and under-weights "route has an
+auth guard". Fix against the corpus TRAIN split, then re-run.
+
+Remaining eval work: 9 app-runs (grounded hagopj13/keystone/madhums/sahat +
+all 5 raw) = 73 mutant-runs. `bash scripts/run_corpus_eval_paced.sh 12 1200`
+resumes from hagopj13.
+
+
+================================================================================
+4. NEW FILES
+================================================================================
+
+  src/cpgvd/pipeline.py          reusable CPG->Joern->context->LLM pipeline
+  src/cpgvd/mutation.py          M1-M5 operators, node --check verify
+  src/cpgvd/corpus.py            JSONL labels, by-app split, summarise
+  src/cpgvd/corpus_collect.py    GitHub search + local screen + clone
+  src/cpgvd/evaluation.py        score detector vs labels (P/R/F1, FP-on-orig)
+  rules/control_absence.yaml     triggers / guards for --mode absence
+  corpus/seed_apps.txt           curated app URL list for --from-list
+  corpus/labels/*.jsonl          5 apps, 96 mutation labels (tracked)
+  corpus/manifest.jsonl          collected-app metadata (tracked)
+  scripts/run_corpus_eval_paced.sh   paced, resumable eval driver
+  tests/test_mutation.py         31 tests
+  tests/test_context_extractor_absence.py   ~10 tests
+  tests/test_corpus.py / test_corpus_collect.py / test_evaluation.py /
+  tests/test_pipeline.py / test_models.py
+
+
+================================================================================
+5. CLI SURFACE ADDED
+================================================================================
+
+  cpgvd analyze ... --mode injection|absence|both
+  cpgvd analyze ... --grounding cpg|raw
+  cpgvd analyze ... --keep-cpg / --no-keep-cpg      (default: keep, cached)
+
+  cpgvd corpus mutate <repo> [--app N] [--out F] [--verify/--no-verify]
+  cpgvd corpus collect [--from-list F] [--min-stars N] [--limit N]
+                       [--min-mutations N] [--mutate/--no-mutate]
+  cpgvd corpus stats <labels...> [--holdout-frac F]
+  cpgvd corpus eval <labels-file-or-dir> [--grounding cpg|raw]
+                    [--max-mutations N] [--match-window N] [--skip-existing]
+
+
+================================================================================
+6. TESTS
+================================================================================
+
+187 unit tests, all passing, all mocked -- no test needs a live Joern server,
+Ollama, or the Anthropic API. Was 64 at session start.
+
+  pytest tests/ -q
+
+New coverage: the five mutation operators + line-count preservation + the
+apply/restore round-trip; middleware classification; control-trigger and
+guard-evidence extraction; per-route context assembly; the absence prompt +
+schema + all four false-positive filters; is_public_route; _rawify and the
+raw prompt; corpus label I/O and the deterministic by-app split; GitHub
+search/screen with a mocked HTTP session; eval scoring math (hit window,
+baseline suppression, recall vs recall_raw, per-operator buckets).
+
+
+================================================================================
+7. KNOWN ISSUES / NEXT MOVES
+================================================================================
+
+BLOCKER 1 -- corpus size. 5 apps / 96 instances vs B4's 25/500. Needs a
+  GITHUB_TOKEN so `cpgvd corpus collect` can use the repo search.
+
+BLOCKER 2 -- absence-detector over-flagging (the storybooks / NodeGoat
+  /contributions pattern). The detector demands MORE control than exists:
+  it reports "missing ownership check" on routes that already have
+  route-level authentication. This tanks precision directly and suppresses
+  real M1 detections. Fix: strengthen ABSENCE_SYSTEM_PROMPT so that when
+  guard_evidence shows authentication is present, authentication is
+  satisfied and ownership/authorization is only reported with a concrete
+  cross-user access path; add a matching filter. Tune against the 3-app
+  train split, verify on storybooks + NodeGoat (fast), THEN run the full
+  paced eval.
+
+Also open, smaller:
+  * M1 should skip `passport.authenticate(...)` on `*/callback` and public
+    routes -- an OAuth callback needs it to function, it is not an access
+    control (storybooks label #1 is invalid for this reason; same class as
+    the parse-server M3s).
+  * `analyze --mode both` does not cross-dedupe injection vs absence findings.
+  * The stale-Joern-server-on-port-8080 situation: JoernServer does not
+    verify its own subprocess bound the port; if a previous server is
+    lingering, a new run silently attaches to it. Harmless so far but worth
+    a guard.
+
+Deliverable status (plan table):
+  B1  per-stage instrumentation            DONE, verified
+  B2  <=90s per run                        MEASURED (LLM-bound); not reached,
+                                           needs the absence prompt shorter
+  B3  control-absence mode + node ids      DONE
+  B4  mutation harness + corpus            harness DONE; corpus 5/96 vs 25/500
+  B5  grounded vs ungrounded results       tooling DONE; 1 app run, blocked on
+                                           BLOCKER 2 for meaningful numbers
+  B6  held-out Juice Shop + NodeGoat       not started
+  B7  compression + grounded-findings      not started
+  C1  results tables + figures             not started
+
+
+================================================================================
+8. COMMITS (oldest first)
+================================================================================
+
+  694a1ae  D1: per-stage timing, content-addressed CPG cache
+  52e237b  D2: control-absence analysis mode (--mode absence|both)
+  d8c4cdc  D3: mutation harness for the control-absence eval
+  6229fdd  D4: reusable pipeline + `corpus eval` (control-absence scoring)
+  fba4150  D4: record the control-absence harness smoke-test result
+  1ef9e9e  D5: per-route-registration context for the absence mode
+  ea62369  D5: GitHub corpus collection (`cpgvd corpus collect`)
+  cc401b8  D5: precision fix -- public-route awareness for the absence mode
+  3a9f42e  D5: tighten absence-mode false-positive filters
+  588e1d4  D5: record eval-3 numbers (precision 0.12->0.375, baseline FP 6->1)
+  ca40604  D6: corpus collection from a curated URL list (`--from-list`)
+  5c4c39f  D6: widen M1/M5 route-middleware recognition
+  3eb8f81  D6: curated corpus core -- 7 apps, 107 labelled instances
+  29efc41  D6: ungrounded (raw-file) baseline mode -- `--grounding raw`
+  8f3d137  D6: hand-verify mutations; tighten _DENIAL_RE; trim corpus to 5 apps
+  7bf2b8b  D6: batch corpus eval -- directory input + aggregate
+  5d6118e  D6: note eval runs in progress
+  ca7eabf  D6: resumable eval + raw-detection-rate alongside suppressed recall
+  1e8ba6e  D6: paced corpus-eval runner (20-min cooldowns, resumable)
+  a4daea0  D6: note paced eval run + early storybooks signal
+
+  20 commits, +4360 / -91 lines, 37 files. Not pushed.
+
+================================================================================
