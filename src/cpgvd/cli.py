@@ -327,12 +327,12 @@ def corpus_collect(
 
 @corpus.command("eval")
 @click.argument("labels", type=click.Path(exists=True, path_type=Path))
-@click.option("--repo", "repo_override", default=None, help="App repo URL/path (default: taken from the labels).")
+@click.option("--repo", "repo_override", default=None, help="App repo URL/path (single-file only; default: from the labels).")
 @click.option("--ref", default=None, help="Ref to check out (default: the labels' commit SHA).")
-@click.option("--max-mutations", default=None, type=int, help="Cap mutations evaluated (for a quick run).")
+@click.option("--max-mutations", default=None, type=int, help="Cap mutations per app (for a quick run).")
 @click.option("--match-window", default=20, show_default=True, help="Lines of slack when matching a finding to a removed control.")
 @click.option("--grounding", type=click.Choice(["cpg", "raw"]), default="cpg", show_default=True, help="'raw' = ungrounded whole-file baseline (H2).")
-@click.option("--out", type=click.Path(path_type=Path), default=None, help="Eval report JSON (default: corpus/eval/<app>[-raw].json).")
+@click.option("--out-dir", type=click.Path(path_type=Path), default=Path("corpus/eval"), show_default=True)
 @click.option("--keep-repo", is_flag=True)
 @click.option("-v", "--verbose", is_flag=True)
 def corpus_eval(
@@ -342,74 +342,111 @@ def corpus_eval(
     max_mutations: int | None,
     match_window: int,
     grounding: str,
-    out: Path | None,
+    out_dir: Path,
     keep_repo: bool,
     verbose: bool,
 ) -> None:
-    """Score the control-absence detector against a JSONL of mutation labels.
+    """Score the control-absence detector against mutation labels.
 
-    Runs the detector once on the unmutated tree (its findings are the
-    false-positive negative control), then once per mutation, and reports
-    precision / recall / F1 overall and per operator / control class.
+    LABELS is a JSONL file or a directory of them. For each app: run the
+    detector on the unmutated tree (findings there are the FP negative
+    control), then once per mutation, and report precision / recall / F1
+    overall and per operator. A directory run also writes an aggregate.
     """
     _setup_logging(verbose)
+    import json as _json
+
     from .corpus import read_labels
     from .evaluation import run_eval
 
-    records = read_labels(labels)
-    if not records:
-        raise click.ClickException(f"No mutation labels in {labels}")
-    if max_mutations:
-        records = records[:max_mutations]
-    app = records[0].app
-    src = repo_override or records[0].repo
-    if not src:
-        raise click.ClickException("Labels have no `repo`; pass --repo explicitly.")
-    commit_sha = records[0].commit_sha
+    label_files = sorted(labels.glob("*.jsonl")) if labels.is_dir() else [labels]
+    if not label_files:
+        raise click.ClickException(f"No .jsonl label files under {labels}")
 
     config = Config()
     config.grounding = grounding
     check_joern_available(config)
     if config.llm_provider == "ollama":
         check_ollama_available(config)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    suffix = "" if grounding == "cpg" else "-raw"
 
     repo_manager = RepoManager(config.work_dir)
-    console.print(f"[bold]Acquiring[/bold] {src} @ {(ref or commit_sha or 'HEAD')[:12]}")
-    repo_info = repo_manager.acquire(src, ref=ref or commit_sha or None)
-
-    try:
-        report = run_eval(
-            repo_info.path,
-            records,
-            config,
-            app=app,
-            commit_sha=commit_sha or repo_info.commit_sha,
-            match_window=match_window,
-            progress=lambda m: console.print(m),
+    summaries = []
+    for lf in label_files:
+        records = read_labels(lf)
+        if not records:
+            continue
+        if max_mutations:
+            records = records[:max_mutations]
+        app = records[0].app
+        src = repo_override or records[0].repo
+        if not src:
+            console.print(f"[yellow]{app}: labels have no repo; skipping[/yellow]")
+            continue
+        commit_sha = records[0].commit_sha
+        console.print(f"\n[bold]=== {app} ({len(records)} mutations, grounding={grounding}) ===[/bold]")
+        repo_info = repo_manager.acquire(src, ref=ref or commit_sha or None)
+        try:
+            report = run_eval(
+                repo_info.path, records, config, app=app,
+                commit_sha=commit_sha or repo_info.commit_sha,
+                match_window=match_window, progress=lambda m: console.print(m),
+            )
+        finally:
+            if not keep_repo:
+                repo_manager.cleanup(repo_info)
+        (out_dir / f"{app}{suffix}.json").write_text(report.model_dump_json(indent=2), encoding="utf-8")
+        s = report.summary
+        summaries.append(s)
+        console.print(
+            f"  {app}: precision={s.precision:.2f} recall={s.recall:.2f} f1={s.f1:.2f} "
+            f"baseline_fp={s.baseline_fp}"
         )
-    finally:
-        if not keep_repo:
-            repo_manager.cleanup(repo_info)
 
-    suffix = "" if grounding == "cpg" else "-raw"
-    out_path = out or (Path("corpus/eval") / f"{app}{suffix}.json")
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(report.model_dump_json(indent=2), encoding="utf-8")
+    if not summaries:
+        raise click.ClickException("No apps evaluated.")
 
-    s = report.summary
-    table = Table(title=f"control-absence eval: {app} ({s.n_mutations} mutations)")
-    table.add_column("bucket")
-    table.add_column("TP", justify="right")
-    table.add_column("FN", justify="right")
-    table.add_column("recall", justify="right")
-    for name, b in {"OVERALL": {"tp": s.tp, "fn": s.fn, "recall": s.recall}, **s.by_operator}.items():
-        table.add_row(name, str(b["tp"]), str(b["fn"]), f"{b['recall']:.2f}")
+    tp = sum(s.tp for s in summaries)
+    fp = sum(s.fp for s in summaries)
+    fn = sum(s.fn for s in summaries)
+    base = sum(s.baseline_fp for s in summaries)
+    by_op: dict[str, dict] = {}
+    for s in summaries:
+        for op, b in s.by_operator.items():
+            d = by_op.setdefault(op, {"tp": 0, "fn": 0})
+            d["tp"] += b["tp"]
+            d["fn"] += b["fn"]
+    for b in by_op.values():
+        t = b["tp"] + b["fn"]
+        b["recall"] = round(b["tp"] / t, 3) if t else 0.0
+    prec = round(tp / (tp + fp), 3) if (tp + fp) else 0.0
+    rec = round(tp / (tp + fn), 3) if (tp + fn) else 0.0
+    f1 = round(2 * prec * rec / (prec + rec), 3) if (prec + rec) else 0.0
+    agg = {
+        "grounding": grounding,
+        "apps": len(summaries),
+        "mutations": tp + fn,
+        "tp": tp, "fp": fp, "fn": fn,
+        "baseline_fp_total": base,
+        "precision": prec, "recall": rec, "f1": f1,
+        "by_operator": dict(sorted(by_op.items())),
+        "per_app": {s.app: {"precision": s.precision, "recall": s.recall, "f1": s.f1, "baseline_fp": s.baseline_fp} for s in summaries},
+    }
+    agg_path = out_dir / f"_aggregate{suffix}.json"
+    agg_path.write_text(_json.dumps(agg, indent=2), encoding="utf-8")
+
+    table = Table(title=f"AGGREGATE ({grounding}): {len(summaries)} apps, {tp + fn} mutations")
+    for col in ("bucket", "TP", "FN", "recall"):
+        table.add_column(col, justify="right" if col != "bucket" else "left")
+    table.add_row("OVERALL", str(tp), str(fn), f"{rec:.2f}")
+    for op, b in sorted(by_op.items()):
+        table.add_row(op, str(b["tp"]), str(b["fn"]), f"{b['recall']:.2f}")
     console.print(table)
     console.print(
-        f"precision={s.precision:.2f}  recall={s.recall:.2f}  f1={s.f1:.2f}  "
-        f"[bold]false positives on the unmutated original: {s.baseline_fp}[/bold]"
+        f"[bold]precision={prec:.2f}  recall={rec:.2f}  f1={f1:.2f}  "
+        f"FP on unmutated originals: {base}[/bold]\n{agg_path}"
     )
-    console.print(f"\nFull report: {out_path}")
 
 
 @corpus.command("stats")
