@@ -291,6 +291,8 @@ class FunctionContext(BaseModel):
             "No call graph or guard list has been extracted for you -- read the "
             "file to determine what checks are or aren't applied before that "
             "operation, including middleware on the route registration.",
+            "Each line below is prefixed with its file line number followed by "
+            "`│`; cite those numbers in your findings.",
             "",
             "```" + self.language,
             self.code,

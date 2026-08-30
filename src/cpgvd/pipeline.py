@@ -93,15 +93,20 @@ def _rawify(ctx: FunctionContext, repo_root: Path, max_chars: int = 24000) -> Fu
         src = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
         src = ctx.code
+    lines = src.splitlines()
+    lo, hi = 0, len(lines)
     if len(src) > max_chars:
-        lines = src.splitlines()
         mid = max(0, ctx.start_line - 1)
         half = max_chars // 160  # ~lines each side, assuming ~80 chars/line
         lo, hi = max(0, mid - half), min(len(lines), mid + half)
-        src = f"// ... {lo} earlier lines omitted ...\n" if lo else ""
-        src += "\n".join(lines[lo:hi])
-        if hi < len(lines):
-            src += f"\n// ... {len(lines) - hi} later lines omitted ..."
+    # Prefix every shown line with its real 1-based file line number. Without
+    # this a small local model counts from the top of the shown text and its
+    # cited line numbers are unusable for scoring (systematically off by `lo`
+    # on a truncated large file).
+    body = "\n".join(f"{i:>6}│{lines[i - 1]}" for i in range(lo + 1, hi + 1))
+    src = (f"// ... lines 1-{lo} omitted ...\n" if lo else "") + body
+    if hi < len(lines):
+        src += f"\n// ... lines {hi + 1}-{len(lines)} omitted ..."
     return ctx.model_copy(
         update={
             "code": src,

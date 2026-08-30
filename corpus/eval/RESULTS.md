@@ -23,6 +23,21 @@
 - **Compression (H3):** the CPG slice is on average **42.8%** of the file it came from.
 - **Grounded findings (H5):** **92%** of findings cite line numbers that were in the context shown.
 
+## Held-out apps (B6 -- externally-authored ground truth, never tuned against)
+
+| app | grounding | labels | detected | recall | class-match | unmatched findings |
+|---|---|--:|--:|--:|--:|--:|
+| juice-shop | raw | 8 | 0 | 0.00 | 0.00 | 14 |
+| juice-shop | cpg | 8 | 2 | 0.25 | 0.50 | 3 |
+
+Recall by control class (grounded held-out run):
+
+| control class | juice-shop (raw) | juice-shop (cpg) |
+|---|--:|--:|
+| authorization | 0.00 (0/3) | 0.33 (1/3) |
+| ownership | 0.00 (0/4) | 0.25 (1/4) |
+| validation | 0.00 (0/1) | 0.00 (0/1) |
+
 ## Per app (grounded)
 
 | app | mutations | precision | recall | recall_raw | F1 | FP orig |
