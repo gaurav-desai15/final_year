@@ -197,3 +197,39 @@ def test_build_absence_context_populates_fields_and_prompt(extractor):
     assert "Operations found in this function" in text
     assert "(none)" in text  # empty guard evidence rendered explicitly
     assert "CPG node 101" in text  # the db_read trigger node id
+
+
+# -- non-app file filtering (fixture/dep/test code must not become context) ----
+
+from cpgvd.context_extractor import is_app_file
+
+
+def test_is_app_file_accepts_real_source():
+    assert is_app_file("server.ts")
+    assert is_app_file("routes/basket.ts")
+    assert is_app_file("src/app/controllers/user.js")
+    assert is_app_file("lib/insecurity.ts")
+
+
+def test_is_app_file_rejects_deps_build_and_empty():
+    assert not is_app_file("")
+    assert not is_app_file("<empty>")
+    assert not is_app_file("node_modules/express/index.js")
+    assert not is_app_file("frontend/dist/frontend/main.js")
+    assert not is_app_file("build/routes/basket.js")
+    assert not is_app_file("app.min.js")
+
+
+def test_is_app_file_rejects_test_and_fixture_code():
+    assert not is_app_file("test/api/basketSpec.ts")
+    assert not is_app_file("routes/__tests__/basket.test.ts")
+    assert not is_app_file("spec/models/user_spec.rb")
+    assert not is_app_file("routes/basket.spec.ts")
+    # OWASP Juice Shop ships vendored route-wiring copies here:
+    assert not is_app_file("data/static/codefixes/changeProductChallenge_1.ts")
+
+
+def test_is_app_file_does_not_overmatch_substrings():
+    assert is_app_file("src/latest/handler.ts")      # 'latest' contains 'test'
+    assert is_app_file("routes/contest.ts")          # 'contest' contains 'test'
+    assert is_app_file("services/specification.ts")  # contains 'spec'

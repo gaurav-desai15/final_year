@@ -1,0 +1,612 @@
+=== heldout cpg 2026-08-30 12:57:02 ===
+[08/30/26 12:57:03] DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): localhost:11434                               
+                    DEBUG    http://localhost:11434 "GET   connectionpool.py:544
+                             /api/tags HTTP/1.1" 200 888                        
+[08/30/26 12:57:04] DEBUG    sys.platform='linux',                   util.py:561
+                             git_executable='git'                               
+                    DEBUG    Popen(['git', 'cat-file',               cmd.py:1423
+                             '--batch-check'],                                  
+                             cwd=/home/g0dlx/projects/final_year/cor            
+                             pus/repos/juice-shop, stdin=<valid                 
+                             stream>, shell=False,                              
+                             universal_newlines=False)                          
+
+=== held-out: juice-shop (8 labels, grounding=cpg) ===
+                    INFO     Starting Joern CPGQL server:    joern_runner.py:120
+                             /home/g0dlx/bin/joern/joern-cli                    
+                             /joern --server --server-host                      
+                             127.0.0.1 --server-port 8080                       
+                    DEBUG    Using selector: EpollSelector selector_events.py:64
+analysing juice-shop (cpg)
+                    INFO     Running:                         joern_runner.py:79
+                             /home/g0dlx/bin/joern/joern-cli/                   
+                             joern-parse                                        
+                             /home/g0dlx/projects/final_year/                   
+                             corpus/repos/juice-shop -o                         
+                             .cpgvd_cache/juice-shop-4d28a45d                   
+                             cc4d2cc2.cpg.bin --language                        
+                             JAVASCRIPT                                         
+[08/30/26 12:58:00] DEBUG    CPGQL >>>                          cpg_client.py:89
+                             importCpg(".cpgvd_cache/juice-shop                 
+                             -4d28a45dcc4d2cc2.cpg.bin")                        
+                    DEBUG    = connection is CONNECTING          protocol.py:178
+                    DEBUG    > GET /connect HTTP/1.1               client.py:295
+                    DEBUG    > Host: 127.0.0.1:8080                client.py:297
+                    DEBUG    > Upgrade: websocket                  client.py:297
+                    DEBUG    > Connection: Upgrade                 client.py:297
+                    DEBUG    > Sec-WebSocket-Key:                  client.py:297
+                             xABtwxVuVdGsYHHfEVY4Gg==                           
+                    DEBUG    > Sec-WebSocket-Version: 13           client.py:297
+                    DEBUG    > Sec-WebSocket-Extensions:           client.py:297
+                             permessage-deflate;                                
+                             client_max_window_bits                             
+                    DEBUG    > User-Agent: Python/3.14             client.py:297
+                             websockets/17.1                                    
+                    DEBUG    < HTTP/1.1 101 Switching Protocols    client.py:327
+                    DEBUG    < Connection: Upgrade                 client.py:329
+                    DEBUG    < Sec-WebSocket-Location:             client.py:329
+                             ws://127.0.0.1:8080/connect                        
+                    DEBUG    < Upgrade: WebSocket                  client.py:329
+                    DEBUG    < Sec-WebSocket-Accept:               client.py:329
+                             hWH102nCO+dQ+7Yq3qlsuEDP6is=                       
+                    DEBUG    < Date: Sun, 30 Aug 2026 07:28:00 GMT client.py:329
+                    DEBUG    = connection is OPEN                protocol.py:178
+                    DEBUG    < TEXT 'connected' [9 bytes]        protocol.py:609
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): 127.0.0.1:8080                                
+                    DEBUG    http://127.0.0.1:8080 "POST   connectionpool.py:544
+                             /query HTTP/1.1" 200 None                          
+[08/30/26 12:58:15] DEBUG    < TEXT                              protocol.py:609
+                             'ba9e5509-df89-489f-b70f-d4ec8e58f7                
+                             e4' [36 bytes]                                     
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): 127.0.0.1:8080                                
+                    DEBUG    http://127.0.0.1:8080 "GET    connectionpool.py:544
+                             /result/ba9e5509-df89-489f-b7                      
+                             0f-d4ec8e58f7e4 HTTP/1.1" 200                      
+                             9293                                               
+                    DEBUG    > CLOSE 1000 (OK) [2 bytes]         protocol.py:755
+                    DEBUG    = connection is CLOSING             protocol.py:178
+                    DEBUG    < CLOSE 1000 (OK) [2 bytes]         protocol.py:609
+                    DEBUG    > EOF                               protocol.py:767
+                    DEBUG    = connection is CLOSED              protocol.py:178
+                    DEBUG    x half-closing TCP connection     connection.py:974
+                    DEBUG    CPGQL >>> def cpgvdEscape(s:       cpg_client.py:89
+                             String): String = if (s == null)                   
+                             "" else s.replace("\\",                            
+                             "\\\\").replace("\"",                              
+                             "\\\"").replace("\n",                              
+                             "\\n").replace("\r",                               
+                             "\\r").replace("\t", "\\t")                        
+                    DEBUG    = connection is CONNECTING          protocol.py:178
+                    DEBUG    > GET /connect HTTP/1.1               client.py:295
+                    DEBUG    > Host: 127.0.0.1:8080                client.py:297
+                    DEBUG    > Upgrade: websocket                  client.py:297
+                    DEBUG    > Connection: Upgrade                 client.py:297
+                    DEBUG    > Sec-WebSocket-Key:                  client.py:297
+                             KSRqS4VxIhyUwUutgGTkJQ==                           
+                    DEBUG    > Sec-WebSocket-Version: 13           client.py:297
+                    DEBUG    > Sec-WebSocket-Extensions:           client.py:297
+                             permessage-deflate;                                
+                             client_max_window_bits                             
+                    DEBUG    > User-Agent: Python/3.14             client.py:297
+                             websockets/17.1                                    
+                    DEBUG    < HTTP/1.1 101 Switching Protocols    client.py:327
+                    DEBUG    < Connection: Upgrade                 client.py:329
+                    DEBUG    < Sec-WebSocket-Location:             client.py:329
+                             ws://127.0.0.1:8080/connect                        
+                    DEBUG    < Upgrade: WebSocket                  client.py:329
+                    DEBUG    < Sec-WebSocket-Accept:               client.py:329
+                             qa/bHHDT0IryDVGEuiZcLHF4je4=                       
+                    DEBUG    < Date: Sun, 30 Aug 2026 07:28:15 GMT client.py:329
+                    DEBUG    = connection is OPEN                protocol.py:178
+                    DEBUG    < TEXT 'connected' [9 bytes]        protocol.py:609
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): 127.0.0.1:8080                                
+                    DEBUG    http://127.0.0.1:8080 "POST   connectionpool.py:544
+                             /query HTTP/1.1" 200 None                          
+                    DEBUG    < TEXT                              protocol.py:609
+                             '1749a911-c11b-4480-bb8c-83187de7e0                
+                             df' [36 bytes]                                     
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): 127.0.0.1:8080                                
+                    DEBUG    http://127.0.0.1:8080 "GET    connectionpool.py:544
+                             /result/1749a911-c11b-4480-bb                      
+                             8c-83187de7e0df HTTP/1.1" 200                      
+                             110                                                
+                    DEBUG    > CLOSE 1000 (OK) [2 bytes]         protocol.py:755
+                    DEBUG    = connection is CLOSING             protocol.py:178
+                    DEBUG    < CLOSE 1000 (OK) [2 bytes]         protocol.py:609
+                    DEBUG    > EOF                               protocol.py:767
+                    DEBUG    = connection is CLOSED              protocol.py:178
+                    DEBUG    x half-closing TCP connection     connection.py:974
+                    DEBUG    CPGQL >>>                          cpg_client.py:89
+                             cpg.method.isExternal(false).filte                 
+                             r(m => m.lineNumber.isDefined &&                   
+                             m.filename != "<empty>").map(m =>                  
+                               "{" +                                            
+                               "\"id\":" + m.id + "," +                         
+                               "\"name\":\"" +                                  
+                             cpgvdEscape(m.name) + "\"," +                      
+                               "\"fullName\":\"" +                              
+                             cpgvdEscape(m.fullName) + "\"," +                  
+                               "\"filename\":\"" +                              
+                             cpgvdEscape(m.filename) + "\"," +                  
+                               "\"lineNumber\":" +                              
+                             m.lineNumber.getOrElse(-1) + "," +                 
+                               "\"lineNumberEnd\":" +                           
+                             m.lineNumberEnd.getOrElse(-1) +                    
+                             "," +                                              
+                               "\"parameters\":[" +                             
+                             m.parameter.name.l.map(p => "\"" +                 
+                             cpgvdEscape(p) + "\"").mk                          
+                    DEBUG    = connection is CONNECTING          protocol.py:178
+                    DEBUG    > GET /connect HTTP/1.1               client.py:295
+                    DEBUG    > Host: 127.0.0.1:8080                client.py:297
+                    DEBUG    > Upgrade: websocket                  client.py:297
+                    DEBUG    > Connection: Upgrade                 client.py:297
+                    DEBUG    > Sec-WebSocket-Key:                  client.py:297
+                             pUPynKmLM7srLQ+Xac6otw==                           
+                    DEBUG    > Sec-WebSocket-Version: 13           client.py:297
+                    DEBUG    > Sec-WebSocket-Extensions:           client.py:297
+                             permessage-deflate;                                
+                             client_max_window_bits                             
+                    DEBUG    > User-Agent: Python/3.14             client.py:297
+                             websockets/17.1                                    
+                    DEBUG    < HTTP/1.1 101 Switching Protocols    client.py:327
+                    DEBUG    < Connection: Upgrade                 client.py:329
+                    DEBUG    < Sec-WebSocket-Location:             client.py:329
+                             ws://127.0.0.1:8080/connect                        
+                    DEBUG    < Upgrade: WebSocket                  client.py:329
+                    DEBUG    < Sec-WebSocket-Accept:               client.py:329
+                             xxVxcVqcnCG6Ey7RKhNGlCzW37A=                       
+                    DEBUG    < Date: Sun, 30 Aug 2026 07:28:15 GMT client.py:329
+                    DEBUG    = connection is OPEN                protocol.py:178
+                    DEBUG    < TEXT 'connected' [9 bytes]        protocol.py:609
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): 127.0.0.1:8080                                
+                    DEBUG    http://127.0.0.1:8080 "POST   connectionpool.py:544
+                             /query HTTP/1.1" 200 None                          
+                    DEBUG    < TEXT                              protocol.py:609
+                             'c108cc08-5c39-468c-ab1c-c22f38aec7                
+                             d5' [36 bytes]                                     
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): 127.0.0.1:8080                                
+                    DEBUG    http://127.0.0.1:8080 "GET    connectionpool.py:544
+                             /result/c108cc08-5c39-468c-ab                      
+                             1c-c22f38aec7d5 HTTP/1.1" 200                      
+                             None                                               
+                    DEBUG    > CLOSE 1000 (OK) [2 bytes]         protocol.py:755
+                    DEBUG    = connection is CLOSING             protocol.py:178
+                    DEBUG    < CLOSE 1000 (OK) [2 bytes]         protocol.py:609
+                    DEBUG    > EOF                               protocol.py:767
+                    DEBUG    = connection is CLOSED              protocol.py:178
+                    DEBUG    x half-closing TCP connection     connection.py:974
+                    DEBUG    CPGQL >>>                          cpg_client.py:89
+                             cpg.call.filter(c =>                               
+                             c.lineNumber.isDefined).map(c =>                   
+                               "{" +                                            
+                               "\"id\":" + c.id + "," +                         
+                               "\"name\":\"" +                                  
+                             cpgvdEscape(c.name) + "\"," +                      
+                               "\"code\":\"" +                                  
+                             cpgvdEscape(c.code) + "\"," +                      
+                               "\"filename\":\"" +                              
+                             cpgvdEscape(c.file.name.headOption                 
+                             .getOrElse("")) + "\"," +                          
+                               "\"lineNumber\":" +                              
+                             c.lineNumber.getOrElse(-1) + "," +                 
+                               "\"calleeFullName\":\"" +                        
+                             cpgvdEscape(c.methodFullName) +                    
+                             "\"," +                                            
+                               "\"containingMethodFullName\":\"                 
+                             " + cpgvdEscape(c.method.fullName)                 
+                             + "\"" +                                           
+                               "}"                                              
+                             ).l.mkString("[", ",",                             
+                    DEBUG    = connection is CONNECTING          protocol.py:178
+                    DEBUG    > GET /connect HTTP/1.1               client.py:295
+                    DEBUG    > Host: 127.0.0.1:8080                client.py:297
+                    DEBUG    > Upgrade: websocket                  client.py:297
+                    DEBUG    > Connection: Upgrade                 client.py:297
+                    DEBUG    > Sec-WebSocket-Key:                  client.py:297
+                             qD3xSpFsb6W0LAFrr/Fnlw==                           
+                    DEBUG    > Sec-WebSocket-Version: 13           client.py:297
+                    DEBUG    > Sec-WebSocket-Extensions:           client.py:297
+                             permessage-deflate;                                
+                             client_max_window_bits                             
+                    DEBUG    > User-Agent: Python/3.14             client.py:297
+                             websockets/17.1                                    
+                    DEBUG    < HTTP/1.1 101 Switching Protocols    client.py:327
+                    DEBUG    < Connection: Upgrade                 client.py:329
+                    DEBUG    < Sec-WebSocket-Location:             client.py:329
+                             ws://127.0.0.1:8080/connect                        
+                    DEBUG    < Upgrade: WebSocket                  client.py:329
+                    DEBUG    < Sec-WebSocket-Accept:               client.py:329
+                             Wo+ixW4o2tbO0ZispBeuKBeHkxM=                       
+                    DEBUG    < Date: Sun, 30 Aug 2026 07:28:15 GMT client.py:329
+                    DEBUG    = connection is OPEN                protocol.py:178
+                    DEBUG    < TEXT 'connected' [9 bytes]        protocol.py:609
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): 127.0.0.1:8080                                
+                    DEBUG    http://127.0.0.1:8080 "POST   connectionpool.py:544
+                             /query HTTP/1.1" 200 None                          
+[08/30/26 12:58:20] DEBUG    < TEXT                              protocol.py:609
+                             '57055d97-1c5c-4c43-90f6-fb211910e5                
+                             a5' [36 bytes]                                     
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): 127.0.0.1:8080                                
+                    DEBUG    http://127.0.0.1:8080 "GET    connectionpool.py:544
+                             /result/57055d97-1c5c-4c43-90                      
+                             f6-fb211910e5a5 HTTP/1.1" 200                      
+                             None                                               
+                    DEBUG    > CLOSE 1000 (OK) [2 bytes]         protocol.py:755
+                    DEBUG    = connection is CLOSING             protocol.py:178
+                    DEBUG    < CLOSE 1000 (OK) [2 bytes]         protocol.py:609
+                    DEBUG    > EOF                               protocol.py:767
+                    DEBUG    = connection is CLOSED              protocol.py:178
+                    DEBUG    x half-closing TCP connection     connection.py:974
+[08/30/26 12:58:21] INFO     Loaded 4067 methods,       context_extractor.py:279
+                             115917 calls from CPG                              
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): localhost:11434                               
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): localhost:11434                               
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): localhost:11434                               
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): localhost:11434                               
+[08/30/26 12:58:58] DEBUG    http://localhost:11434 "POST  connectionpool.py:544
+                             /api/chat HTTP/1.1" 200 1427                       
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): localhost:11434                               
+[08/30/26 12:59:27] DEBUG    http://localhost:11434 "POST  connectionpool.py:544
+                             /api/chat HTTP/1.1" 200 1370                       
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): localhost:11434                               
+[08/30/26 13:00:00] DEBUG    http://localhost:11434 "POST  connectionpool.py:544
+                             /api/chat HTTP/1.1" 200 1539                       
+                    INFO     Dropping absence finding        llm_analyzer.py:608
+                             'Missing access control for                        
+                             public endpoint' in                                
+                             absence-route:data/static/codef                    
+                             ixes/changeProductChallenge_1.t                    
+                             s:/api/Users:10: model's own                       
+                             required_control is 'none'                         
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): localhost:11434                               
+[08/30/26 13:00:33] DEBUG    http://localhost:11434 "POST  connectionpool.py:544
+                             /api/chat HTTP/1.1" 200 1537                       
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): localhost:11434                               
+[08/30/26 13:05:45] DEBUG    http://localhost:11434 "POST  connectionpool.py:544
+                             /api/chat HTTP/1.1" 200 1468                       
+                    INFO     Dropping absence finding        llm_analyzer.py:608
+                             'Missing access control for                        
+                             public endpoint' in                                
+                             absence-route:data/static/codef                    
+                             ixes/changeProductChallenge_1.t                    
+                             s:/api/Complaints:22: model's                      
+                             own required_control is 'none'                     
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): localhost:11434                               
+[08/30/26 13:06:13] DEBUG    http://localhost:11434 "POST  connectionpool.py:544
+                             /api/chat HTTP/1.1" 200 1360                       
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): localhost:11434                               
+[08/30/26 13:06:40] DEBUG    http://localhost:11434 "POST  connectionpool.py:544
+                             /api/chat HTTP/1.1" 200 1365                       
+                    INFO     Dropping absence finding        llm_analyzer.py:608
+                             'Missing access control for                        
+                             public endpoint' in                                
+                             absence-route:data/static/codef                    
+                             ixes/changeProductChallenge_1.t                    
+                             s:/api/Recycles:26: model's own                    
+                             required_control is 'none'                         
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): localhost:11434                               
+[08/30/26 13:07:07] DEBUG    http://localhost:11434 "POST  connectionpool.py:544
+                             /api/chat HTTP/1.1" 200 1332                       
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): localhost:11434                               
+[08/30/26 13:07:37] DEBUG    http://localhost:11434 "POST  connectionpool.py:544
+                             /api/chat HTTP/1.1" 200 1478                       
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): localhost:11434                               
+[08/30/26 13:08:05] DEBUG    http://localhost:11434 "POST  connectionpool.py:544
+                             /api/chat HTTP/1.1" 200 1474                       
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): localhost:11434                               
+[08/30/26 13:08:36] DEBUG    http://localhost:11434 "POST  connectionpool.py:544
+                             /api/chat HTTP/1.1" 200 1540                       
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): localhost:11434                               
+[08/30/26 13:09:10] DEBUG    http://localhost:11434 "POST  connectionpool.py:544
+                             /api/chat HTTP/1.1" 200 1710                       
+[08/30/26 13:09:40] DEBUG    http://localhost:11434 "POST  connectionpool.py:544
+                             /api/chat HTTP/1.1" 200 1549                       
+                    INFO     Dropping absence finding        llm_analyzer.py:608
+                             'Missing access control for                        
+                             public endpoint' in                                
+                             absence-route:data/static/codef                    
+                             ixes/changeProductChallenge_1.t                    
+                             s:/api/SecurityAnswers:36:                         
+                             model's own required_control is                    
+                             'none'                                             
+[08/30/26 13:10:14] DEBUG    http://localhost:11434 "POST  connectionpool.py:544
+                             /api/chat HTTP/1.1" 200 1702                       
+[08/30/26 13:10:41] DEBUG    http://localhost:11434 "POST  connectionpool.py:544
+                             /api/chat HTTP/1.1" 200 1403                       
+                    INFO     Stopping Joern CPGQL server     joern_runner.py:149
+11 finding(s); scoring against 8 label(s)
+  changeProductChallenge: miss
+  exposedMetricsChallenge: miss
+  accessLogDisclosureChallenge: miss
+  basketAccessChallenge: miss
+  basketManipulateChallenge: miss
+  forgedReviewChallenge: miss
+  forgedFeedbackChallenge: miss
+  registerAdminChallenge: miss
+     HELD-OUT: juice-shop (cpg)     
+┏━━━━━━━━━━━━━━━┳━━━━┳━━━━┳━━━━━━━━┓
+┃ control class ┃ TP ┃ FN ┃ recall ┃
+┡━━━━━━━━━━━━━━━╇━━━━╇━━━━╇━━━━━━━━┩
+│ authorization │  0 │  3 │   0.00 │
+│ ownership     │  0 │  4 │   0.00 │
+│ validation    │  0 │  1 │   0.00 │
+│ OVERALL       │  0 │  8 │   0.00 │
+└───────────────┴────┴────┴────────┘
+recall=0.00 (0/8)  class-match=0.00  findings total=11 (unmatched 11)
+corpus/eval/heldout-juice-shop.json
+=== heldout raw 2026-08-30 13:10:41 ===
+[08/30/26 13:10:42] DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): localhost:11434                               
+                    DEBUG    http://localhost:11434 "GET   connectionpool.py:544
+                             /api/tags HTTP/1.1" 200 888                        
+                    DEBUG    sys.platform='linux',                   util.py:561
+                             git_executable='git'                               
+                    DEBUG    Popen(['git', 'cat-file',               cmd.py:1423
+                             '--batch-check'],                                  
+                             cwd=/home/g0dlx/projects/final_year/cor            
+                             pus/repos/juice-shop, stdin=<valid                 
+                             stream>, shell=False,                              
+                             universal_newlines=False)                          
+
+=== held-out: juice-shop (8 labels, grounding=raw) ===
+                    INFO     Starting Joern CPGQL server:    joern_runner.py:120
+                             /home/g0dlx/bin/joern/joern-cli                    
+                             /joern --server --server-host                      
+                             127.0.0.1 --server-port 8080                       
+                    DEBUG    Using selector: EpollSelector selector_events.py:64
+analysing juice-shop (raw)
+                    DEBUG    CPGQL >>>                          cpg_client.py:89
+                             importCpg(".cpgvd_cache/juice-shop                 
+                             -4d28a45dcc4d2cc2.cpg.bin")                        
+                    DEBUG    = connection is CONNECTING          protocol.py:178
+                    DEBUG    > GET /connect HTTP/1.1               client.py:295
+                    DEBUG    > Host: 127.0.0.1:8080                client.py:297
+                    DEBUG    > Upgrade: websocket                  client.py:297
+                    DEBUG    > Connection: Upgrade                 client.py:297
+                    DEBUG    > Sec-WebSocket-Key:                  client.py:297
+                             ImPvWXuoN+BwgwAB+ZtBGQ==                           
+                    DEBUG    > Sec-WebSocket-Version: 13           client.py:297
+                    DEBUG    > Sec-WebSocket-Extensions:           client.py:297
+                             permessage-deflate;                                
+                             client_max_window_bits                             
+                    DEBUG    > User-Agent: Python/3.14             client.py:297
+                             websockets/17.1                                    
+                    DEBUG    < HTTP/1.1 101 Switching Protocols    client.py:327
+                    DEBUG    < Connection: Upgrade                 client.py:329
+                    DEBUG    < Sec-WebSocket-Location:             client.py:329
+                             ws://127.0.0.1:8080/connect                        
+                    DEBUG    < Upgrade: WebSocket                  client.py:329
+                    DEBUG    < Sec-WebSocket-Accept:               client.py:329
+                             rW5ge/eJdVAdHN/21XHFjmQtK6o=                       
+                    DEBUG    < Date: Sun, 30 Aug 2026 07:40:42 GMT client.py:329
+                    DEBUG    = connection is OPEN                protocol.py:178
+                    DEBUG    < TEXT 'connected' [9 bytes]        protocol.py:609
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): 127.0.0.1:8080                                
+                    DEBUG    http://127.0.0.1:8080 "POST   connectionpool.py:544
+                             /query HTTP/1.1" 200 None                          
+[08/30/26 13:10:56] DEBUG    < TEXT                              protocol.py:609
+                             'f04764a1-4f7a-4b9d-9bc6-ce6856a9f1                
+                             db' [36 bytes]                                     
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): 127.0.0.1:8080                                
+                    DEBUG    http://127.0.0.1:8080 "GET    connectionpool.py:544
+                             /result/f04764a1-4f7a-4b9d-9b                      
+                             c6-ce6856a9f1db HTTP/1.1" 200                      
+                             9293                                               
+                    DEBUG    > CLOSE 1000 (OK) [2 bytes]         protocol.py:755
+                    DEBUG    = connection is CLOSING             protocol.py:178
+                    DEBUG    < CLOSE 1000 (OK) [2 bytes]         protocol.py:609
+                    DEBUG    > EOF                               protocol.py:767
+                    DEBUG    = connection is CLOSED              protocol.py:178
+                    DEBUG    x half-closing TCP connection     connection.py:974
+                    DEBUG    CPGQL >>> def cpgvdEscape(s:       cpg_client.py:89
+                             String): String = if (s == null)                   
+                             "" else s.replace("\\",                            
+                             "\\\\").replace("\"",                              
+                             "\\\"").replace("\n",                              
+                             "\\n").replace("\r",                               
+                             "\\r").replace("\t", "\\t")                        
+                    DEBUG    = connection is CONNECTING          protocol.py:178
+                    DEBUG    > GET /connect HTTP/1.1               client.py:295
+                    DEBUG    > Host: 127.0.0.1:8080                client.py:297
+                    DEBUG    > Upgrade: websocket                  client.py:297
+                    DEBUG    > Connection: Upgrade                 client.py:297
+                    DEBUG    > Sec-WebSocket-Key:                  client.py:297
+                             bx5nXa2A2fE28nRSY5YhNQ==                           
+                    DEBUG    > Sec-WebSocket-Version: 13           client.py:297
+                    DEBUG    > Sec-WebSocket-Extensions:           client.py:297
+                             permessage-deflate;                                
+                             client_max_window_bits                             
+                    DEBUG    > User-Agent: Python/3.14             client.py:297
+                             websockets/17.1                                    
+                    DEBUG    < HTTP/1.1 101 Switching Protocols    client.py:327
+                    DEBUG    < Connection: Upgrade                 client.py:329
+                    DEBUG    < Sec-WebSocket-Location:             client.py:329
+                             ws://127.0.0.1:8080/connect                        
+                    DEBUG    < Upgrade: WebSocket                  client.py:329
+                    DEBUG    < Sec-WebSocket-Accept:               client.py:329
+                             Od+PG0tuhNxE1+wr546aVu+KWjs=                       
+                    DEBUG    < Date: Sun, 30 Aug 2026 07:40:56 GMT client.py:329
+                    DEBUG    = connection is OPEN                protocol.py:178
+                    DEBUG    < TEXT 'connected' [9 bytes]        protocol.py:609
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): 127.0.0.1:8080                                
+                    DEBUG    http://127.0.0.1:8080 "POST   connectionpool.py:544
+                             /query HTTP/1.1" 200 None                          
+                    DEBUG    < TEXT                              protocol.py:609
+                             '042dbaa7-bd40-4ef6-bd8d-af799e0483                
+                             51' [36 bytes]                                     
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): 127.0.0.1:8080                                
+                    DEBUG    http://127.0.0.1:8080 "GET    connectionpool.py:544
+                             /result/042dbaa7-bd40-4ef6-bd                      
+                             8d-af799e048351 HTTP/1.1" 200                      
+                             110                                                
+                    DEBUG    > CLOSE 1000 (OK) [2 bytes]         protocol.py:755
+                    DEBUG    = connection is CLOSING             protocol.py:178
+                    DEBUG    < CLOSE 1000 (OK) [2 bytes]         protocol.py:609
+                    DEBUG    > EOF                               protocol.py:767
+                    DEBUG    = connection is CLOSED              protocol.py:178
+                    DEBUG    x half-closing TCP connection     connection.py:974
+                    DEBUG    CPGQL >>>                          cpg_client.py:89
+                             cpg.method.isExternal(false).filte                 
+                             r(m => m.lineNumber.isDefined &&                   
+                             m.filename != "<empty>").map(m =>                  
+                               "{" +                                            
+                               "\"id\":" + m.id + "," +                         
+                               "\"name\":\"" +                                  
+                             cpgvdEscape(m.name) + "\"," +                      
+                               "\"fullName\":\"" +                              
+                             cpgvdEscape(m.fullName) + "\"," +                  
+                               "\"filename\":\"" +                              
+                             cpgvdEscape(m.filename) + "\"," +                  
+                               "\"lineNumber\":" +                              
+                             m.lineNumber.getOrElse(-1) + "," +                 
+                               "\"lineNumberEnd\":" +                           
+                             m.lineNumberEnd.getOrElse(-1) +                    
+                             "," +                                              
+                               "\"parameters\":[" +                             
+                             m.parameter.name.l.map(p => "\"" +                 
+                             cpgvdEscape(p) + "\"").mk                          
+                    DEBUG    = connection is CONNECTING          protocol.py:178
+                    DEBUG    > GET /connect HTTP/1.1               client.py:295
+                    DEBUG    > Host: 127.0.0.1:8080                client.py:297
+                    DEBUG    > Upgrade: websocket                  client.py:297
+                    DEBUG    > Connection: Upgrade                 client.py:297
+                    DEBUG    > Sec-WebSocket-Key:                  client.py:297
+                             maV9VPOl1ohOmi1h72gThQ==                           
+                    DEBUG    > Sec-WebSocket-Version: 13           client.py:297
+                    DEBUG    > Sec-WebSocket-Extensions:           client.py:297
+                             permessage-deflate;                                
+                             client_max_window_bits                             
+                    DEBUG    > User-Agent: Python/3.14             client.py:297
+                             websockets/17.1                                    
+                    DEBUG    < HTTP/1.1 101 Switching Protocols    client.py:327
+                    DEBUG    < Connection: Upgrade                 client.py:329
+                    DEBUG    < Sec-WebSocket-Location:             client.py:329
+                             ws://127.0.0.1:8080/connect                        
+                    DEBUG    < Upgrade: WebSocket                  client.py:329
+                    DEBUG    < Sec-WebSocket-Accept:               client.py:329
+                             b6fTxSlRZxoYx25iW8GykBlONg8=                       
+                    DEBUG    < Date: Sun, 30 Aug 2026 07:40:56 GMT client.py:329
+                    DEBUG    = connection is OPEN                protocol.py:178
+                    DEBUG    < TEXT 'connected' [9 bytes]        protocol.py:609
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): 127.0.0.1:8080                                
+                    DEBUG    http://127.0.0.1:8080 "POST   connectionpool.py:544
+                             /query HTTP/1.1" 200 None                          
+[08/30/26 13:10:57] DEBUG    < TEXT                              protocol.py:609
+                             'be73a427-832d-446a-ad94-f0a977e9fa                
+                             88' [36 bytes]                                     
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): 127.0.0.1:8080                                
+                    DEBUG    http://127.0.0.1:8080 "GET    connectionpool.py:544
+                             /result/be73a427-832d-446a-ad                      
+                             94-f0a977e9fa88 HTTP/1.1" 200                      
+                             None                                               
+                    DEBUG    > CLOSE 1000 (OK) [2 bytes]         protocol.py:755
+                    DEBUG    = connection is CLOSING             protocol.py:178
+                    DEBUG    < CLOSE 1000 (OK) [2 bytes]         protocol.py:609
+                    DEBUG    > EOF                               protocol.py:767
+                    DEBUG    = connection is CLOSED              protocol.py:178
+                    DEBUG    x half-closing TCP connection     connection.py:974
+                    DEBUG    CPGQL >>>                          cpg_client.py:89
+                             cpg.call.filter(c =>                               
+                             c.lineNumber.isDefined).map(c =>                   
+                               "{" +                                            
+                               "\"id\":" + c.id + "," +                         
+                               "\"name\":\"" +                                  
+                             cpgvdEscape(c.name) + "\"," +                      
+                               "\"code\":\"" +                                  
+                             cpgvdEscape(c.code) + "\"," +                      
+                               "\"filename\":\"" +                              
+                             cpgvdEscape(c.file.name.headOption                 
+                             .getOrElse("")) + "\"," +                          
+                               "\"lineNumber\":" +                              
+                             c.lineNumber.getOrElse(-1) + "," +                 
+                               "\"calleeFullName\":\"" +                        
+                             cpgvdEscape(c.methodFullName) +                    
+                             "\"," +                                            
+                               "\"containingMethodFullName\":\"                 
+                             " + cpgvdEscape(c.method.fullName)                 
+                             + "\"" +                                           
+                               "}"                                              
+                             ).l.mkString("[", ",",                             
+                    DEBUG    = connection is CONNECTING          protocol.py:178
+                    DEBUG    > GET /connect HTTP/1.1               client.py:295
+                    DEBUG    > Host: 127.0.0.1:8080                client.py:297
+                    DEBUG    > Upgrade: websocket                  client.py:297
+                    DEBUG    > Connection: Upgrade                 client.py:297
+                    DEBUG    > Sec-WebSocket-Key:                  client.py:297
+                             8vDHIEVcf5xxMdxh23RORA==                           
+                    DEBUG    > Sec-WebSocket-Version: 13           client.py:297
+                    DEBUG    > Sec-WebSocket-Extensions:           client.py:297
+                             permessage-deflate;                                
+                             client_max_window_bits                             
+                    DEBUG    > User-Agent: Python/3.14             client.py:297
+                             websockets/17.1                                    
+                    DEBUG    < HTTP/1.1 101 Switching Protocols    client.py:327
+                    DEBUG    < Connection: Upgrade                 client.py:329
+                    DEBUG    < Sec-WebSocket-Location:             client.py:329
+                             ws://127.0.0.1:8080/connect                        
+                    DEBUG    < Upgrade: WebSocket                  client.py:329
+                    DEBUG    < Sec-WebSocket-Accept:               client.py:329
+                             ehjw7suOMbAKXEnXUsX6i8trJrU=                       
+                    DEBUG    < Date: Sun, 30 Aug 2026 07:40:57 GMT client.py:329
+                    DEBUG    = connection is OPEN                protocol.py:178
+                    DEBUG    < TEXT 'connected' [9 bytes]        protocol.py:609
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): 127.0.0.1:8080                                
+                    DEBUG    http://127.0.0.1:8080 "POST   connectionpool.py:544
+                             /query HTTP/1.1" 200 None                          
+[08/30/26 13:11:00] DEBUG    < TEXT                              protocol.py:609
+                             '91fc6f50-ce44-4970-bf6b-e7217da47d                
+                             56' [36 bytes]                                     
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): 127.0.0.1:8080                                
+                    DEBUG    http://127.0.0.1:8080 "GET    connectionpool.py:544
+                             /result/91fc6f50-ce44-4970-bf                      
+                             6b-e7217da47d56 HTTP/1.1" 200                      
+                             None                                               
+                    DEBUG    > CLOSE 1000 (OK) [2 bytes]         protocol.py:755
+                    DEBUG    = connection is CLOSING             protocol.py:178
+                    DEBUG    < CLOSE 1000 (OK) [2 bytes]         protocol.py:609
+                    DEBUG    > EOF                               protocol.py:767
+                    DEBUG    = connection is CLOSED              protocol.py:178
+                    DEBUG    x half-closing TCP connection     connection.py:974
+[08/30/26 13:11:01] INFO     Loaded 4067 methods,       context_extractor.py:279
+                             115917 calls from CPG                              
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): localhost:11434                               
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): localhost:11434                               
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): localhost:11434                               
+                    DEBUG    Starting new HTTP connection  connectionpool.py:241
+                             (1): localhost:11434                               

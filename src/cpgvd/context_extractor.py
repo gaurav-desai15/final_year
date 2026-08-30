@@ -40,6 +40,30 @@ from .rules import AbsenceRules, LanguageRules
 
 logger = logging.getLogger(__name__)
 
+# Files that are in the repo but are not the running application: dependencies,
+# build output, test/fixture code, and vendored copies of route-wiring used as
+# teaching material (OWASP Juice Shop ships these under data/static/codefixes/,
+# and without this filter the absence detector builds its route contexts from
+# the fixture copy instead of server.ts). Matched against the CPG `filename`
+# (repo-relative POSIX path).
+_NON_APP_PATH_RE = re.compile(
+    r"(^|/)(?:node_modules|bower_components|vendor|third_party|dist|build|out|lib-cov"
+    r"|coverage|\.next|\.nuxt|\.output|__tests__|__mocks__|tests?|spec|e2e|cypress"
+    r"|fixtures?|__fixtures__|\.git)/"
+    r"|(?:^|/)data/static/codefixes/"
+    r"|\.(?:test|spec)\.[cm]?[jt]sx?$"
+    r"|\.min\.js$",
+    re.IGNORECASE,
+)
+
+
+def is_app_file(filename: str) -> bool:
+    """True unless `filename` is dependency / build / test / fixture code."""
+    if not filename or filename == "<empty>":
+        return False
+    return _NON_APP_PATH_RE.search(filename.replace("\\", "/")) is None
+
+
 _IMPORT_PATTERNS: dict[str, re.Pattern] = {
     "python": re.compile(r"^\s*(?:import\s+[\w.]+|from\s+[\w.]+\s+import\s+.+)", re.MULTILINE),
     "javascript": re.compile(r"^\s*(?:import\s+.+from\s+['\"].+['\"]|(?:const|let|var)\s+.+require\(['\"].+['\"]\))", re.MULTILINE),
@@ -250,7 +274,11 @@ class ContextExtractor:
     def load(self) -> None:
         self._methods_by_id = {}
         self._methods_by_full_name = {}
+        skipped_files: set[str] = set()
         for raw in self.client.run_json(_METHOD_LIST_QUERY):
+            if not is_app_file(raw["filename"]):
+                skipped_files.add(raw["filename"])
+                continue
             m = RawMethod(
                 id=raw["id"],
                 name=raw["name"],
@@ -275,8 +303,12 @@ class ContextExtractor:
                 containing_method_full_name=raw["containingMethodFullName"],
             )
             for raw in self.client.run_json(_CALL_LIST_QUERY)
+            if is_app_file(raw["filename"])
         ]
-        logger.info("Loaded %d methods, %d calls from CPG", len(self._methods_by_id), len(self._calls))
+        logger.info(
+            "Loaded %d methods, %d calls from CPG (skipped %d non-app file(s): dep/build/test/fixture)",
+            len(self._methods_by_id), len(self._calls), len(skipped_files),
+        )
 
     @property
     def methods(self) -> list[RawMethod]:
