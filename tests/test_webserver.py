@@ -78,6 +78,24 @@ def test_reports_listing_and_read(client, tmp_path):
     assert got["repo"] == "x/y"
 
 
+def test_reports_listing_newest_first(client, tmp_path):
+    out = tmp_path / "cpgvd_output"
+    web = out / "web" / "20260101-000000-aaaa"
+    web.mkdir(parents=True)
+    # legacy top-level report is OLD
+    old = out / "report.json"
+    old.write_text(json.dumps({"repo": "old/repo", "findings": []}))
+    import os
+    os.utime(old, (1, 1))
+    # a web scan written just now
+    new = web / "report.json"
+    new.write_text(json.dumps({"repo": "new/repo", "findings": [{"severity": "low"}]}))
+
+    listing = client.get("/api/reports").json()
+    assert listing[0]["repo"] == "new/repo"  # newest by mtime, not the legacy path
+    assert listing[-1]["repo"] == "old/repo"
+
+
 def test_scan_lifecycle_with_fake_runner(client, monkeypatch):
     def fake_run(job):
         job.append("cloning…")

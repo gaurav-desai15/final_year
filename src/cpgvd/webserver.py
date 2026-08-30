@@ -207,12 +207,15 @@ def _benchmark() -> dict:
 # reports on disk
 # --------------------------------------------------------------------------- #
 def _list_reports() -> list[dict]:
+    """All report.json files under cpgvd_output/, newest first -- so the UI
+    opens the most recent scan by default regardless of where it was written."""
     paths: list[Path] = []
     default = OUTPUT_DIR / "report.json"
     if default.exists():
         paths.append(default)
     if WEB_OUTPUT.exists():
-        paths += sorted(WEB_OUTPUT.glob("*/report.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+        paths += WEB_OUTPUT.glob("*/report.json")
+    paths.sort(key=lambda p: p.stat().st_mtime, reverse=True)
     out = []
     for p in paths:
         d = _read_json(p) or {}

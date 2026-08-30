@@ -397,8 +397,14 @@ async function loadReportList(){
   const rs = await (await fetch("/api/reports")).json();
   const picker = $("#report-picker"); picker.innerHTML = "";
   if (!rs.length){ picker.innerHTML="<option>— no saved reports —</option>"; $("#report-body").innerHTML='<div class="card"><div class="empty">Run a scan first.</div></div>'; return; }
-  rs.forEach(r => { const o=el("option"); o.value=r.path; o.textContent=`${r.repo}  ·  ${r.n_findings} findings  ·  ${r.path}`; picker.appendChild(o); });
+  rs.forEach((r, i) => {
+    const o = el("option"); o.value = r.path;
+    const when = r.generated_at ? new Date(r.generated_at).toLocaleString() : "";
+    o.textContent = `${i === 0 ? "★ latest — " : ""}${r.repo}  ·  ${r.n_findings} findings  ·  ${when}`;
+    picker.appendChild(o);
+  });
   picker.onchange = () => openReport(picker.value);
+  picker.value = rs[0].path;      // newest first (server sorts by mtime desc)
   openReport(rs[0].path);
 }
 async function openReport(path){
