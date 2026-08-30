@@ -36,7 +36,7 @@ from .models import (
     FunctionContext,
     GuardEvidence,
 )
-from .rules import AbsenceRules, LanguageRules
+from .rules import AbsenceRules, LanguageRules, Rule
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +107,7 @@ class SinkHit:
     category: str
     cwe: str
     pattern: str
+    severity: str = ""  # set for `--mode hygiene` hits; blank for taint sinks
 
 
 @dataclass
@@ -257,11 +258,13 @@ class ContextExtractor:
         repo_root: Path,
         rules: dict[str, LanguageRules],
         absence_rules: dict[str, AbsenceRules] | None = None,
+        hygiene_rules: dict[str, list[Rule]] | None = None,
     ):
         self.client = client
         self.repo_root = Path(repo_root)
         self.rules = rules
         self.absence_rules = absence_rules or {}
+        self.hygiene_rules = hygiene_rules or {}
         self._methods_by_id: dict[int, RawMethod] = {}
         self._methods_by_full_name: dict[str, RawMethod] = {}
         self._calls: list[RawCall] = []
@@ -336,6 +339,27 @@ class ContextExtractor:
                 if rule.pattern.search(call.code) or rule.pattern.search(call.name):
                     by_method.setdefault(call.containing_method_full_name, []).append(
                         SinkHit(call=call, category=rule.category, cwe=rule.cwe, pattern=rule.raw_pattern)
+                    )
+                    break
+        return by_method
+
+    def find_hygiene_candidates(self, language: str) -> dict[str, list[SinkHit]]:
+        """`--mode hygiene`: containing-method full_name -> flagged 'dangerous
+        pattern present' hits (weak crypto, disabled TLS, hardcoded secret,
+        debug flag). Same shape as sink candidates; no source/taint needed."""
+        checks = self.hygiene_rules.get(language)
+        if not checks:
+            logger.warning("No hygiene rules configured for language %r", language)
+            return {}
+        by_method: dict[str, list[SinkHit]] = {}
+        for call in self._calls:
+            for rule in checks:
+                if rule.pattern.search(call.code) or rule.pattern.search(call.name):
+                    by_method.setdefault(call.containing_method_full_name, []).append(
+                        SinkHit(
+                            call=call, category=rule.category, cwe=rule.cwe,
+                            pattern=rule.raw_pattern, severity=rule.severity,
+                        )
                     )
                     break
         return by_method

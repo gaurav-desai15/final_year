@@ -80,3 +80,12 @@ def test_cpg_path_is_content_addressed(tmp_path):
     (tmp_path / "a.js").write_text("app.get('/x', requireAuth, h);\n")
     p2 = cpg_path_for(tmp_path, Config(work_dir=tmp_path / "_w"))
     assert p1 != p2
+
+
+def test_ruleset_load_hygiene_and_all_modes():
+    assert RuleSets.load("injection").hygiene_rules == {}
+    assert RuleSets.load("both").hygiene_rules == {}
+    hy = RuleSets.load("hygiene")
+    assert hy.hygiene_rules.get("javascript") and hy.absence_rules == {}
+    allm = RuleSets.load("all")
+    assert allm.rules and allm.absence_rules and allm.hygiene_rules

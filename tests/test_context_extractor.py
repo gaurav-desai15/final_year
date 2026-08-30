@@ -269,3 +269,47 @@ def test_dataflow_seconds_accumulates_only_for_dataflow_queries(repo_root, rules
 
     extractor.build_function_context(method, "python", hits, sources, include_dataflow=True)
     assert extractor.dataflow_seconds > 0.0
+
+
+# -- B: hygiene candidate discovery ----------------------------------------
+
+_HYGIENE_CALLS = [
+    {
+        "id": 200, "name": "md5",
+        "code": "hashlib.md5(password.encode())",
+        "filename": "app.py", "lineNumber": 10,
+        "calleeFullName": "hashlib.md5",
+        "containingMethodFullName": HANDLE_FULL_NAME,
+    },
+    {
+        "id": 201, "name": "get",
+        "code": "requests.get(url)", "filename": "app.py", "lineNumber": 3,
+        "calleeFullName": "requests.get", "containingMethodFullName": INDEX_FULL_NAME,
+    },
+]
+
+
+def test_find_hygiene_candidates_matches_weak_crypto(repo_root):
+    from cpgvd.rules import load_hygiene_rules
+
+    client = MagicMock()
+    client.run_json.side_effect = [METHODS_JSON, _HYGIENE_CALLS]
+    extractor = ContextExtractor(
+        client, repo_root, load_rules(), None, load_hygiene_rules()
+    )
+    extractor.load()
+
+    cands = extractor.find_hygiene_candidates("python")
+    assert HANDLE_FULL_NAME in cands
+    hit = cands[HANDLE_FULL_NAME][0]
+    assert hit.category == "Weak Cryptography" and hit.cwe == "CWE-327"
+    assert hit.severity == "medium"
+    assert INDEX_FULL_NAME not in cands  # requests.get is not a hygiene pattern
+
+
+def test_find_hygiene_candidates_empty_without_rules(repo_root):
+    client = MagicMock()
+    client.run_json.side_effect = [METHODS_JSON, _HYGIENE_CALLS]
+    extractor = ContextExtractor(client, repo_root, load_rules())
+    extractor.load()
+    assert extractor.find_hygiene_candidates("python") == {}

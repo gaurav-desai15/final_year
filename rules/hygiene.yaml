@@ -1,0 +1,111 @@
+# Security-hygiene / misconfiguration patterns for `--mode hygiene`.
+#
+# Unlike sinks_sources.yaml (a taint question) and control_absence.yaml (a
+# missing-guard question), these flag a DANGEROUS PATTERN THAT IS PRESENT:
+# a weak crypto primitive, a disabled TLS check, a hardcoded credential, a
+# debug feature left on. The regex pass is recall-only -- it will match test
+# fixtures, sample config, and commented examples too. The LLM's job (mode
+# "hygiene") is the precision call: is this the real running configuration,
+# and does it actually weaken security here?
+#
+# `pattern` is matched against a call's/assignment's `code` or its callee
+# name, same as sinks_sources.yaml. `severity` is a hint the model may
+# override.
+
+javascript: &js
+  checks:
+    - pattern: "createHash\\(\\s*['\"](md5|sha1)['\"]|createCipher\\(|['\"](des|des-ede3|rc4|bf)['\"]|algorithm\\s*:\\s*['\"]HS?(none|None)['\"]"
+      cwe: "CWE-327"
+      category: "Weak Cryptography"
+      severity: "medium"
+    - pattern: "rejectUnauthorized\\s*:\\s*false|NODE_TLS_REJECT_UNAUTHORIZED|checkServerIdentity\\s*:\\s*\\(\\s*\\)\\s*=>|secure\\s*:\\s*false"
+      cwe: "CWE-295"
+      category: "Improper Certificate / TLS Validation"
+      severity: "high"
+    - pattern: "(?i)(api[_-]?key|secret|token|password|passwd|pwd|client[_-]?secret|private[_-]?key)\\s*[:=]\\s*['\"][A-Za-z0-9/+_\\-]{12,}['\"]"
+      cwe: "CWE-798"
+      category: "Hardcoded Credential"
+      severity: "high"
+    - pattern: "jwt\\.sign\\(|jsonwebtoken|algorithm\\s*:\\s*['\"]none['\"]|jwt\\.verify\\([^,]+,[^,)]+\\)"
+      cwe: "CWE-347"
+      category: "Weak JWT Verification"
+      severity: "medium"
+    - pattern: "Math\\.random\\(\\)"
+      cwe: "CWE-330"
+      category: "Insecure Randomness (security context)"
+      severity: "low"
+    - pattern: "cors\\(\\s*\\)|origin\\s*:\\s*['\"]\\*['\"]|Access-Control-Allow-Origin['\"]\\s*,\\s*['\"]\\*"
+      cwe: "CWE-942"
+      category: "Overly Permissive CORS"
+      severity: "medium"
+    - pattern: "helmet\\.contentSecurityPolicy\\(\\s*false|contentSecurityPolicy\\s*:\\s*false"
+      cwe: "CWE-1021"
+      category: "Content Security Policy Disabled"
+      severity: "low"
+
+typescript: *js
+
+python:
+  checks:
+    - pattern: "hashlib\\.(md5|sha1)\\(|Crypto\\.Cipher\\.(DES|ARC4)|MD5|SHA1(?!\\d)"
+      cwe: "CWE-327"
+      category: "Weak Cryptography"
+      severity: "medium"
+    - pattern: "verify\\s*=\\s*False|ssl\\._create_unverified_context|check_hostname\\s*=\\s*False|CERT_NONE"
+      cwe: "CWE-295"
+      category: "Improper Certificate / TLS Validation"
+      severity: "high"
+    - pattern: "(?i)(api_?key|secret|token|password|passwd|client_?secret|private_?key)\\s*=\\s*['\"][A-Za-z0-9/+_\\-]{12,}['\"]"
+      cwe: "CWE-798"
+      category: "Hardcoded Credential"
+      severity: "high"
+    - pattern: "random\\.(random|randint|choice|randrange)\\(|random\\.Random\\("
+      cwe: "CWE-330"
+      category: "Insecure Randomness (security context)"
+      severity: "low"
+    - pattern: "DEBUG\\s*=\\s*True|app\\.run\\([^)]*debug\\s*=\\s*True"
+      cwe: "CWE-489"
+      category: "Debug Mode Enabled"
+      severity: "medium"
+    - pattern: "jwt\\.decode\\([^)]*verify\\s*=\\s*False|options\\s*=\\s*\\{[^}]*verify_signature[^}]*False"
+      cwe: "CWE-347"
+      category: "Weak JWT Verification"
+      severity: "medium"
+
+java:
+  checks:
+    - pattern: "MessageDigest\\.getInstance\\(\\s*\"(MD5|SHA-1|SHA1)\"|\"(DES|RC4|Blowfish)\"|Cipher\\.getInstance\\(\\s*\"[^\"/]*/ECB"
+      cwe: "CWE-327"
+      category: "Weak Cryptography"
+      severity: "medium"
+    - pattern: "TrustAllCerts|X509TrustManager|ALLOW_ALL_HOSTNAME_VERIFIER|setHostnameVerifier\\(\\s*\\(\\s*\\)"
+      cwe: "CWE-295"
+      category: "Improper Certificate / TLS Validation"
+      severity: "high"
+    - pattern: "(?i)(api_?key|secret|token|password|client_?secret)\\s*=\\s*\"[A-Za-z0-9/+_\\-]{12,}\""
+      cwe: "CWE-798"
+      category: "Hardcoded Credential"
+      severity: "high"
+    - pattern: "new Random\\(|Math\\.random\\("
+      cwe: "CWE-330"
+      category: "Insecure Randomness (security context)"
+      severity: "low"
+
+go:
+  checks:
+    - pattern: "md5\\.New\\(|sha1\\.New\\(|des\\.NewCipher\\(|rc4\\.NewCipher\\("
+      cwe: "CWE-327"
+      category: "Weak Cryptography"
+      severity: "medium"
+    - pattern: "InsecureSkipVerify\\s*:\\s*true"
+      cwe: "CWE-295"
+      category: "Improper Certificate / TLS Validation"
+      severity: "high"
+    - pattern: "(?i)(api_?key|secret|token|password|client_?secret)\\s*[:=]\\s*\"[A-Za-z0-9/+_\\-]{12,}\""
+      cwe: "CWE-798"
+      category: "Hardcoded Credential"
+      severity: "high"
+    - pattern: "math/rand|rand\\.Intn\\(|rand\\.Int\\("
+      cwe: "CWE-330"
+      category: "Insecure Randomness (security context)"
+      severity: "low"

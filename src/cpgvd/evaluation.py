@@ -111,7 +111,7 @@ def _analyze(
 ) -> tuple[list[Finding], list]:
     cpg_path = ensure_cpg(repo_path, config, "javascript", stats)
     client.load_cpg(cpg_path)
-    _, absence_ctx = extract_contexts(
+    _, absence_ctx, _ = extract_contexts(
         client, repo_path, "javascript", config, rulesets,
         mode="absence", no_dataflow=True, stats=stats,
     )

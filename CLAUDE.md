@@ -44,6 +44,10 @@ out at the default concurrency — see the "Choosing a model" table in README.
 - `rules/sinks_sources.yaml` — per-language sink/source regexes (injection mode).
 - `rules/control_absence.yaml` — per-language `triggers` / `guards` for
   `--mode absence` (missing-access-control detection).
+- `rules/hygiene.yaml` — per-language `checks` for `--mode hygiene`
+  (weak crypto / disabled TLS / hardcoded secrets / debug flags — a
+  "dangerous pattern present" question; LLM confirms it's real, not a
+  fixture). Modes: `injection` | `absence` | `hygiene` | `both` | `all`.
 - `mutation.py` (M1-M5 control-removal operators, `node --check` verify),
   `corpus.py` (JSONL labels, by-app split), `corpus_collect.py` (GitHub
   search + screen + clone), `evaluation.py` (score detector vs labels:

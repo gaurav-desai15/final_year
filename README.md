@@ -73,9 +73,10 @@ cpgvd analyze ./examples/vulnerable_app/python --language python
 # Opt into the paid Claude API backend instead of the free local model
 cpgvd analyze ./my-project --provider anthropic --model claude-opus-4-8
 
-# Look for missing access controls instead of injection (or run both)
+# Look for missing access controls, or security-hygiene defects, instead of injection
 cpgvd analyze ./my-project --mode absence
-cpgvd analyze ./my-project --mode both
+cpgvd analyze ./my-project --mode hygiene
+cpgvd analyze ./my-project --mode all      # injection + absence + hygiene
 ```
 
 ## Analysis modes
@@ -92,7 +93,16 @@ cpgvd analyze ./my-project --mode both
   list is the candidate finding. No dataflow -- this is a control-dependence
   question. The LLM works in three steps: classify the operation, infer the
   control it needs, check that against the guard list.
-- `--mode both`: run both, one LLM pass each.
+- `--mode hygiene`: is a *dangerous pattern present* -- a weak crypto
+  primitive (`md5`/`sha1` on a secret, `DES`/`ECB`), a disabled TLS check
+  (`rejectUnauthorized: false`, `verify=False`), a hardcoded credential, an
+  insecure random source in a security context, debug mode left on, or an
+  overly permissive CORS policy? Uses `rules/hygiene.yaml`. The regex pass is
+  recall-only (it matches test fixtures and sample config too); the LLM's job
+  is the precision call -- is this the real running configuration and does it
+  weaken security here. No taint, no dataflow.
+- `--mode both`: injection + absence. `--mode all`: injection + absence +
+  hygiene. One LLM pass per mode.
 
 ### Grounding (`--grounding cpg|raw`)
 

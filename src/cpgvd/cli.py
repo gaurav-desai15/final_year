@@ -53,9 +53,11 @@ def main() -> None:
 @click.option("--rules", "rules_path", default=None, type=click.Path(exists=True, path_type=Path), help="Custom sinks_sources.yaml.")
 @click.option(
     "--mode",
-    type=click.Choice(["injection", "absence", "both"]),
+    type=click.Choice(["injection", "absence", "hygiene", "both", "all"]),
     default="injection",
-    help="'injection' (taint -> sink, default), 'absence' (missing access control), or 'both'.",
+    help="'injection' (taint->sink, default), 'absence' (missing access control), "
+    "'hygiene' (weak crypto / TLS / hardcoded secrets / debug flags), "
+    "'both' (injection+absence), or 'all'.",
 )
 @click.option(
     "--grounding",
@@ -134,10 +136,12 @@ def analyze(
     )
 
     rulesets = RuleSets.load(mode, rules_path)
-    if mode in ("injection", "both") and lang not in rulesets.rules:
+    if mode in ("injection", "both", "all") and lang not in rulesets.rules:
         console.print(f"[yellow]Warning:[/yellow] no sink/source rules for language '{lang}'.")
-    if mode in ("absence", "both") and lang not in rulesets.absence_rules:
+    if mode in ("absence", "both", "all") and lang not in rulesets.absence_rules:
         console.print(f"[yellow]Warning:[/yellow] no control-absence rules for language '{lang}'.")
+    if mode in ("hygiene", "all") and lang not in rulesets.hygiene_rules:
+        console.print(f"[yellow]Warning:[/yellow] no hygiene rules for language '{lang}'.")
 
     try:
         outcome = run_pipeline(

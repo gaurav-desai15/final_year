@@ -27,7 +27,9 @@ from .rules import (
     DEFAULT_RULES_PATH,
     AbsenceRules,
     LanguageRules,
+    Rule,
     load_absence_rules,
+    load_hygiene_rules,
     load_rules,
 )
 
@@ -51,13 +53,16 @@ class AnalysisOutcome:
 class RuleSets:
     rules: dict[str, LanguageRules]
     absence_rules: dict[str, AbsenceRules]
+    hygiene_rules: dict[str, list[Rule]] = field(default_factory=dict)
 
     @classmethod
     def load(cls, mode: str, rules_path: Path | None = None) -> "RuleSets":
-        want_absence = mode in ("absence", "both")
+        want_absence = mode in ("absence", "both", "all")
+        want_hygiene = mode in ("hygiene", "all")
         return cls(
             rules=load_rules(rules_path or DEFAULT_RULES_PATH),
             absence_rules=load_absence_rules() if want_absence else {},
+            hygiene_rules=load_hygiene_rules() if want_hygiene else {},
         )
 
 
@@ -144,17 +149,21 @@ def extract_contexts(
     no_dataflow: bool,
     stats: RunStats,
     progress: Progress = _noop,
-) -> tuple[list[FunctionContext], list[FunctionContext]]:
-    want_injection = mode in ("injection", "both")
-    want_absence = mode in ("absence", "both")
+) -> tuple[list[FunctionContext], list[FunctionContext], list[FunctionContext]]:
+    want_injection = mode in ("injection", "both", "all")
+    want_absence = mode in ("absence", "both", "all")
+    want_hygiene = mode in ("hygiene", "all")
 
     t = time.monotonic()
-    extractor = ContextExtractor(client, Path(repo_path), rulesets.rules, rulesets.absence_rules)
+    extractor = ContextExtractor(
+        client, Path(repo_path), rulesets.rules, rulesets.absence_rules, rulesets.hygiene_rules
+    )
     extractor.load()
     stats.functions_discovered = len(extractor.methods)
 
     injection_contexts: list[FunctionContext] = []
     absence_contexts: list[FunctionContext] = []
+    hygiene_contexts: list[FunctionContext] = []
 
     if want_injection:
         sink_candidates = extractor.find_sink_candidates(lang)
@@ -217,16 +226,35 @@ def extract_contexts(
                 )
             )
 
+    if want_hygiene:
+        hygiene_candidates = extractor.find_hygiene_candidates(lang)
+        n_hits = sum(len(v) for v in hygiene_candidates.values())
+        progress(f"  {n_hits} hygiene-pattern matches across {len(hygiene_candidates)} functions")
+        prioritized = sorted(hygiene_candidates.items(), key=lambda kv: len(kv[1]), reverse=True)
+        for full_name, hits in prioritized[: config.max_contexts]:
+            method = extractor.method_by_full_name(full_name)
+            if method is None:
+                continue
+            hygiene_contexts.append(
+                extractor.build_function_context(
+                    method, lang, hits, [], include_dataflow=False,
+                    max_related=config.max_related_functions,
+                )
+            )
+
     if config.grounding == "raw":
         injection_contexts = [_rawify(c, repo_path) for c in injection_contexts]
         absence_contexts = [_rawify(c, repo_path) for c in absence_contexts]
+        hygiene_contexts = [_rawify(c, repo_path) for c in hygiene_contexts]
 
-    stats.candidate_contexts_analyzed = len(injection_contexts) + len(absence_contexts)
+    stats.candidate_contexts_analyzed = (
+        len(injection_contexts) + len(absence_contexts) + len(hygiene_contexts)
+    )
     stats.dataflow_seconds += extractor.dataflow_seconds
     stats.context_extraction_seconds += max(
         0.0, (time.monotonic() - t) - extractor.dataflow_seconds
     )
-    return injection_contexts, absence_contexts
+    return injection_contexts, absence_contexts, hygiene_contexts
 
 
 def analyze_contexts(
@@ -235,6 +263,7 @@ def analyze_contexts(
     absence_contexts: list[FunctionContext],
     stats: RunStats,
     progress: Progress = _noop,
+    hygiene_contexts: list[FunctionContext] | None = None,
 ) -> list[Finding]:
     findings: list[Finding] = []
     t = time.monotonic()
@@ -248,6 +277,11 @@ def analyze_contexts(
         absn = LlmAnalyzer(config, mode="absence")
         findings += absn.analyze_many(absence_contexts)
         _add_usage(stats, absn.usage)
+    if hygiene_contexts:
+        progress(f"Analyzing {len(hygiene_contexts)} hygiene candidates...")
+        hyg = LlmAnalyzer(config, mode="hygiene")
+        findings += hyg.analyze_many(hygiene_contexts)
+        _add_usage(stats, hyg.usage)
     stats.llm_seconds += time.monotonic() - t
     return findings
 
@@ -278,7 +312,7 @@ def run_pipeline(
     stats = RunStats()
     cpg_path = ensure_cpg(Path(repo_path), config, lang, stats, progress)
 
-    def _work(cl: CpgClient) -> tuple[list[FunctionContext], list[FunctionContext]]:
+    def _work(cl: CpgClient) -> tuple[list, list, list]:
         t = time.monotonic()
         cl.load_cpg(cpg_path)
         stats.cpg_load_seconds += time.monotonic() - t
@@ -288,12 +322,12 @@ def run_pipeline(
         )
 
     if client is not None:
-        inj_ctx, abs_ctx = _work(client)
+        inj_ctx, abs_ctx, hyg_ctx = _work(client)
     else:
         with joern_session(config) as cl:
-            inj_ctx, abs_ctx = _work(cl)
+            inj_ctx, abs_ctx, hyg_ctx = _work(cl)
 
-    findings = analyze_contexts(config, inj_ctx, abs_ctx, stats, progress)
+    findings = analyze_contexts(config, inj_ctx, abs_ctx, stats, progress, hygiene_contexts=hyg_ctx)
     if not config.keep_cpg:
         cpg_path.unlink(missing_ok=True)
-    return AnalysisOutcome(findings=findings, contexts=inj_ctx + abs_ctx, stats=stats)
+    return AnalysisOutcome(findings=findings, contexts=inj_ctx + abs_ctx + hyg_ctx, stats=stats)

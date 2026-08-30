@@ -432,3 +432,45 @@ def test_unknown_mode_rejected():
 
     with pytest.raises(ValueError):
         LlmAnalyzer(Config(), provider=FakeProvider([]), mode="nonsense")
+
+
+# -- B: hygiene mode ---------------------------------------------------------
+
+HYGIENE_PAYLOAD = {
+    "vulnerability_type": "Weak Cryptography",
+    "cwe": "CWE-327",
+    "severity": "medium",
+    "confidence": "high",
+    "title": "MD5 used to hash passwords",
+    "description": "createHash('md5') is used to derive the stored password hash.",
+    "context_reasoning": "Visible in the function; md5 is unsuitable for password storage.",
+    "data_flow_summary": "",
+    "suggested_fix": "Use bcrypt/scrypt/argon2.",
+    "start_line": 4,
+    "end_line": 4,
+}
+
+
+def test_hygiene_mode_uses_hygiene_prompt_and_parses_finding():
+    provider = FakeProvider([result_with_findings([HYGIENE_PAYLOAD])])
+    analyzer = LlmAnalyzer(Config(), provider=provider, mode="hygiene")
+
+    findings = analyzer.analyze_context(make_context("app.js:hashPassword:3"))
+
+    assert "hygiene" in provider.calls[0][0].lower() or "misconfiguration" in provider.calls[0][0].lower()
+    assert len(findings) == 1 and findings[0].vulnerability_type == "Weak Cryptography"
+    assert findings[0].cwe == "CWE-327"
+
+
+def test_hygiene_mode_drops_placeholder_secret_finding():
+    conceding = {
+        **HYGIENE_PAYLOAD,
+        "vulnerability_type": "Hardcoded Credential",
+        "cwe": "CWE-798",
+        "description": "api_key = 'your-api-key-here' — but this is an example placeholder in a sample config.",
+        "context_reasoning": "The value is a dummy placeholder, not a real credential.",
+    }
+    provider = FakeProvider([result_with_findings([conceding])])
+    analyzer = LlmAnalyzer(Config(), provider=provider, mode="hygiene")
+
+    assert analyzer.analyze_context(make_context("config.example.js:x:1")) == []

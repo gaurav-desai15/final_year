@@ -179,6 +179,48 @@ Respond with JSON only, matching the schema exactly. Line numbers must be \
 absolute file line numbers. If nothing is missing, return an empty \
 `findings` array."""
 
+HYGIENE_SYSTEM_PROMPT = """\
+You are a senior application security engineer reviewing one function for a \
+security-HYGIENE / MISCONFIGURATION defect -- a dangerous pattern that is \
+PRESENT in the code: a weak or broken cryptographic primitive, a disabled \
+TLS/certificate check, a hardcoded credential or secret, an insecure random \
+source used in a security context, debug mode left on, an overly permissive \
+CORS policy, or a JWT verified without a key/algorithm constraint.
+
+This is NOT a taint review. There is no "source". A lightweight regex pass \
+flagged one or more lines; you decide whether each is a REAL defect.
+
+You are shown the function's source, its imports, its callers/callees, and the \
+regex hits (with category + CWE hint). Judge each hit:
+
+- Is this the real running configuration, or a test fixture / commented \
+  example / sample-config / documentation string? A value under a `test/`, \
+  `spec/`, `__mocks__/`, `example/` path, or one that is obviously a \
+  placeholder ("changeme", "your-api-key", "xxxxxxxx", "example", "dummy", \
+  all-zeros), is NOT a finding.
+- Weak crypto: `md5`/`sha1` used for a NON-security purpose (ETag, cache key, \
+  file checksum, dedup) is fine. Only report it when the digest protects \
+  something -- a password, a token, a signature, an integrity check.
+- `Math.random()` / `random.random()` is fine for jitter, sampling, test \
+  data, animation. Report it only when the value is a token, password, \
+  session id, nonce, OTP, or CSRF token.
+- Disabled TLS verification (`rejectUnauthorized:false`, `verify=False`, \
+  `InsecureSkipVerify:true`) IS a finding whenever it is on a real outbound \
+  request -- name what it connects to.
+- Hardcoded credential: a real-looking secret assigned in source (not read \
+  from env / a vault / a config file) is a finding. If it is read from \
+  `process.env` / `os.environ` two lines above, it is NOT.
+- Debug mode on: a finding for a production entry point; not for a \
+  `if __name__ == "__main__"` dev launcher.
+
+Only report what you can justify from the shown code. Do not invent a \
+call-graph reason -- if the defect is visible in the function alone, say so \
+in `context_reasoning`. Return an empty `findings` array if every hit is \
+benign.
+
+Respond with JSON only, matching the schema exactly. Line numbers must be \
+absolute file line numbers."""
+
 _ABSENCE_FINDING_ITEM_SCHEMA = {
     "type": "object",
     "properties": {
@@ -338,6 +380,27 @@ def _asserts_no_attacker_path(item: dict) -> bool:
     """True if the finding's own reasoning says no attacker path exists."""
     text = f"{item.get('data_flow_summary', '')} {item.get('context_reasoning', '')}"
     return bool(_NO_ATTACKER_PATH_RE.search(text))
+
+
+# Hygiene-mode: the model flagged a hit but its own text concedes the value is
+# not the real running configuration (placeholder / fixture / example / doc).
+_HYGIENE_PLACEHOLDER_RE = re.compile(
+    "|".join(
+        [
+            r"\b(?:placeholder|dummy|sample|example|fixture|mock(?:ed)?|stub)\b",
+            r"\bnot (?:a )?(?:real|actual|production|the running)\b",
+            r"\btest(?:ing)?[- ]only\b|\bfor (?:testing|demonstration|illustration)\b",
+            r"\bread from (?:the )?(?:environment|env var|a vault|config|configuration)\b",
+            r"\bnon-security (?:purpose|context)\b|\bnot used (?:for|in) (?:a )?security\b",
+        ]
+    ),
+    re.IGNORECASE,
+)
+
+
+def _hygiene_finding_is_placeholder(item: dict) -> bool:
+    text = f"{item.get('description', '')} {item.get('context_reasoning', '')} {item.get('data_flow_summary', '')}"
+    return bool(_HYGIENE_PLACEHOLDER_RE.search(text))
 
 
 # Absence-mode analogue: phrases where the model's own reasoning concedes the
@@ -507,8 +570,10 @@ class LlmAnalyzer:
         provider: BaseProvider | None = None,
         mode: str = "injection",
     ):
-        if mode not in ("injection", "absence"):
-            raise ValueError(f"Unknown analyzer mode {mode!r}; expected 'injection' or 'absence'")
+        if mode not in ("injection", "absence", "hygiene"):
+            raise ValueError(
+                f"Unknown analyzer mode {mode!r}; expected 'injection', 'absence' or 'hygiene'"
+            )
         self.config = config
         self.provider = provider or build_provider(config)
         self.mode = mode
@@ -519,6 +584,8 @@ class LlmAnalyzer:
         raw = context.grounding == "raw"
         if self.mode == "absence":
             system, schema = ABSENCE_SYSTEM_PROMPT, ABSENCE_RESPONSE_SCHEMA
+        elif self.mode == "hygiene":
+            system, schema = HYGIENE_SYSTEM_PROMPT, RESPONSE_SCHEMA
         else:
             system, schema = SYSTEM_PROMPT, RESPONSE_SCHEMA
         if raw:
@@ -553,6 +620,8 @@ class LlmAnalyzer:
 
         if self.mode == "absence":
             return self._parse_absence_findings(parsed, context, model_name)
+        if self.mode == "hygiene":
+            return self._parse_hygiene_findings(parsed, context, model_name)
         return self._parse_injection_findings(parsed, context, model_name)
 
     def _parse_injection_findings(
@@ -649,6 +718,44 @@ class LlmAnalyzer:
                     description=item["description"],
                     context_reasoning=item.get("missing_control_reasoning", ""),
                     data_flow_summary=f"operation: {operation}; required control: {required}",
+                    suggested_fix=item.get("suggested_fix", ""),
+                    model=model_name,
+                )
+            )
+        return findings
+
+    def _parse_hygiene_findings(
+        self, parsed: dict, context: FunctionContext, model_name: str
+    ) -> list[Finding]:
+        findings = []
+        for item in parsed.get("findings", []):
+            if _hygiene_finding_is_placeholder(item):
+                logger.info(
+                    "Dropping hygiene finding %r in %s: its own reasoning marks the "
+                    "value a placeholder / test fixture / example",
+                    item.get("title", item.get("vulnerability_type", "?")),
+                    context.context_id,
+                )
+                continue
+            vulnerability_type = _clean_vulnerability_type(
+                item.get("vulnerability_type") or "Security Misconfiguration"
+            )
+            findings.append(
+                Finding(
+                    id=str(uuid.uuid4()),
+                    context_id=context.context_id,
+                    file=context.file,
+                    start_line=item.get("start_line") or context.start_line,
+                    end_line=item.get("end_line") or context.end_line,
+                    function=context.full_name,
+                    vulnerability_type=vulnerability_type,
+                    cwe=item.get("cwe", ""),
+                    severity=Severity(item["severity"]),
+                    confidence=Confidence(item["confidence"]),
+                    title=item.get("title") or vulnerability_type,
+                    description=item["description"],
+                    context_reasoning=item.get("context_reasoning", ""),
+                    data_flow_summary=item.get("data_flow_summary", ""),
                     suggested_fix=item.get("suggested_fix", ""),
                     model=model_name,
                 )

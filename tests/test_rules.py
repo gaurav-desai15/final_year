@@ -124,3 +124,64 @@ def test_absence_guard_matches_auth_and_ownership_checks():
 def test_absence_guard_does_not_match_plain_db_call():
     js = load_absence_rules()["javascript"].guards
     assert not any(r.pattern.search("usersCol.findOne({name: name})") for r in js)
+
+
+# -- A: additional injection classes -------------------------------------------
+
+def test_new_injection_classes_present():
+    rules = load_rules()
+    js = {r.category for r in rules["javascript"].sinks}
+    py = {r.category for r in rules["python"].sinks}
+    assert {"Prototype Pollution", "HTTP Response Splitting", "Regular Expression Denial of Service"} <= js
+    assert {"XPath Injection", "LDAP Injection"} <= py
+
+
+def test_prototype_pollution_matches_deep_merge_call_not_bare_name():
+    rules = load_rules()
+    pp = [r for r in rules["javascript"].sinks if r.category == "Prototype Pollution"]
+    assert any(r.pattern.search("_.merge(target, req.body)") for r in pp)
+    assert any(r.pattern.search("Object.assign(cfg, input)") for r in pp)
+
+
+def test_redos_matches_runtime_regexp_construction():
+    rules = load_rules()
+    redos = [r for r in rules["javascript"].sinks if "Denial of Service" in r.category]
+    assert any(r.pattern.search("const re = new RegExp(userPattern)") for r in redos)
+    assert not any(r.pattern.search("/static/literal/.test(x)") for r in redos)
+
+
+def test_xpath_and_ldap_match_real_calls():
+    rules = load_rules()
+    assert any(r.pattern.search("root.xpath('//user[name=\"' + n + '\"]')")
+               for r in rules["python"].sinks if r.category == "XPath Injection")
+    assert any(r.pattern.search("conn.search_s(base, SCOPE, f'(uid={u})')")
+               for r in rules["python"].sinks if r.category == "LDAP Injection")
+
+
+# -- B: hygiene rules --------------------------------------------------------
+
+def test_load_hygiene_rules_covers_languages_and_shapes():
+    from cpgvd.rules import load_hygiene_rules
+
+    hy = load_hygiene_rules()
+    for lang in ("javascript", "typescript", "python", "java", "go"):
+        assert hy.get(lang), f"no hygiene checks for {lang}"
+    cats = {r.category for r in hy["javascript"]}
+    assert {"Weak Cryptography", "Improper Certificate / TLS Validation", "Hardcoded Credential"} <= cats
+    assert all(r.cwe.startswith("CWE-") and r.severity for r in hy["python"])
+
+
+def test_hygiene_patterns_match_real_misconfig():
+    from cpgvd.rules import load_hygiene_rules
+
+    hy = load_hygiene_rules()
+    def hit(lang, s):
+        return any(r.pattern.search(s) for r in hy[lang])
+    assert hit("javascript", "crypto.createHash('md5')")
+    assert hit("javascript", "{ rejectUnauthorized: false }")
+    assert hit("javascript", "const apiKey = 'sk_live_abcd1234efgh5678'")
+    assert hit("python", "requests.get(url, verify=False)")
+    assert hit("python", "hashlib.md5(pw.encode())")
+    assert hit("go", "tls.Config{InsecureSkipVerify: true}")
+    # a normal env-var read must NOT trip the hardcoded-secret pattern
+    assert not any(r.pattern.search("apiKey = process.env.API_KEY") for r in hy["javascript"] if r.category == "Hardcoded Credential")

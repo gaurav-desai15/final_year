@@ -11,6 +11,7 @@ import yaml
 _RULES_DIR = Path(__file__).resolve().parent.parent.parent / "rules"
 DEFAULT_RULES_PATH = _RULES_DIR / "sinks_sources.yaml"
 DEFAULT_ABSENCE_RULES_PATH = _RULES_DIR / "control_absence.yaml"
+DEFAULT_HYGIENE_RULES_PATH = _RULES_DIR / "hygiene.yaml"
 
 
 @dataclass
@@ -19,6 +20,7 @@ class Rule:
     category: str
     cwe: str = ""
     raw_pattern: str = ""
+    severity: str = ""  # hygiene checks carry a severity hint; sinks leave this blank
 
 
 @dataclass
@@ -66,7 +68,21 @@ def _build_rule(entry: dict) -> Rule:
         category=entry.get("category", "Unknown"),
         cwe=entry.get("cwe", ""),
         raw_pattern=pattern,
+        severity=entry.get("severity", ""),
     )
+
+
+def load_hygiene_rules(path: Path | None = None) -> dict[str, list[Rule]]:
+    """Load `--mode hygiene` checks: per-language lists of 'dangerous pattern
+    present' regexes (weak crypto, disabled TLS, hardcoded secrets, debug
+    flags). Same `Rule` shape as sinks, plus a `severity` hint."""
+    path = path or DEFAULT_HYGIENE_RULES_PATH
+    with open(path, encoding="utf-8") as f:
+        raw = yaml.safe_load(f) or {}
+    return {
+        lang: [_build_rule(r) for r in (section or {}).get("checks", [])]
+        for lang, section in raw.items()
+    }
 
 
 def load_absence_rules(path: Path | None = None) -> dict[str, AbsenceRules]:
