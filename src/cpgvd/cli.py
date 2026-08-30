@@ -584,6 +584,88 @@ def corpus_eval_semgrep(
     )
 
 
+@corpus.command("eval-heldout")
+@click.argument("labels", type=click.Path(exists=True, path_type=Path))
+@click.option("--repo", "repo_override", default=None, help="App repo URL/path (default: from the label file).")
+@click.option("--ref", default=None, help="Ref to check out (default: the label file's commit).")
+@click.option("--match-window", default=20, show_default=True)
+@click.option("--grounding", type=click.Choice(["cpg", "raw"]), default="cpg", show_default=True)
+@click.option("--out-dir", type=click.Path(path_type=Path), default=Path("corpus/eval"), show_default=True)
+@click.option("--keep-repo", is_flag=True)
+@click.option("-v", "--verbose", is_flag=True)
+def corpus_eval_heldout(
+    labels: Path,
+    repo_override: str | None,
+    ref: str | None,
+    match_window: int,
+    grounding: str,
+    out_dir: Path,
+    keep_repo: bool,
+    verbose: bool,
+) -> None:
+    """Score the control-absence detector on a held-out app (B6).
+
+    LABELS is a YAML file (see corpus/heldout/juice-shop.yaml): each entry is
+    an externally-published missing-control location. No mutation, no baseline
+    negative control -- we report recall against the labelled set, per control
+    class, plus the count of findings that matched no label.
+    """
+    _setup_logging(verbose)
+
+    from .heldout import load_labels, score_heldout
+
+    app, commit_sha, label_list = load_labels(labels)
+    if not label_list:
+        raise click.ClickException(f"No labels in {labels}")
+
+    config = Config()
+    config.grounding = grounding
+    check_joern_available(config)
+    if config.llm_provider == "ollama":
+        check_ollama_available(config)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    local = Path("corpus/repos") / app
+    src = repo_override or (str(local) if local.is_dir() else None)
+    if not src:
+        raise click.ClickException(
+            f"No repo: clone it to corpus/repos/{app} or pass --repo (labels pin commit {commit_sha[:12]})."
+        )
+    is_local = Path(src).is_dir()
+    if is_local:
+        subprocess.run(["git", "-C", src, "checkout", "--", "."], capture_output=True, check=False)
+
+    repo_manager = RepoManager(config.work_dir)
+    repo_info = repo_manager.acquire(src, ref=None if is_local else (ref or commit_sha or None))
+    console.print(f"\n[bold]=== held-out: {app} ({len(label_list)} labels, grounding={grounding}) ===[/bold]")
+    try:
+        report = score_heldout(
+            repo_info.path, label_list, config, app=app,
+            commit_sha=commit_sha or repo_info.commit_sha,
+            match_window=match_window, progress=lambda m: console.print(m),
+        )
+    finally:
+        if not keep_repo and not is_local:
+            repo_manager.cleanup(repo_info)
+
+    suffix = "" if grounding == "cpg" else "-raw"
+    out_path = out_dir / f"heldout-{app}{suffix}.json"
+    out_path.write_text(report.model_dump_json(indent=2), encoding="utf-8")
+
+    table = Table(title=f"HELD-OUT: {app} ({grounding})")
+    for col in ("control class", "TP", "FN", "recall"):
+        table.add_column(col, justify="right" if col != "control class" else "left")
+    for cls, b in report.by_control_class.items():
+        table.add_row(cls, str(b["tp"]), str(b["fn"]), f"{b['recall']:.2f}")
+    table.add_row("OVERALL", str(report.n_detected), str(report.n_labels - report.n_detected), f"{report.recall:.2f}")
+    console.print(table)
+    console.print(
+        f"[bold]recall={report.recall:.2f} ({report.n_detected}/{report.n_labels})  "
+        f"class-match={report.class_ok_rate:.2f}  "
+        f"findings total={report.n_findings_total} (unmatched {report.n_findings_unmatched})[/bold]\n{out_path}"
+    )
+
+
 @corpus.command("report")
 @click.option("--eval-dir", type=click.Path(exists=True, path_type=Path), default=Path("corpus/eval"), show_default=True)
 @click.option("--out", type=click.Path(path_type=Path), default=Path("corpus/eval/RESULTS.md"), show_default=True)

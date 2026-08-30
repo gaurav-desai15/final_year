@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from .models import EvalReport
+from .models import EvalReport, HeldoutReport
 
 _VARIANTS = {
     "": "cpgvd (grounded)",
@@ -33,6 +33,16 @@ def _load(eval_dir: Path) -> dict[str, list[EvalReport]]:
                 except Exception:  # noqa: BLE001
                     pass
                 break
+    return out
+
+
+def _load_heldout(eval_dir: Path) -> list[HeldoutReport]:
+    out: list[HeldoutReport] = []
+    for p in sorted(Path(eval_dir).glob("heldout-*.json")):
+        try:
+            out.append(HeldoutReport.model_validate_json(p.read_text()))
+        except Exception:  # noqa: BLE001
+            pass
     return out
 
 
@@ -117,6 +127,30 @@ def build_markdown(eval_dir: Path) -> str:
         if g["grounded_ratio"] is not None:
             L.append(f"- **Grounded findings (H5):** **{g['grounded_ratio'] * 100:.0f}%** of findings cite line numbers that were in the context shown.")
         L.append("")
+
+    heldout = _load_heldout(eval_dir)
+    if heldout:
+        L += ["## Held-out apps (B6 -- externally-authored ground truth, never tuned against)", ""]
+        L.append("| app | grounding | labels | detected | recall | class-match | unmatched findings |")
+        L.append("|---|---|--:|--:|--:|--:|--:|")
+        for h in heldout:
+            L.append(
+                f"| {h.app} | {h.grounding} | {h.n_labels} | {h.n_detected} | "
+                f"{h.recall:.2f} | {h.class_ok_rate:.2f} | {h.n_findings_unmatched} |"
+            )
+        L.append("")
+        classes = sorted({c for h in heldout for c in h.by_control_class})
+        if classes:
+            L += ["Recall by control class (grounded held-out run):", ""]
+            L.append("| control class | " + " | ".join(f"{h.app} ({h.grounding})" for h in heldout) + " |")
+            L.append("|---|" + "|".join("--:" for _ in heldout) + "|")
+            for c in classes:
+                row = [c]
+                for h in heldout:
+                    b = h.by_control_class.get(c)
+                    row.append(f"{b['recall']:.2f} ({b['tp']}/{b['tp'] + b['fn']})" if b else "-")
+                L.append("| " + " | ".join(row) + " |")
+            L.append("")
 
     L += ["## Per app (grounded)", "", "| app | mutations | precision | recall | recall_raw | F1 | FP orig |", "|---|--:|--:|--:|--:|--:|--:|"]
     for r in sorted(loaded.get("", []), key=lambda x: -x.summary.n_mutations):

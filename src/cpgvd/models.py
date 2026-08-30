@@ -429,6 +429,55 @@ class EvalReport(BaseModel):
     baseline_findings: list[Finding] = Field(default_factory=list)
 
 
+class HeldoutLabel(BaseModel):
+    """One externally-authored missing-control location on a held-out app.
+
+    Unlike `MutationRecord`, nothing was removed by us -- the control is
+    absent in the upstream code and the ground truth comes from the app's
+    own published vulnerability list (e.g. an OWASP Juice Shop challenge key
+    plus its in-source `vuln-code-snippet vuln-line` marker). We never tune
+    against these apps, so the score is not self-graded.
+    """
+
+    challenge: str  # upstream identifier (Juice Shop challenge key)
+    name: str = ""
+    category: str = ""  # upstream category, verbatim
+    control_class: str  # authentication | authorization | ownership | session | validation
+    file: str  # repo-relative POSIX path
+    line: int  # the vuln-marked line (route registration or handler entry)
+    route_path: str = ""
+    note: str = ""
+
+
+class HeldoutLabelResult(BaseModel):
+    challenge: str
+    control_class: str
+    file: str
+    line: int
+    detected: bool = False  # a finding landed within the match window, same file
+    matched_title: str = ""
+    matched_line: int = 0
+    matched_control_ok: bool = False
+
+
+class HeldoutReport(BaseModel):
+    generated_at: _dt.datetime = Field(default_factory=lambda: _dt.datetime.now(_dt.timezone.utc))
+    app: str
+    commit_sha: str = ""
+    model: str = ""
+    grounding: str = "cpg"
+    match_window: int = 20
+    n_labels: int = 0
+    n_detected: int = 0
+    recall: float = 0.0
+    class_ok_rate: float = 0.0  # of detected, the share whose class matched
+    n_findings_total: int = 0
+    n_findings_unmatched: int = 0  # findings not near any label (context-dependent, not pure FP on this app)
+    by_control_class: dict[str, dict] = Field(default_factory=dict)
+    results: list[HeldoutLabelResult] = Field(default_factory=list)
+    findings: list[Finding] = Field(default_factory=list)
+
+
 class AnalysisReport(BaseModel):
     repo: str
     commit_sha: str = ""

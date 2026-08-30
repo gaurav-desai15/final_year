@@ -1,0 +1,118 @@
+# OWASP Juice Shop -- held-out benchmark for the control-absence detector (B6).
+#
+# We never tune the rules or the prompt against this app. The ground truth is
+# external: each label is one of Juice Shop's own published challenges, in the
+# "Broken Access Control" or "Improper Input Validation" category, whose
+# missing control is localisable to a single route registration or handler
+# entry (the detector's unit of analysis). The `line` is the app's own
+# `vuln-code-snippet vuln-line <challenge>` marker, or the route-wiring line in
+# server.ts where the guard is absent / commented out.
+#
+# Deliberately EXCLUDED (not a missing server-side control the detector can
+# see): client-side-only route guards (adminSectionChallenge, easterEgg*),
+# crypto/storage (twoFactorAuthUnsafeSecretStorage*), SQL/NoSQL injection
+# logins (loginAdmin*, noSqlReviews*), CSRF (no anti-CSRF concept in the
+# rules), SSRF, security-question reset logic, weak-password policy.
+#
+# Pinned so the line numbers stay valid. Re-verify `line` if you bump `commit`.
+
+app: juice-shop
+repo: https://github.com/juice-shop/juice-shop
+commit: 1867b926c5f50e4e692dc9c8f61821413cebe0cd   # tag v17.3.0
+language: javascript
+
+labels:
+  - challenge: changeProductChallenge
+    name: Product Tampering
+    category: Broken Access Control
+    control_class: authorization
+    file: server.ts
+    line: 361
+    route_path: /api/Products/:id
+    note: >-
+      `app.put('/api/Products/:id', security.isAuthorized())` is commented out,
+      so any authenticated user can modify any product. The GET/POST siblings
+      on /api/Products are guarded; the PUT is not.
+
+  - challenge: exposedMetricsChallenge
+    name: Exposed Metrics
+    category: Sensitive Data Exposure
+    control_class: authorization
+    file: server.ts
+    line: 697
+    route_path: /metrics
+    note: >-
+      `app.get('/metrics', metrics.serveMetrics())` has no auth middleware; the
+      Prometheus endpoint is world-readable. Note: our `is_public_route`
+      heuristic treats `/metrics` as a conventional probe, so the grounded
+      detector is expected to suppress this -- a documented precision/recall
+      trade-off of that heuristic, kept here honestly.
+
+  - challenge: accessLogDisclosureChallenge
+    name: Access Log
+    category: Sensitive Data Exposure
+    control_class: authorization
+    file: server.ts
+    line: 280
+    route_path: /support/logs/:file
+    note: >-
+      `app.use('/support/logs/:file', serveLogFiles())` serves raw access logs
+      with no authorization check.
+
+  - challenge: basketAccessChallenge
+    name: View Basket
+    category: Broken Access Control
+    control_class: ownership
+    file: routes/basket.ts
+    line: 15
+    route_path: /rest/basket/:id
+    note: >-
+      `retrieveBasket()` looks up the basket by `req.params.id` with no check
+      that it belongs to the session user. `/rest/basket/:id` is
+      authenticated (server.ts) but not ownership-checked.
+
+  - challenge: basketManipulateChallenge
+    name: Manipulate Basket
+    category: Broken Access Control
+    control_class: ownership
+    file: routes/basketItems.ts
+    line: 19
+    route_path: /api/BasketItems
+    note: >-
+      `addBasketItem()` takes `BasketId` from the request body; the
+      owner-vs-session comparison exists only inside the challenge-solve
+      predicate, not as an enforced guard on the write.
+
+  - challenge: forgedReviewChallenge
+    name: Forged Review
+    category: Broken Access Control
+    control_class: ownership
+    file: routes/createProductReviews.ts
+    line: 14
+    route_path: /rest/products/:id/reviews
+    note: >-
+      `createProductReviews()` writes `author: req.body.author` -- the review
+      author is caller-supplied, never bound to the session user.
+
+  - challenge: forgedFeedbackChallenge
+    name: Forged Feedback
+    category: Broken Access Control
+    control_class: ownership
+    file: server.ts
+    line: 388
+    route_path: /api/Feedbacks
+    note: >-
+      POST /api/Feedbacks is intentionally unauthenticated, but the handler
+      trusts `UserId` from the request body, so feedback can be attributed to
+      an arbitrary user. Missing ownership binding, not missing auth.
+
+  - challenge: registerAdminChallenge
+    name: Admin Registration
+    category: Improper Input Validation
+    control_class: validation
+    file: server.ts
+    line: 406
+    route_path: /api/Users
+    note: >-
+      POST /api/Users accepts a `role` field from the request body with no
+      validation, so a self-registration can create an admin account.

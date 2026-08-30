@@ -660,3 +660,68 @@ D10 remaining (morning)
 SECURITY NOTE: the GITHUB_TOKEN is in .env (git-ignored). Revoke it at
 github.com/settings/tokens once the corpus is built -- it was pasted in
 cleartext and only needs to live as long as the collection run.
+
+================================================================================
+Section 10 -- D10: held-out benchmark (B6), 2026-08-30
+================================================================================
+
+The mutation corpus (Sections 5-9) is built from the same apps the rules and
+prompt were tuned on. B6 is the other half of the evaluation: a held-out app
+scored against an EXTERNAL authority, never tuned against.
+
+Chosen app: OWASP Juice Shop, tag v17.3.0
+(commit 1867b926c5f50e4e692dc9c8f61821413cebe0cd), cloned to
+corpus/repos/juice-shop (git-ignored).
+
+Ground truth: Juice Shop publishes its own vulnerability list in
+data/static/challenges.yml, and marks the vulnerable line in-source with
+`// vuln-code-snippet vuln-line <challengeKey>` comments. corpus/heldout/
+juice-shop.yaml maps the subset our control-absence detector can be scored on
+-- 8 challenges in the Broken Access Control / Improper Input Validation /
+Sensitive Data Exposure categories whose missing control sits at one route
+registration or handler entry:
+
+  changeProductChallenge        authorization  server.ts:361   (PUT authz commented out)
+  exposedMetricsChallenge       authorization  server.ts:697   (/metrics unguarded)
+  accessLogDisclosureChallenge  authorization  server.ts:280   (/support/logs/:file)
+  basketAccessChallenge         ownership      routes/basket.ts:15
+  basketManipulateChallenge     ownership      routes/basketItems.ts:19
+  forgedReviewChallenge         ownership      routes/createProductReviews.ts:14
+  forgedFeedbackChallenge       ownership      server.ts:388
+  registerAdminChallenge        validation     server.ts:406
+
+Deliberately excluded (documented in the yaml header): client-side-only route
+guards (adminSectionChallenge), crypto/storage, SQL/NoSQL-injection logins,
+CSRF, SSRF, security-question reset logic, weak-password policy -- none is a
+missing server-side control the detector's rules can see.
+
+Note: server.ts line ~23 of models.py's _PUBLIC_ROUTE_RE lists `metrics` as a
+conventional probe, so the grounded detector is EXPECTED to suppress
+exposedMetricsChallenge. Kept as a label anyway -- it is an honest illustration
+of that heuristic's precision/recall trade-off.
+
+Code landed:
+- models.py: HeldoutLabel / HeldoutLabelResult / HeldoutReport.
+- heldout.py: load_labels() (YAML), score_heldout() (one absence-analysis pass
+  under a single Joern session, no mutation, no baseline-FP step), _score_label
+  (same match-window + control-class logic as evaluation._score_one, reused).
+  Reports recall vs the labelled set, per control class, class-match rate, and
+  the count of findings that matched no label (context, NOT a clean FP rate --
+  Juice Shop has many vulns our labels don't enumerate).
+- cli.py: `cpgvd corpus eval-heldout corpus/heldout/juice-shop.yaml
+  [--grounding cpg|raw]` -> corpus/eval/heldout-juice-shop[-raw].json.
+- results.py: `corpus report` picks up heldout-*.json and adds a "Held-out
+  apps" section to RESULTS.md.
+- tests/test_heldout.py (6 tests, mocked). Suite now 202.
+
+NOT YET RUN (needs Joern + the local LLM; ~an hour of machine time, best run
+alongside the FP-cap work in one overnight slot; Juice Shop is a large TS
+codebase so the CPG build is the slow part -- confirm jssrc2cpg parses it):
+
+  export JOERN_HOME="$HOME/bin/joern" PATH="$JOERN_HOME:$PATH"
+  cpgvd corpus eval-heldout corpus/heldout/juice-shop.yaml --grounding cpg
+  cpgvd corpus eval-heldout corpus/heldout/juice-shop.yaml --grounding raw
+  cpgvd corpus report
+
+Remaining after B6 runs: FP-cap fixes + full uncapped mutation eval
+(see MORNING-STATUS), then hand every table in RESULTS.md to Track A (C1).
