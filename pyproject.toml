@@ -36,10 +36,11 @@ baseline = [
 anthropic = [
     "anthropic>=0.40.0",
 ]
-# Only needed for `cpgvd dashboard` (interactive report viewer).
-dashboard = [
-    "streamlit>=1.38.0",
-    "pandas>=2.0.0",
+# Only needed for the local web UI (`cpgvd serve`): scan form, report viewer,
+# benchmark dashboard. Static frontend, no build step.
+web = [
+    "fastapi>=0.110.0",
+    "uvicorn>=0.29.0",
 ]
 
 [project.scripts]
@@ -47,3 +48,6 @@ cpgvd = "cpgvd.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+cpgvd = ["web/*"]

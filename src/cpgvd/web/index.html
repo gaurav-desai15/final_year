@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cpgvd</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --panel2: #1e222b; --border: #2a2f3a;
+    --fg: #e6e9ef; --muted: #9aa4b2; --accent: #5b9dff; --accent2: #3b7ddd;
+    --ok: #3fb950; --warn: #d29922; --bad: #f85149;
+    --crit: #a371f7; --high: #f85149; --med: #d29922; --low: #3fb950; --info: #8b949e;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  a { color: var(--accent); }
+  header { display: flex; align-items: center; gap: 16px; padding: 14px 20px;
+    border-bottom: 1px solid var(--border); background: var(--panel); }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; letter-spacing: .3px; }
+  header .shield { font-size: 18px; }
+  nav { display: flex; gap: 4px; margin-left: 8px; }
+  nav button { background: transparent; border: 1px solid transparent; color: var(--muted);
+    padding: 6px 14px; border-radius: 7px; cursor: pointer; font-size: 13px; }
+  nav button.active { background: var(--panel2); color: var(--fg); border-color: var(--border); }
+  nav button:hover { color: var(--fg); }
+  #health { margin-left: auto; font-size: 12px; color: var(--muted); display: flex; gap: 12px; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+  .dot.up { background: var(--ok); } .dot.down { background: var(--bad); }
+  main { padding: 20px; max-width: 1100px; margin: 0 auto; }
+  .view { display: none; } .view.active { display: block; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin-bottom: 18px; }
+  h2 { font-size: 15px; margin: 0 0 14px; font-weight: 600; }
+  h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin: 22px 0 10px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  input, select { width: 100%; background: var(--panel2); border: 1px solid var(--border); color: var(--fg);
+    padding: 8px 10px; border-radius: 7px; font: inherit; }
+  input:focus, select:focus { outline: none; border-color: var(--accent); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+  .field { margin-bottom: 12px; }
+  button.primary { background: var(--accent2); border: 1px solid var(--accent); color: #fff;
+    padding: 9px 18px; border-radius: 8px; cursor: pointer; font: inherit; font-weight: 600; }
+  button.primary:disabled { opacity: .5; cursor: default; }
+  button.ghost { background: var(--panel2); border: 1px solid var(--border); color: var(--fg);
+    padding: 7px 12px; border-radius: 7px; cursor: pointer; font: inherit; }
+  pre.log { background: #0b0d11; border: 1px solid var(--border); border-radius: 8px; padding: 12px;
+    max-height: 340px; overflow: auto; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: #c9d1d9; white-space: pre-wrap; word-break: break-word; }
+  .metrics { display: flex; gap: 10px; flex-wrap: wrap; }
+  .metric { background: var(--panel2); border: 1px solid var(--border); border-radius: 9px;
+    padding: 10px 14px; min-width: 88px; }
+  .metric .n { font-size: 20px; font-weight: 700; }
+  .metric .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr:hover td { background: var(--panel2); }
+  .sev { display: inline-block; padding: 1px 7px; border-radius: 5px; font-size: 11px; font-weight: 700; }
+  .sev.critical { background: rgba(163,113,247,.18); color: var(--crit); }
+  .sev.high { background: rgba(248,81,73,.16); color: var(--high); }
+  .sev.medium { background: rgba(210,153,34,.16); color: var(--med); }
+  .sev.low { background: rgba(63,185,80,.16); color: var(--low); }
+  .sev.info { background: rgba(139,148,158,.16); color: var(--info); }
+  details.finding { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; background: var(--panel2); }
+  details.finding summary { padding: 10px 12px; cursor: pointer; list-style: none; display: flex; gap: 10px; align-items: center; }
+  details.finding summary::-webkit-details-marker { display: none; }
+  details.finding .body { padding: 0 14px 14px; border-top: 1px solid var(--border); }
+  .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 12px 0; }
+  .kv div { font-size: 12px; } .kv .k { color: var(--muted); }
+  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+  .muted { color: var(--muted); }
+  .bar { height: 8px; background: var(--panel2); border-radius: 4px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--accent); }
+  .note { background: rgba(91,157,255,.1); border: 1px solid rgba(91,157,255,.3); border-radius: 8px; padding: 10px 12px; font-size: 13px; }
+  .pill { font-size: 11px; padding: 1px 7px; border: 1px solid var(--border); border-radius: 20px; color: var(--muted); }
+  .empty { color: var(--muted); padding: 30px; text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  <span class="shield">🛡️</span>
+  <h1>cpgvd</h1>
+  <nav>
+    <button data-view="scan" class="active">Scan</button>
+    <button data-view="report">Report</button>
+    <button data-view="benchmark">Benchmark</button>
+  </nav>
+  <div id="health"></div>
+</header>
+
+<main>
+  <!-- SCAN -->
+  <section id="view-scan" class="view active">
+    <div class="panel">
+      <h2>Scan a repository</h2>
+      <div class="field">
+        <label>GitHub URL or local path</label>
+        <input id="repo" placeholder="https://github.com/OWASP/NodeGoat   or   ./examples/vulnerable_app/python">
+      </div>
+      <div class="grid">
+        <div><label>Mode</label>
+          <select id="mode">
+            <option value="absence">absence — missing access control</option>
+            <option value="injection">injection — taint → sink</option>
+            <option value="both">both</option>
+          </select></div>
+        <div><label>Grounding</label>
+          <select id="grounding">
+            <option value="cpg">cpg — CPG context slice</option>
+            <option value="raw">raw — whole file (H2 baseline)</option>
+          </select></div>
+        <div><label>LLM provider</label>
+          <select id="provider">
+            <option value="ollama">ollama (free, local)</option>
+            <option value="anthropic">anthropic (paid)</option>
+          </select></div>
+        <div><label>Language (blank = auto)</label><input id="language" placeholder="javascript"></div>
+        <div><label>Model (blank = default)</label><input id="model" placeholder="qwen2.5-coder:7b"></div>
+        <div><label>Max contexts</label><input id="max_contexts" type="number" value="15" min="1" max="200"></div>
+        <div><label>Git ref (optional)</label><input id="ref" placeholder="main / v1.2.3 / sha"></div>
+      </div>
+      <div style="margin-top:14px; display:flex; gap:10px; align-items:center;">
+        <button id="run" class="primary">Run scan</button>
+        <span id="scan-status" class="muted"></span>
+      </div>
+    </div>
+    <div class="panel" id="scan-log-panel" style="display:none;">
+      <h2>Scan log</h2>
+      <pre class="log" id="scan-log"></pre>
+      <div style="margin-top:10px;">
+        <button id="view-scan-report" class="ghost" style="display:none;">View report →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- REPORT -->
+  <section id="view-report" class="view">
+    <div class="panel">
+      <h2>Report</h2>
+      <div class="field">
+        <label>Saved reports</label>
+        <select id="report-picker"></select>
+      </div>
+      <div id="report-meta" class="muted"></div>
+    </div>
+    <div id="report-body"></div>
+  </section>
+
+  <!-- BENCHMARK -->
+  <section id="view-benchmark" class="view">
+    <div id="benchmark-body"></div>
+  </section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const el = (t, c, h) => { const e = document.createElement(t); if (c) e.className = c; if (h != null) e.innerHTML = h; return e; };
+const pct = v => v == null ? "—" : (v * 100).toFixed(0) + "%";
+const num = v => v == null ? "—" : (typeof v === "number" ? (Number.isInteger(v) ? v : v.toFixed(2)) : v);
+
+// ---- nav ----
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => show(b.dataset.view));
+function show(v) {
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("active", b.dataset.view === v));
+  document.querySelectorAll(".view").forEach(s => s.classList.toggle("active", s.id === "view-" + v));
+  if (v === "report") loadReportList();
+  if (v === "benchmark") loadBenchmark();
+}
+
+// ---- health ----
+fetch("/api/health").then(r => r.json()).then(h => {
+  $("#health").innerHTML =
+    `<span><span class="dot ${h.joern ? "up" : "down"}"></span>Joern</span>` +
+    `<span><span class="dot ${h.ollama ? "up" : "down"}"></span>Ollama</span>`;
+}).catch(() => {});
+
+// ---- scan ----
+$("#run").onclick = async () => {
+  const body = {
+    repo: $("#repo").value, mode: $("#mode").value, grounding: $("#grounding").value,
+    provider: $("#provider").value, model: $("#model").value, language: $("#language").value,
+    ref: $("#ref").value, max_contexts: parseInt($("#max_contexts").value || "15"),
+  };
+  if (!body.repo.trim()) { $("#scan-status").textContent = "enter a repo"; return; }
+  $("#run").disabled = true;
+  $("#scan-status").textContent = "starting…";
+  $("#scan-log-panel").style.display = "";
+  $("#scan-log").textContent = "";
+  $("#view-scan-report").style.display = "none";
+  let job;
+  try {
+    job = await (await fetch("/api/scan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })).json();
+  } catch (e) { $("#scan-status").textContent = "failed to start"; $("#run").disabled = false; return; }
+  if (!job.job_id) { $("#scan-status").textContent = job.detail || "error"; $("#run").disabled = false; return; }
+
+  const es = new EventSource(`/api/scan/${job.job_id}/stream`);
+  const logEl = $("#scan-log");
+  es.onmessage = ev => {
+    const d = JSON.parse(ev.data);
+    if (d.line != null) { logEl.textContent += d.line + "\n"; logEl.scrollTop = logEl.scrollHeight; }
+  };
+  es.addEventListener("done", ev => {
+    es.close();
+    const d = JSON.parse(ev.data);
+    $("#run").disabled = false;
+    $("#scan-status").textContent = d.status === "done" ? `finished in ${d.elapsed}s` : `failed (exit ${d.returncode})`;
+    if (d.report_available) {
+      $("#view-scan-report").style.display = "";
+      $("#view-scan-report").onclick = async () => {
+        const rep = await (await fetch(`/api/scan/${job.job_id}/report`)).json();
+        show("report");
+        renderReport(rep);
+        $("#report-meta").textContent = "(from the scan just run)";
+      };
+    }
+  });
+  es.onerror = () => { es.close(); $("#run").disabled = false; $("#scan-status").textContent = "stream closed"; };
+};
+
+// ---- report ----
+async function loadReportList() {
+  const rs = await (await fetch("/api/reports")).json();
+  const picker = $("#report-picker");
+  picker.innerHTML = "";
+  if (!rs.length) { picker.innerHTML = "<option>— no saved reports —</option>"; $("#report-body").innerHTML = '<div class="empty">Run a scan first.</div>'; return; }
+  rs.forEach(r => {
+    const o = el("option"); o.value = r.path;
+    o.textContent = `${r.repo}  ·  ${r.n_findings} findings  ·  ${r.path}`;
+    picker.appendChild(o);
+  });
+  picker.onchange = () => openReport(picker.value);
+  openReport(rs[0].path);
+}
+async function openReport(path) {
+  const rep = await (await fetch("/api/report?path=" + encodeURIComponent(path))).json();
+  $("#report-meta").innerHTML = `<span class="mono">${rep.repo || "?"}</span> · commit <span class="mono">${(rep.commit_sha||"").slice(0,12)||"n/a"}</span> · model <span class="mono">${rep.model||"?"}</span> · ${rep.generated_at||""}`;
+  renderReport(rep);
+}
+const SEVS = ["critical", "high", "medium", "low", "info"];
+function renderReport(rep) {
+  const b = $("#report-body"); b.innerHTML = "";
+  const findings = rep.findings || [];
+  const by = {}; SEVS.forEach(s => by[s] = 0); findings.forEach(f => by[f.severity] = (by[f.severity] || 0) + 1);
+
+  const mp = el("div", "panel");
+  mp.appendChild(el("h2", null, "Summary"));
+  const m = el("div", "metrics");
+  m.appendChild(metric(findings.length, "findings"));
+  SEVS.forEach(s => m.appendChild(metric(by[s] || 0, s)));
+  mp.appendChild(m);
+  const met = rep.metrics || {};
+  if (met.compression || met.grounded_findings) {
+    const m2 = el("div", "metrics"); m2.style.marginTop = "10px";
+    const c = met.compression || {}, g = met.grounded_findings || {};
+    if (c.slice_over_file_mean != null) m2.appendChild(metric(pct(c.slice_over_file_mean), "H3 slice / file"));
+    if (c.slice_over_repo_mean != null) m2.appendChild(metric((c.slice_over_repo_mean * 100).toFixed(2) + "%", "H3 slice / repo"));
+    if (g.ratio != null) m2.appendChild(metric(pct(g.ratio), "H5 grounded findings"));
+    mp.appendChild(m2);
+  }
+  b.appendChild(mp);
+
+  if (!findings.length) { b.appendChild(el("div", "empty", "No findings. 🎉")); return; }
+
+  const fp = el("div", "panel");
+  fp.appendChild(el("h2", null, "Findings"));
+  const contexts = {}; (rep.contexts || []).forEach(c => contexts[c.context_id] = c);
+  findings.slice().sort((a, z) => SEVS.indexOf(a.severity) - SEVS.indexOf(z.severity)).forEach(f => {
+    const d = el("details", "finding");
+    const s = el("summary");
+    s.innerHTML = `<span class="sev ${f.severity}">${f.severity.toUpperCase()}</span>` +
+      `<b>${escapeHtml(f.title || f.vulnerability_type)}</b>` +
+      `<span class="muted mono" style="margin-left:auto">${escapeHtml(f.file)}:${f.start_line}</span>`;
+    d.appendChild(s);
+    const body = el("div", "body");
+    body.appendChild(el("div", "kv",
+      `<div><span class="k">Type</span><br>${escapeHtml(f.vulnerability_type)} <span class="muted">${escapeHtml(f.cwe||"")}</span></div>` +
+      `<div><span class="k">Function</span><br><span class="mono">${escapeHtml(f.function||"")}</span></div>` +
+      `<div><span class="k">Confidence</span><br>${escapeHtml(f.confidence||"")}</div>` +
+      `<div><span class="k">Location</span><br><span class="mono">${escapeHtml(f.file)}:${f.start_line}-${f.end_line}</span></div>`));
+    if (f.description) body.appendChild(el("p", null, escapeHtml(f.description)));
+    if (f.context_reasoning) body.appendChild(el("div", "note", "<b>Why context mattered:</b> " + escapeHtml(f.context_reasoning)));
+    if (f.data_flow_summary) body.appendChild(el("p", "muted", "Data flow: <span class='mono'>" + escapeHtml(f.data_flow_summary) + "</span>"));
+    if (f.suggested_fix) body.appendChild(el("p", null, "<b>Fix:</b> " + escapeHtml(f.suggested_fix)));
+    const ctx = contexts[f.context_id];
+    if (ctx) {
+      const guards = ctx.guard_evidence || [];
+      body.appendChild(el("h3", null, `CPG context — ${escapeHtml(ctx.route_path || ctx.function || "")} · ${guards.length} guard(s) · ${(ctx.control_triggers||[]).length} trigger(s)`));
+      if (guards.length) {
+        const t = el("table");
+        t.innerHTML = "<tr><th>control</th><th>category</th><th class='num'>line</th><th class='num'>node id</th><th>code</th></tr>" +
+          guards.map(g => `<tr><td>${escapeHtml(g.control||"")}</td><td>${escapeHtml(g.category||"")}</td><td class='num'>${g.line}</td><td class='num'>${g.node_id}</td><td class='mono'>${escapeHtml((g.code||"").slice(0,90))}</td></tr>`).join("");
+        body.appendChild(t);
+      } else {
+        body.appendChild(el("p", "muted", "guard_evidence: (none) — this empty list is the candidate signal for absence mode"));
+      }
+    }
+    d.appendChild(body);
+    fp.appendChild(d);
+  });
+  b.appendChild(fp);
+}
+function metric(n, k) { return el("div", "metric", `<div class="n">${n}</div><div class="k">${k}</div>`); }
+function escapeHtml(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+// ---- benchmark ----
+async function loadBenchmark() {
+  const b = $("#benchmark-body"); b.innerHTML = '<div class="empty">loading…</div>';
+  const d = await (await fetch("/api/benchmark")).json();
+  b.innerHTML = "";
+  if (!d.has_data) { b.innerHTML = '<div class="empty">No eval data yet. Run <span class="mono">cpgvd corpus eval corpus/labels</span>.</div>'; return; }
+
+  if (d.overall.length) {
+    const p = el("div", "panel");
+    p.appendChild(el("h2", null, "Overall — control-absence detector (pooled)"));
+    const t = el("table");
+    t.innerHTML = "<tr><th>detector</th><th class='num'>apps</th><th class='num'>n</th><th class='num'>precision</th><th class='num'>recall</th><th class='num'>recall(raw)</th><th class='num'>F1</th><th class='num'>FP on clean</th></tr>" +
+      d.overall.map(r => `<tr><td>${r.detector}</td><td class='num'>${num(r.apps)}</td><td class='num'>${num(r.instances)}</td><td class='num'>${num(r.precision)}</td><td class='num'>${num(r.recall)}</td><td class='num'>${num(r.recall_raw)}</td><td class='num'>${num(r.f1)}</td><td class='num'>${num(r.fp_on_clean)}</td></tr>`).join("");
+    p.appendChild(t);
+    p.appendChild(barChart(d.overall.map(r => ({ label: r.detector, val: r.recall || 0 })), "recall"));
+    b.appendChild(p);
+  }
+  if (d.by_operator.length) {
+    const p = el("div", "panel");
+    p.appendChild(el("h2", null, "Recall by mutation operator"));
+    p.appendChild(el("p", "muted", "M1 route middleware · M2 ownership if · M3 role if · M4 session if · M5 validation-before-write"));
+    const cols = Object.keys(d.by_operator[0]).filter(k => k !== "operator");
+    const t = el("table");
+    t.innerHTML = `<tr><th>operator</th>${cols.map(c => `<th class='num'>${c}</th>`).join("")}</tr>` +
+      d.by_operator.map(r => `<tr><td>${r.operator}</td>${cols.map(c => `<td class='num'>${pct(r[c])}</td>`).join("")}</tr>`).join("");
+    p.appendChild(t);
+    b.appendChild(p);
+  }
+  if (d.heldout.length) {
+    const p = el("div", "panel");
+    p.appendChild(el("h2", null, "Held-out — OWASP Juice Shop (externally-authored labels, never tuned against)"));
+    const t = el("table");
+    t.innerHTML = "<tr><th>run</th><th>grounding</th><th class='num'>labels</th><th class='num'>detected</th><th class='num'>recall</th><th class='num'>class-match</th><th class='num'>unmatched findings</th></tr>" +
+      d.heldout.map(r => `<tr><td>${r.run}</td><td>${r.grounding}</td><td class='num'>${r.labels}</td><td class='num'>${r.detected}</td><td class='num'>${num(r.recall)}</td><td class='num'>${num(r.class_match)}</td><td class='num'>${r.unmatched_findings}</td></tr>`).join("");
+    p.appendChild(t);
+    if (d.heldout_classes.length) {
+      const cols = Object.keys(d.heldout_classes[0]).filter(k => k !== "control_class");
+      const t2 = el("table"); t2.style.marginTop = "12px";
+      t2.innerHTML = `<tr><th>control class</th>${cols.map(c => `<th class='num'>${c}</th>`).join("")}</tr>` +
+        d.heldout_classes.map(r => `<tr><td>${r.control_class}</td>${cols.map(c => `<td class='num'>${pct(r[c])}</td>`).join("")}</tr>`).join("");
+      p.appendChild(t2);
+    }
+    b.appendChild(p);
+  }
+  if (d.per_app.length) {
+    const p = el("div", "panel");
+    p.appendChild(el("h2", null, "Per app (grounded)"));
+    const keys = Object.keys(d.per_app[0]).filter(k => k !== "app");
+    const t = el("table");
+    t.innerHTML = `<tr><th>app</th>${keys.map(k => `<th class='num'>${k}</th>`).join("")}</tr>` +
+      d.per_app.map(r => `<tr><td class="mono">${r.app}</td>${keys.map(k => `<td class='num'>${num(r[k])}</td>`).join("")}</tr>`).join("");
+    p.appendChild(t);
+    b.appendChild(p);
+  }
+  if (d.results_md) {
+    const p = el("div", "panel");
+    const h = el("h2"); h.textContent = "RESULTS.md";
+    p.appendChild(h);
+    const pre = el("pre", "log"); pre.style.maxHeight = "500px"; pre.textContent = d.results_md;
+    p.appendChild(pre);
+    b.appendChild(p);
+  }
+}
+function barChart(rows, unit) {
+  const wrap = el("div"); wrap.style.marginTop = "12px";
+  const max = Math.max(0.001, ...rows.map(r => r.val));
+  rows.forEach(r => {
+    const line = el("div"); line.style.margin = "6px 0";
+    line.innerHTML = `<div class="muted" style="font-size:12px">${r.label} — ${(r.val*100).toFixed(0)}% ${unit}</div>`;
+    const bar = el("div", "bar"); const i = el("i"); i.style.width = (r.val / max * 100) + "%"; bar.appendChild(i);
+    line.appendChild(bar); wrap.appendChild(line);
+  });
+  return wrap;
+}
+</script>
+</body>
+</html>

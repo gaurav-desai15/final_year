@@ -39,7 +39,8 @@ out at the default concurrency — see the "Choosing a model" table in README.
   reusable, Joern server injectable), `config.py`, `repo_manager.py`,
   `joern_runner.py`, `cpg_client.py`, `context_extractor.py`, `rules.py`,
   `llm_providers.py`, `llm_analyzer.py` (prompt + schema + FP guards),
-  `models.py`, `report.py`, `dashboard.py`.
+  `models.py`, `report.py`, `webserver.py` + `web/index.html` (the
+  `cpgvd serve` local web UI: scan form, report viewer, benchmark tabs).
 - `rules/sinks_sources.yaml` — per-language sink/source regexes (injection mode).
 - `rules/control_absence.yaml` — per-language `triggers` / `guards` for
   `--mode absence` (missing-access-control detection).

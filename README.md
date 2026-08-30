@@ -215,22 +215,31 @@ Practical notes:
   same repo through the paid backend once — same CPG, same rules, so any
   difference in the findings is purely model quality.
 
-## Interactive dashboard
-
-For an interactive view of a report instead of reading `report.md`:
+## Web UI
 
 ```bash
-pip install -e ".[dashboard]"
-cpgvd dashboard --report cpgvd_output/report.json
+pip install -e ".[web]"
+cpgvd serve              # http://127.0.0.1:8000
 ```
 
-Opens a Streamlit app in your browser: summary metrics, a severity
-breakdown chart, a filterable/sortable findings table (by severity,
-confidence, or a text search), a CSV export, and an expandable detail
-view per finding (description, why the context mattered, data flow,
-suggested fix). It only reads the JSON report already on disk -- no
-Joern or LLM calls happen here, so it's safe to re-run against any past
-report, or point it at one via the sidebar / a direct file upload.
+A local FastAPI app with three tabs:
+
+- **Scan** — paste a GitHub URL or local path, pick mode / grounding /
+  provider, hit *Run scan*. It shells out to `cpgvd analyze` in a
+  background thread and streams the log live; when it finishes you jump
+  straight to the report. Run `cpgvd serve` from a shell where Joern (and
+  Ollama, for the default provider) are on PATH.
+- **Report** — severity metrics, H3/H5 numbers, a filterable findings
+  table with per-finding detail (description, why context mattered, data
+  flow, fix) and the CPG guard-evidence table for each finding. Picks up
+  any past `report.json` under `cpgvd_output/`.
+- **Benchmark** — the control-absence results from `corpus/eval/`:
+  grounded vs ungrounded vs Semgrep, recall by mutation operator, the
+  held-out Juice Shop numbers, per-app breakdown, and the full
+  `RESULTS.md`.
+
+Bound to localhost by default — the Scan tab runs shell commands with the
+path you give it, so don't expose it.
 
 ## How a finding gets made
 
@@ -278,7 +287,8 @@ src/cpgvd/
   llm_analyzer.py         provider-agnostic vulnerability judgment + prompt/schema
   models.py               shared pydantic data models
   report.py               Markdown / JSON / SARIF rendering
-  dashboard.py            Streamlit dashboard (`cpgvd dashboard`), reads report.json
+  webserver.py            FastAPI app for `cpgvd serve` (scan / report / benchmark)
+  web/index.html          the web UI (static, no build step)
 rules/sinks_sources.yaml  sink & source regex rules per language
 examples/vulnerable_app/  small worked examples (Flask + Express) with
                            both a safe and an unsafe call site for the

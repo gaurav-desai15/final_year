@@ -200,9 +200,9 @@ Key message:
   rule sets.
 - **Real, honest evaluation** — tested on real vulnerable apps, with the
   false positives diagnosed and driven back into the rules and prompt.
-- **Engineered properly** — 63 unit tests, mocked so they run without
-  Joern or a live model; Markdown/JSON/SARIF output; an optional
-  Streamlit dashboard.
+- **Engineered properly** — 213 unit tests, mocked so they run without
+  Joern or a live model; Markdown/JSON/SARIF output; a local web UI
+  (`cpgvd serve`) for scanning, the report, and the benchmark.
 
 ---
 
@@ -280,8 +280,8 @@ cp -r cpgvd_output cpgvd_output_nodegoat   # save it
 cpgvd analyze ./examples/vulnerable_app/python --language python
 cat cpgvd_output/report.md
 
-# optional wow-factor: the dashboard
-cpgvd dashboard --report cpgvd_output_nodegoat/report.json
+# optional wow-factor: the web UI (scan form + report + benchmark tabs)
+cpgvd serve
 ```
 
 If the live run fails for any reason: stay calm, say "I have a recorded

@@ -706,26 +706,33 @@ def corpus_stats(labels: tuple[Path, ...], holdout_frac: float) -> None:
 
 
 @main.command()
-@click.option(
-    "--report",
-    "report_path",
-    default="cpgvd_output/report.json",
-    type=click.Path(path_type=Path),
-    help="Path to a report.json written by `cpgvd analyze`.",
-)
-def dashboard(report_path: Path) -> None:
-    """Launch a Streamlit dashboard to browse a report.json interactively.
+@click.option("--host", default="127.0.0.1", show_default=True, help="Bind address (keep it local -- the Scan page runs shell commands).")
+@click.option("--port", default=8000, show_default=True, type=int)
+@click.option("--no-browser", is_flag=True, help="Don't open a browser tab.")
+def serve(host: str, port: int, no_browser: bool) -> None:
+    """Launch the local web UI: scan a repo, read its report, view the benchmark.
 
-    Requires the 'dashboard' extra: pip install -e ".[dashboard]"
+    Requires the 'web' extra: pip install -e ".[web]". Run it from a shell where
+    Joern (and Ollama, for the default provider) are on PATH -- the Scan page
+    shells out to `cpgvd analyze`.
     """
-    if shutil.which("streamlit") is None:
+    import importlib.util
+
+    missing = [m for m in ("fastapi", "uvicorn") if importlib.util.find_spec(m) is None]
+    if missing:
         raise click.ClickException(
-            "streamlit isn't installed. Run: pip install -e \".[dashboard]\""
+            f"missing {', '.join(missing)}. Install the web extra: pip install -e \".[web]\""
         )
-    dashboard_script = Path(__file__).parent / "dashboard.py"
-    cmd = [sys.executable, "-m", "streamlit", "run", str(dashboard_script), "--", "--report", str(report_path)]
-    console.print(f"[bold]Launching dashboard[/bold] for {report_path} ...")
-    subprocess.run(cmd, check=False)
+    from .webserver import serve as _serve
+
+    url = f"http://{host}:{port}"
+    console.print(f"[bold]cpgvd web UI[/bold] → {url}  (Ctrl-C to stop)")
+    if not no_browser:
+        import threading
+        import webbrowser
+
+        threading.Timer(1.0, lambda: webbrowser.open(url)).start()
+    _serve(host=host, port=port)
 
 
 def _print_summary(report: AnalysisReport, paths: dict[str, Path]) -> None:

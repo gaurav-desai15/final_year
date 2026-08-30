@@ -1,3 +1,0 @@
-# Only needed for `cpgvd dashboard` (interactive report viewer).
-streamlit>=1.38.0
-pandas>=2.0.0
