@@ -6,373 +6,527 @@
 <title>cpgvd</title>
 <style>
   :root {
-    --bg: #0f1115; --panel: #171a21; --panel2: #1e222b; --border: #2a2f3a;
-    --fg: #e6e9ef; --muted: #9aa4b2; --accent: #5b9dff; --accent2: #3b7ddd;
-    --ok: #3fb950; --warn: #d29922; --bad: #f85149;
-    --crit: #a371f7; --high: #f85149; --med: #d29922; --low: #3fb950; --info: #8b949e;
+    --bg:#0b0d12; --bg2:#0f121a; --panel:#141824; --panel-hi:#1b2030; --raise:#20263a;
+    --border:#262c3d; --border-hi:#333b52;
+    --fg:#e8ebf2; --fg-dim:#aab2c5; --fg-mute:#6f7891;
+    --accent:#6ea8fe; --accent-2:#8b7bff; --accent-ink:#0b0d12;
+    --ok:#3fb950; --warn:#d9a531; --bad:#f0616d;
+    --crit:#b388ff; --high:#f0616d; --med:#d9a531; --low:#3fb950; --info:#7d8699;
+    --r:14px; --r-sm:9px; --r-xs:6px;
+    --sh:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -8px rgba(0,0,0,.5);
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,"JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Helvetica,Arial,sans-serif;
   }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--fg);
-    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-  a { color: var(--accent); }
-  header { display: flex; align-items: center; gap: 16px; padding: 14px 20px;
-    border-bottom: 1px solid var(--border); background: var(--panel); }
-  header h1 { font-size: 16px; margin: 0; font-weight: 600; letter-spacing: .3px; }
-  header .shield { font-size: 18px; }
-  nav { display: flex; gap: 4px; margin-left: 8px; }
-  nav button { background: transparent; border: 1px solid transparent; color: var(--muted);
-    padding: 6px 14px; border-radius: 7px; cursor: pointer; font-size: 13px; }
-  nav button.active { background: var(--panel2); color: var(--fg); border-color: var(--border); }
-  nav button:hover { color: var(--fg); }
-  #health { margin-left: auto; font-size: 12px; color: var(--muted); display: flex; gap: 12px; }
-  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
-  .dot.up { background: var(--ok); } .dot.down { background: var(--bad); }
-  main { padding: 20px; max-width: 1100px; margin: 0 auto; }
-  .view { display: none; } .view.active { display: block; }
-  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin-bottom: 18px; }
-  h2 { font-size: 15px; margin: 0 0 14px; font-weight: 600; }
-  h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin: 22px 0 10px; }
-  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
-  input, select { width: 100%; background: var(--panel2); border: 1px solid var(--border); color: var(--fg);
-    padding: 8px 10px; border-radius: 7px; font: inherit; }
-  input:focus, select:focus { outline: none; border-color: var(--accent); }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
-  .field { margin-bottom: 12px; }
-  button.primary { background: var(--accent2); border: 1px solid var(--accent); color: #fff;
-    padding: 9px 18px; border-radius: 8px; cursor: pointer; font: inherit; font-weight: 600; }
-  button.primary:disabled { opacity: .5; cursor: default; }
-  button.ghost { background: var(--panel2); border: 1px solid var(--border); color: var(--fg);
-    padding: 7px 12px; border-radius: 7px; cursor: pointer; font: inherit; }
-  pre.log { background: #0b0d11; border: 1px solid var(--border); border-radius: 8px; padding: 12px;
-    max-height: 340px; overflow: auto; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
-    color: #c9d1d9; white-space: pre-wrap; word-break: break-word; }
-  .metrics { display: flex; gap: 10px; flex-wrap: wrap; }
-  .metric { background: var(--panel2); border: 1px solid var(--border); border-radius: 9px;
-    padding: 10px 14px; min-width: 88px; }
-  .metric .n { font-size: 20px; font-weight: 700; }
-  .metric .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); }
-  th { color: var(--muted); font-weight: 600; font-size: 12px; }
-  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-  tr:hover td { background: var(--panel2); }
-  .sev { display: inline-block; padding: 1px 7px; border-radius: 5px; font-size: 11px; font-weight: 700; }
-  .sev.critical { background: rgba(163,113,247,.18); color: var(--crit); }
-  .sev.high { background: rgba(248,81,73,.16); color: var(--high); }
-  .sev.medium { background: rgba(210,153,34,.16); color: var(--med); }
-  .sev.low { background: rgba(63,185,80,.16); color: var(--low); }
-  .sev.info { background: rgba(139,148,158,.16); color: var(--info); }
-  details.finding { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; background: var(--panel2); }
-  details.finding summary { padding: 10px 12px; cursor: pointer; list-style: none; display: flex; gap: 10px; align-items: center; }
-  details.finding summary::-webkit-details-marker { display: none; }
-  details.finding .body { padding: 0 14px 14px; border-top: 1px solid var(--border); }
-  .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 12px 0; }
-  .kv div { font-size: 12px; } .kv .k { color: var(--muted); }
-  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
-  .muted { color: var(--muted); }
-  .bar { height: 8px; background: var(--panel2); border-radius: 4px; overflow: hidden; }
-  .bar > i { display: block; height: 100%; background: var(--accent); }
-  .note { background: rgba(91,157,255,.1); border: 1px solid rgba(91,157,255,.3); border-radius: 8px; padding: 10px 12px; font-size: 13px; }
-  .pill { font-size: 11px; padding: 1px 7px; border: 1px solid var(--border); border-radius: 20px; color: var(--muted); }
-  .empty { color: var(--muted); padding: 30px; text-align: center; }
+  * { box-sizing:border-box; }
+  html,body { height:100%; }
+  body { margin:0; background:
+      radial-gradient(1200px 600px at 15% -10%, rgba(110,168,254,.08), transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, rgba(139,123,255,.07), transparent 55%),
+      var(--bg);
+    color:var(--fg); font:14.5px/1.6 var(--sans); -webkit-font-smoothing:antialiased; }
+  a { color:var(--accent); text-decoration:none; }
+  ::selection { background:rgba(110,168,254,.3); }
+  ::-webkit-scrollbar { width:10px; height:10px; }
+  ::-webkit-scrollbar-thumb { background:var(--raise); border-radius:10px; border:2px solid transparent; background-clip:padding-box; }
+
+  /* header */
+  header { position:sticky; top:0; z-index:20; display:flex; align-items:center; gap:18px;
+    padding:12px 22px; background:rgba(11,13,18,.75); backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--border); }
+  .brand { display:flex; align-items:center; gap:10px; font-weight:650; letter-spacing:.2px; }
+  .brand .logo { width:26px; height:26px; border-radius:8px; display:grid; place-items:center;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2)); color:var(--accent-ink); font-size:15px; box-shadow:var(--sh); }
+  nav { display:flex; gap:2px; padding:3px; background:var(--panel); border:1px solid var(--border); border-radius:11px; }
+  nav button { appearance:none; background:transparent; border:0; color:var(--fg-mute); cursor:pointer;
+    padding:7px 15px; border-radius:8px; font:inherit; font-weight:550; transition:.15s; }
+  nav button:hover { color:var(--fg-dim); }
+  nav button.active { background:var(--raise); color:var(--fg); box-shadow:0 1px 0 rgba(255,255,255,.04) inset; }
+  #health { margin-left:auto; display:flex; gap:8px; }
+  .chip { display:flex; align-items:center; gap:7px; font-size:12px; color:var(--fg-dim);
+    background:var(--panel); border:1px solid var(--border); border-radius:20px; padding:5px 11px; }
+  .chip .dot { width:7px; height:7px; border-radius:50%; box-shadow:0 0 0 3px rgba(255,255,255,.03); }
+  .dot.up { background:var(--ok); } .dot.down { background:var(--bad); } .dot.wait { background:var(--fg-mute); }
+
+  main { max-width:1080px; margin:0 auto; padding:26px 22px 80px; }
+  .view { display:none; animation:fade .25s ease; }
+  .view.active { display:block; }
+  @keyframes fade { from { opacity:0; transform:translateY(4px); } }
+
+  .card { background:linear-gradient(180deg,var(--panel),var(--bg2)); border:1px solid var(--border);
+    border-radius:var(--r); padding:22px; margin-bottom:18px; box-shadow:var(--sh); }
+  .card h2 { font-size:15px; margin:0 0 4px; font-weight:640; letter-spacing:.2px; }
+  .card .sub { color:var(--fg-mute); font-size:13px; margin:0 0 18px; }
+  h3 { font-size:11.5px; text-transform:uppercase; letter-spacing:.9px; color:var(--fg-mute); margin:24px 0 12px; font-weight:650; }
+
+  label { display:block; font-size:12px; color:var(--fg-dim); margin-bottom:6px; font-weight:550; }
+  input, select { width:100%; background:var(--bg2); border:1px solid var(--border-hi); color:var(--fg);
+    padding:10px 12px; border-radius:var(--r-sm); font:inherit; transition:.15s; }
+  input::placeholder { color:var(--fg-mute); }
+  input:focus, select:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(110,168,254,.16); }
+  select { appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236f7891'%3E%3Cpath d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 12px center; padding-right:34px; }
+  .field { margin-bottom:14px; }
+  .row { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; }
+
+  /* segmented control */
+  .seg { display:inline-flex; padding:3px; gap:2px; background:var(--bg2); border:1px solid var(--border-hi); border-radius:var(--r-sm); }
+  .seg button { appearance:none; border:0; background:transparent; color:var(--fg-mute); cursor:pointer;
+    padding:8px 14px; border-radius:7px; font:inherit; font-weight:550; white-space:nowrap; transition:.15s; }
+  .seg button:hover { color:var(--fg-dim); }
+  .seg button.on { background:var(--raise); color:var(--fg); box-shadow:var(--sh); }
+
+  button.btn { appearance:none; cursor:pointer; font:inherit; font-weight:600; border-radius:var(--r-sm);
+    padding:10px 20px; transition:.15s; }
+  button.primary { border:1px solid rgba(110,168,254,.5); color:var(--accent-ink);
+    background:linear-gradient(135deg,var(--accent),var(--accent-2)); box-shadow:0 4px 16px -4px rgba(110,168,254,.5); }
+  button.primary:hover { filter:brightness(1.07); }
+  button.primary:disabled { opacity:.45; cursor:default; filter:none; }
+  button.ghost { border:1px solid var(--border-hi); background:var(--panel-hi); color:var(--fg); padding:9px 15px; }
+  button.ghost:hover { border-color:var(--accent); }
+
+  .path-row { display:flex; gap:10px; }
+  .path-row input { flex:1; font-family:var(--mono); font-size:13px; }
+
+  pre.log { background:#07090d; border:1px solid var(--border); border-radius:var(--r-sm); padding:14px 16px;
+    max-height:360px; overflow:auto; font:12.5px/1.55 var(--mono); color:#cdd6e6; white-space:pre-wrap; word-break:break-word; }
+
+  .metrics { display:flex; gap:12px; flex-wrap:wrap; }
+  .metric { flex:1; min-width:96px; background:var(--panel-hi); border:1px solid var(--border); border-radius:var(--r-sm); padding:13px 15px; }
+  .metric .n { font-size:22px; font-weight:720; letter-spacing:-.5px; }
+  .metric .k { font-size:11px; color:var(--fg-mute); text-transform:uppercase; letter-spacing:.6px; margin-top:2px; }
+
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th,td { text-align:left; padding:9px 12px; border-bottom:1px solid var(--border); }
+  th { color:var(--fg-mute); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.5px; }
+  td.num,th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  tbody tr { transition:.1s; } tbody tr:hover td { background:var(--panel-hi); }
+  .tbl-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:var(--r-sm); }
+  .tbl-wrap table th:first-child, .tbl-wrap table td:first-child { padding-left:16px; }
+
+  .sev { display:inline-block; padding:2px 8px; border-radius:5px; font-size:10.5px; font-weight:750; letter-spacing:.4px; }
+  .sev.critical { background:rgba(179,136,255,.16); color:var(--crit); }
+  .sev.high { background:rgba(240,97,109,.16); color:var(--high); }
+  .sev.medium { background:rgba(217,165,49,.16); color:var(--med); }
+  .sev.low { background:rgba(63,185,80,.16); color:var(--low); }
+  .sev.info { background:rgba(125,134,153,.16); color:var(--info); }
+
+  details.finding { border:1px solid var(--border); border-radius:var(--r-sm); margin-bottom:9px;
+    background:var(--panel-hi); overflow:hidden; }
+  details.finding[open] { border-color:var(--border-hi); }
+  details.finding summary { padding:12px 14px; cursor:pointer; list-style:none; display:flex; gap:11px; align-items:center; }
+  details.finding summary::-webkit-details-marker { display:none; }
+  details.finding summary:hover { background:var(--raise); }
+  details.finding .body { padding:4px 16px 16px; border-top:1px solid var(--border); }
+  .kv { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin:14px 0; }
+  .kv .k { color:var(--fg-mute); font-size:11px; text-transform:uppercase; letter-spacing:.5px; }
+  .kv .v { font-size:13px; margin-top:3px; }
+  code,.mono { font-family:var(--mono); font-size:12.5px; }
+  .muted { color:var(--fg-mute); }
+  .dim { color:var(--fg-dim); }
+
+  .note { background:rgba(110,168,254,.08); border:1px solid rgba(110,168,254,.22); border-radius:var(--r-sm); padding:11px 13px; font-size:13px; margin:10px 0; }
+  .status-pill { font-size:12px; font-weight:600; padding:4px 11px; border-radius:20px; border:1px solid var(--border-hi); color:var(--fg-dim); }
+  .status-pill.run { color:var(--accent); border-color:rgba(110,168,254,.4); }
+  .status-pill.ok { color:var(--ok); border-color:rgba(63,185,80,.4); }
+  .status-pill.err { color:var(--bad); border-color:rgba(240,97,109,.4); }
+
+  .bar { height:8px; background:var(--bg2); border-radius:5px; overflow:hidden; border:1px solid var(--border); }
+  .bar > i { display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent-2)); border-radius:5px; }
+
+  .empty { color:var(--fg-mute); padding:44px; text-align:center; }
+  .spinner { width:15px; height:15px; border:2px solid var(--border-hi); border-top-color:var(--accent); border-radius:50%; display:inline-block; animation:spin .7s linear infinite; vertical-align:-3px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  /* modal */
+  .modal-back { position:fixed; inset:0; background:rgba(4,6,10,.6); backdrop-filter:blur(4px); z-index:50;
+    display:none; align-items:center; justify-content:center; animation:fade .18s ease; }
+  .modal-back.open { display:flex; }
+  .modal { width:min(620px,92vw); max-height:78vh; display:flex; flex-direction:column;
+    background:var(--panel); border:1px solid var(--border-hi); border-radius:var(--r); box-shadow:0 30px 80px -20px rgba(0,0,0,.7); overflow:hidden; }
+  .modal-head { padding:16px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px; }
+  .modal-head b { font-size:14px; }
+  .modal-head .x { margin-left:auto; cursor:pointer; color:var(--fg-mute); font-size:18px; line-height:1; }
+  .crumb { padding:11px 18px; font-family:var(--mono); font-size:12.5px; color:var(--fg-dim); background:var(--bg2);
+    border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; overflow-x:auto; white-space:nowrap; }
+  .fs-list { overflow-y:auto; flex:1; padding:6px; }
+  .fs-item { display:flex; align-items:center; gap:11px; padding:9px 12px; border-radius:var(--r-xs); cursor:pointer; font-size:13.5px; }
+  .fs-item:hover { background:var(--panel-hi); }
+  .fs-item .ic { color:var(--accent); }
+  .fs-item .repo-badge { margin-left:auto; font-size:10px; font-weight:700; letter-spacing:.4px; color:var(--ok);
+    background:rgba(63,185,80,.14); padding:1px 7px; border-radius:5px; }
+  .modal-foot { padding:14px 18px; border-top:1px solid var(--border); display:flex; align-items:center; gap:12px; }
+  .modal-foot .cur { flex:1; font-family:var(--mono); font-size:12px; color:var(--fg-mute); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .toggle { display:flex; align-items:center; gap:7px; font-size:12px; color:var(--fg-dim); cursor:pointer; user-select:none; }
 </style>
 </head>
 <body>
 <header>
-  <span class="shield">🛡️</span>
-  <h1>cpgvd</h1>
+  <div class="brand"><span class="logo">🛡</span><span>cpgvd</span></div>
   <nav>
     <button data-view="scan" class="active">Scan</button>
     <button data-view="report">Report</button>
     <button data-view="benchmark">Benchmark</button>
   </nav>
-  <div id="health"></div>
+  <div id="health">
+    <span class="chip"><span class="dot wait" id="h-joern"></span>Joern</span>
+    <span class="chip"><span class="dot wait" id="h-ollama"></span>Ollama</span>
+  </div>
 </header>
 
 <main>
-  <!-- SCAN -->
+  <!-- ============ SCAN ============ -->
   <section id="view-scan" class="view active">
-    <div class="panel">
+    <div class="card">
       <h2>Scan a repository</h2>
+      <p class="sub">Clone or open a repo, build its CPG, and ask the model which routes / flows are real vulnerabilities.</p>
+
       <div class="field">
-        <label>GitHub URL or local path</label>
-        <input id="repo" placeholder="https://github.com/OWASP/NodeGoat   or   ./examples/vulnerable_app/python">
+        <label>Source</label>
+        <div class="seg" id="src-seg">
+          <button data-src="url" class="on">GitHub URL</button>
+          <button data-src="local">Local folder</button>
+        </div>
       </div>
-      <div class="grid">
-        <div><label>Mode</label>
-          <select id="mode">
-            <option value="absence">absence — missing access control</option>
-            <option value="injection">injection — taint → sink</option>
-            <option value="both">both</option>
-          </select></div>
-        <div><label>Grounding</label>
-          <select id="grounding">
-            <option value="cpg">cpg — CPG context slice</option>
-            <option value="raw">raw — whole file (H2 baseline)</option>
-          </select></div>
+
+      <div class="field" id="src-url">
+        <label>Repository URL</label>
+        <input id="repo-url" placeholder="https://github.com/OWASP/NodeGoat">
+      </div>
+
+      <div class="field" id="src-local" style="display:none;">
+        <label>Local path</label>
+        <div class="path-row">
+          <input id="repo-local" placeholder="no folder selected" readonly>
+          <button class="btn ghost" id="browse-btn">📁 Browse…</button>
+        </div>
+      </div>
+
+      <h3>Options</h3>
+      <div class="field">
+        <label>Mode</label>
+        <div class="seg" id="mode-seg">
+          <button data-v="absence" class="on">Absence · missing access control</button>
+          <button data-v="injection">Injection · taint → sink</button>
+          <button data-v="both">Both</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Grounding</label>
+        <div class="seg" id="grounding-seg">
+          <button data-v="cpg" class="on">CPG slice</button>
+          <button data-v="raw">Raw file · H2 baseline</button>
+        </div>
+      </div>
+      <div class="row">
         <div><label>LLM provider</label>
           <select id="provider">
-            <option value="ollama">ollama (free, local)</option>
-            <option value="anthropic">anthropic (paid)</option>
+            <option value="ollama">Ollama (free, local)</option>
+            <option value="anthropic">Anthropic (paid)</option>
           </select></div>
-        <div><label>Language (blank = auto)</label><input id="language" placeholder="javascript"></div>
-        <div><label>Model (blank = default)</label><input id="model" placeholder="qwen2.5-coder:7b"></div>
+        <div><label>Language <span class="muted">(auto)</span></label><input id="language" placeholder="javascript"></div>
+        <div><label>Model <span class="muted">(default)</span></label><input id="model" placeholder="qwen2.5-coder:7b"></div>
         <div><label>Max contexts</label><input id="max_contexts" type="number" value="15" min="1" max="200"></div>
-        <div><label>Git ref (optional)</label><input id="ref" placeholder="main / v1.2.3 / sha"></div>
+        <div><label>Git ref <span class="muted">(optional)</span></label><input id="ref" placeholder="main / v1.2 / sha"></div>
       </div>
-      <div style="margin-top:14px; display:flex; gap:10px; align-items:center;">
-        <button id="run" class="primary">Run scan</button>
+
+      <div style="margin-top:20px; display:flex; gap:14px; align-items:center;">
+        <button id="run" class="btn primary">Run scan</button>
         <span id="scan-status" class="muted"></span>
       </div>
     </div>
-    <div class="panel" id="scan-log-panel" style="display:none;">
-      <h2>Scan log</h2>
-      <pre class="log" id="scan-log"></pre>
-      <div style="margin-top:10px;">
-        <button id="view-scan-report" class="ghost" style="display:none;">View report →</button>
+
+    <div class="card" id="scan-log-card" style="display:none;">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+        <h2 style="margin:0;">Scan log</h2>
+        <span id="scan-pill" class="status-pill run">running</span>
+        <button id="open-report" class="btn ghost" style="display:none; margin-left:auto;">View report →</button>
       </div>
+      <pre class="log" id="scan-log"></pre>
     </div>
   </section>
 
-  <!-- REPORT -->
+  <!-- ============ REPORT ============ -->
   <section id="view-report" class="view">
-    <div class="panel">
+    <div class="card">
       <h2>Report</h2>
-      <div class="field">
-        <label>Saved reports</label>
-        <select id="report-picker"></select>
-      </div>
-      <div id="report-meta" class="muted"></div>
+      <p class="sub">Findings from a past scan. Every scan under <code>cpgvd_output/</code> shows up here.</p>
+      <div class="field"><label>Saved reports</label><select id="report-picker"></select></div>
+      <div id="report-meta" class="muted mono" style="font-size:12px;"></div>
     </div>
     <div id="report-body"></div>
   </section>
 
-  <!-- BENCHMARK -->
+  <!-- ============ BENCHMARK ============ -->
   <section id="view-benchmark" class="view">
-    <div id="benchmark-body"></div>
+    <div id="benchmark-body"><div class="empty">loading…</div></div>
   </section>
 </main>
 
+<!-- folder picker -->
+<div class="modal-back" id="fs-modal">
+  <div class="modal">
+    <div class="modal-head"><b>Select a repository folder</b><span class="x" id="fs-close">✕</span></div>
+    <div class="crumb" id="fs-crumb"></div>
+    <div class="fs-list" id="fs-list"></div>
+    <div class="modal-foot">
+      <label class="toggle"><input type="checkbox" id="fs-hidden" style="width:auto;"> show hidden</label>
+      <span class="cur" id="fs-cur"></span>
+      <button class="btn primary" id="fs-use">Use this folder</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const $ = s => document.querySelector(s);
-const el = (t, c, h) => { const e = document.createElement(t); if (c) e.className = c; if (h != null) e.innerHTML = h; return e; };
-const pct = v => v == null ? "—" : (v * 100).toFixed(0) + "%";
-const num = v => v == null ? "—" : (typeof v === "number" ? (Number.isInteger(v) ? v : v.toFixed(2)) : v);
+const el = (t,c,h) => { const e=document.createElement(t); if(c)e.className=c; if(h!=null)e.innerHTML=h; return e; };
+const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const pct = v => v==null ? "—" : (v*100).toFixed(0)+"%";
+const num = v => v==null ? "—" : (typeof v==="number" ? (Number.isInteger(v)?v:v.toFixed(2)) : v);
 
-// ---- nav ----
+/* nav */
 document.querySelectorAll("nav button").forEach(b => b.onclick = () => show(b.dataset.view));
-function show(v) {
-  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("active", b.dataset.view === v));
-  document.querySelectorAll(".view").forEach(s => s.classList.toggle("active", s.id === "view-" + v));
-  if (v === "report") loadReportList();
-  if (v === "benchmark") loadBenchmark();
+function show(v){
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("active", b.dataset.view===v));
+  document.querySelectorAll(".view").forEach(s => s.classList.toggle("active", s.id==="view-"+v));
+  if (v==="report") loadReportList();
+  if (v==="benchmark") loadBenchmark();
 }
 
-// ---- health ----
-fetch("/api/health").then(r => r.json()).then(h => {
-  $("#health").innerHTML =
-    `<span><span class="dot ${h.joern ? "up" : "down"}"></span>Joern</span>` +
-    `<span><span class="dot ${h.ollama ? "up" : "down"}"></span>Ollama</span>`;
-}).catch(() => {});
+/* segmented controls */
+function seg(id, cb){
+  const wrap = $("#"+id);
+  wrap.querySelectorAll("button").forEach(b => b.onclick = () => {
+    wrap.querySelectorAll("button").forEach(x => x.classList.toggle("on", x===b));
+    cb && cb(b.dataset.v || b.dataset.src);
+  });
+}
+let SRC = "url";
+seg("src-seg", v => { SRC=v; $("#src-url").style.display = v==="url"?"":"none"; $("#src-local").style.display = v==="local"?"":"none"; });
+seg("mode-seg"); seg("grounding-seg");
+const segVal = id => ($("#"+id+" button.on")||{}).dataset && $("#"+id+" button.on").dataset.v;
 
-// ---- scan ----
+/* health */
+fetch("/api/health").then(r=>r.json()).then(h=>{
+  $("#h-joern").className = "dot " + (h.joern?"up":"down");
+  $("#h-ollama").className = "dot " + (h.ollama?"up":"down");
+}).catch(()=>{});
+
+/* ---------- folder picker ---------- */
+const fsModal = $("#fs-modal");
+let fsCur = "";
+$("#browse-btn").onclick = () => { fsModal.classList.add("open"); fsBrowse(null); };
+$("#fs-close").onclick = () => fsModal.classList.remove("open");
+fsModal.onclick = e => { if (e.target===fsModal) fsModal.classList.remove("open"); };
+$("#fs-hidden").onchange = () => fsBrowse(fsCur);
+$("#fs-use").onclick = () => {
+  $("#repo-local").value = fsCur;
+  fsModal.classList.remove("open");
+};
+async function fsBrowse(path){
+  const hidden = $("#fs-hidden").checked;
+  const q = new URLSearchParams(); if (path) q.set("path", path); if (hidden) q.set("hidden","true");
+  const d = await (await fetch("/api/browse?"+q)).json();
+  fsCur = d.path;
+  $("#fs-cur").textContent = d.path + (d.is_repo ? "   ✓ looks like a repo" : "");
+  const crumb = $("#fs-crumb"); crumb.innerHTML = "";
+  const up = el("span", null, "⬆ up"); up.style.cssText="cursor:pointer;color:var(--accent)";
+  up.onclick = () => d.parent && fsBrowse(d.parent);
+  if (d.parent) { crumb.appendChild(up); crumb.appendChild(el("span",null,"·")); }
+  crumb.appendChild(el("span", null, esc(d.path)));
+  const list = $("#fs-list"); list.innerHTML = "";
+  if (!d.dirs.length) list.appendChild(el("div","empty","(no sub-folders)"));
+  d.dirs.forEach(dir => {
+    const it = el("div","fs-item");
+    it.innerHTML = `<span class="ic">📁</span><span>${esc(dir.name)}</span>` + (dir.is_repo?`<span class="repo-badge">REPO</span>`:"");
+    it.onclick = () => fsBrowse(dir.path);
+    list.appendChild(it);
+  });
+}
+
+/* ---------- scan ---------- */
 $("#run").onclick = async () => {
+  const repo = SRC==="url" ? $("#repo-url").value.trim() : $("#repo-local").value.trim();
+  if (!repo) { $("#scan-status").textContent = SRC==="url" ? "enter a URL" : "pick a folder"; return; }
   const body = {
-    repo: $("#repo").value, mode: $("#mode").value, grounding: $("#grounding").value,
-    provider: $("#provider").value, model: $("#model").value, language: $("#language").value,
-    ref: $("#ref").value, max_contexts: parseInt($("#max_contexts").value || "15"),
+    repo, mode:segVal("mode-seg"), grounding:segVal("grounding-seg"),
+    provider:$("#provider").value, model:$("#model").value, language:$("#language").value,
+    ref:$("#ref").value, max_contexts:parseInt($("#max_contexts").value||"15"),
   };
-  if (!body.repo.trim()) { $("#scan-status").textContent = "enter a repo"; return; }
   $("#run").disabled = true;
-  $("#scan-status").textContent = "starting…";
-  $("#scan-log-panel").style.display = "";
+  $("#scan-status").innerHTML = '<span class="spinner"></span> starting…';
+  $("#scan-log-card").style.display = "";
   $("#scan-log").textContent = "";
-  $("#view-scan-report").style.display = "none";
+  $("#open-report").style.display = "none";
+  $("#scan-pill").className = "status-pill run"; $("#scan-pill").textContent = "running";
+
   let job;
-  try {
-    job = await (await fetch("/api/scan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })).json();
-  } catch (e) { $("#scan-status").textContent = "failed to start"; $("#run").disabled = false; return; }
-  if (!job.job_id) { $("#scan-status").textContent = job.detail || "error"; $("#run").disabled = false; return; }
+  try { job = await (await fetch("/api/scan",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})).json(); }
+  catch { $("#scan-status").textContent="failed to start"; $("#run").disabled=false; return; }
+  if (!job.job_id) { $("#scan-status").textContent = job.detail || "error"; $("#run").disabled=false; return; }
 
   const es = new EventSource(`/api/scan/${job.job_id}/stream`);
   const logEl = $("#scan-log");
   es.onmessage = ev => {
     const d = JSON.parse(ev.data);
-    if (d.line != null) { logEl.textContent += d.line + "\n"; logEl.scrollTop = logEl.scrollHeight; }
+    if (d.line!=null){ const near = logEl.scrollTop+logEl.clientHeight >= logEl.scrollHeight-40;
+      logEl.textContent += d.line+"\n"; if (near) logEl.scrollTop = logEl.scrollHeight; }
   };
   es.addEventListener("done", ev => {
     es.close();
     const d = JSON.parse(ev.data);
     $("#run").disabled = false;
-    $("#scan-status").textContent = d.status === "done" ? `finished in ${d.elapsed}s` : `failed (exit ${d.returncode})`;
-    if (d.report_available) {
-      $("#view-scan-report").style.display = "";
-      $("#view-scan-report").onclick = async () => {
+    $("#scan-status").textContent = "";
+    const good = d.status==="done";
+    $("#scan-pill").className = "status-pill " + (good?"ok":"err");
+    $("#scan-pill").textContent = good ? `done · ${d.elapsed}s` : `failed · exit ${d.returncode}`;
+    if (d.report_available){
+      const btn = $("#open-report"); btn.style.display = "";
+      btn.onclick = async () => {
         const rep = await (await fetch(`/api/scan/${job.job_id}/report`)).json();
-        show("report");
-        renderReport(rep);
-        $("#report-meta").textContent = "(from the scan just run)";
+        show("report"); renderReport(rep); $("#report-meta").textContent = "(from the scan just run)";
       };
     }
   });
-  es.onerror = () => { es.close(); $("#run").disabled = false; $("#scan-status").textContent = "stream closed"; };
+  es.onerror = () => { es.close(); $("#run").disabled=false; $("#scan-status").textContent="stream closed"; };
 };
 
-// ---- report ----
-async function loadReportList() {
+/* ---------- report ---------- */
+const SEVS = ["critical","high","medium","low","info"];
+async function loadReportList(){
   const rs = await (await fetch("/api/reports")).json();
-  const picker = $("#report-picker");
-  picker.innerHTML = "";
-  if (!rs.length) { picker.innerHTML = "<option>— no saved reports —</option>"; $("#report-body").innerHTML = '<div class="empty">Run a scan first.</div>'; return; }
-  rs.forEach(r => {
-    const o = el("option"); o.value = r.path;
-    o.textContent = `${r.repo}  ·  ${r.n_findings} findings  ·  ${r.path}`;
-    picker.appendChild(o);
-  });
+  const picker = $("#report-picker"); picker.innerHTML = "";
+  if (!rs.length){ picker.innerHTML="<option>— no saved reports —</option>"; $("#report-body").innerHTML='<div class="card"><div class="empty">Run a scan first.</div></div>'; return; }
+  rs.forEach(r => { const o=el("option"); o.value=r.path; o.textContent=`${r.repo}  ·  ${r.n_findings} findings  ·  ${r.path}`; picker.appendChild(o); });
   picker.onchange = () => openReport(picker.value);
   openReport(rs[0].path);
 }
-async function openReport(path) {
-  const rep = await (await fetch("/api/report?path=" + encodeURIComponent(path))).json();
-  $("#report-meta").innerHTML = `<span class="mono">${rep.repo || "?"}</span> · commit <span class="mono">${(rep.commit_sha||"").slice(0,12)||"n/a"}</span> · model <span class="mono">${rep.model||"?"}</span> · ${rep.generated_at||""}`;
+async function openReport(path){
+  const rep = await (await fetch("/api/report?path="+encodeURIComponent(path))).json();
+  $("#report-meta").innerHTML = `${esc(rep.repo||"?")} · commit ${(rep.commit_sha||"").slice(0,12)||"n/a"} · model ${esc(rep.model||"?")} · ${rep.generated_at||""}`;
   renderReport(rep);
 }
-const SEVS = ["critical", "high", "medium", "low", "info"];
-function renderReport(rep) {
+function metric(n,k){ return el("div","metric",`<div class="n">${n}</div><div class="k">${k}</div>`); }
+function renderReport(rep){
   const b = $("#report-body"); b.innerHTML = "";
   const findings = rep.findings || [];
-  const by = {}; SEVS.forEach(s => by[s] = 0); findings.forEach(f => by[f.severity] = (by[f.severity] || 0) + 1);
+  const by = {}; SEVS.forEach(s=>by[s]=0); findings.forEach(f=>by[f.severity]=(by[f.severity]||0)+1);
 
-  const mp = el("div", "panel");
-  mp.appendChild(el("h2", null, "Summary"));
-  const m = el("div", "metrics");
-  m.appendChild(metric(findings.length, "findings"));
-  SEVS.forEach(s => m.appendChild(metric(by[s] || 0, s)));
+  const mp = el("div","card"); mp.appendChild(el("h2",null,"Summary"));
+  const m = el("div","metrics");
+  m.appendChild(metric(findings.length,"findings"));
+  SEVS.forEach(s => m.appendChild(metric(by[s]||0, s)));
   mp.appendChild(m);
-  const met = rep.metrics || {};
-  if (met.compression || met.grounded_findings) {
-    const m2 = el("div", "metrics"); m2.style.marginTop = "10px";
-    const c = met.compression || {}, g = met.grounded_findings || {};
-    if (c.slice_over_file_mean != null) m2.appendChild(metric(pct(c.slice_over_file_mean), "H3 slice / file"));
-    if (c.slice_over_repo_mean != null) m2.appendChild(metric((c.slice_over_repo_mean * 100).toFixed(2) + "%", "H3 slice / repo"));
-    if (g.ratio != null) m2.appendChild(metric(pct(g.ratio), "H5 grounded findings"));
+  const met = rep.metrics||{}, c = met.compression||{}, g = met.grounded_findings||{};
+  if (c.slice_over_file_mean!=null || g.ratio!=null){
+    const m2 = el("div","metrics"); m2.style.marginTop="12px";
+    if (c.slice_over_file_mean!=null) m2.appendChild(metric(pct(c.slice_over_file_mean),"H3 slice / file"));
+    if (c.slice_over_repo_mean!=null) m2.appendChild(metric((c.slice_over_repo_mean*100).toFixed(2)+"%","H3 slice / repo"));
+    if (g.ratio!=null) m2.appendChild(metric(pct(g.ratio),"H5 grounded findings"));
     mp.appendChild(m2);
   }
   b.appendChild(mp);
+  if (!findings.length){ b.appendChild(el("div","card",'<div class="empty">No findings 🎉</div>')); return; }
 
-  if (!findings.length) { b.appendChild(el("div", "empty", "No findings. 🎉")); return; }
-
-  const fp = el("div", "panel");
-  fp.appendChild(el("h2", null, "Findings"));
-  const contexts = {}; (rep.contexts || []).forEach(c => contexts[c.context_id] = c);
-  findings.slice().sort((a, z) => SEVS.indexOf(a.severity) - SEVS.indexOf(z.severity)).forEach(f => {
-    const d = el("details", "finding");
-    const s = el("summary");
-    s.innerHTML = `<span class="sev ${f.severity}">${f.severity.toUpperCase()}</span>` +
-      `<b>${escapeHtml(f.title || f.vulnerability_type)}</b>` +
-      `<span class="muted mono" style="margin-left:auto">${escapeHtml(f.file)}:${f.start_line}</span>`;
-    d.appendChild(s);
-    const body = el("div", "body");
-    body.appendChild(el("div", "kv",
-      `<div><span class="k">Type</span><br>${escapeHtml(f.vulnerability_type)} <span class="muted">${escapeHtml(f.cwe||"")}</span></div>` +
-      `<div><span class="k">Function</span><br><span class="mono">${escapeHtml(f.function||"")}</span></div>` +
-      `<div><span class="k">Confidence</span><br>${escapeHtml(f.confidence||"")}</div>` +
-      `<div><span class="k">Location</span><br><span class="mono">${escapeHtml(f.file)}:${f.start_line}-${f.end_line}</span></div>`));
-    if (f.description) body.appendChild(el("p", null, escapeHtml(f.description)));
-    if (f.context_reasoning) body.appendChild(el("div", "note", "<b>Why context mattered:</b> " + escapeHtml(f.context_reasoning)));
-    if (f.data_flow_summary) body.appendChild(el("p", "muted", "Data flow: <span class='mono'>" + escapeHtml(f.data_flow_summary) + "</span>"));
-    if (f.suggested_fix) body.appendChild(el("p", null, "<b>Fix:</b> " + escapeHtml(f.suggested_fix)));
+  const fp = el("div","card"); fp.appendChild(el("h2",null,`Findings <span class="muted">(${findings.length})</span>`));
+  const contexts = {}; (rep.contexts||[]).forEach(c => contexts[c.context_id]=c);
+  findings.slice().sort((a,z)=>SEVS.indexOf(a.severity)-SEVS.indexOf(z.severity)).forEach(f=>{
+    const d = el("details","finding");
+    d.appendChild(el("summary",null,
+      `<span class="sev ${f.severity}">${f.severity.toUpperCase()}</span>`+
+      `<b>${esc(f.title||f.vulnerability_type)}</b>`+
+      `<span class="muted mono" style="margin-left:auto">${esc(f.file)}:${f.start_line}</span>`));
+    const body = el("div","body");
+    body.appendChild(el("div","kv",
+      `<div><div class="k">Type</div><div class="v">${esc(f.vulnerability_type)} <span class="muted">${esc(f.cwe||"")}</span></div></div>`+
+      `<div><div class="k">Function</div><div class="v mono">${esc(f.function||"")}</div></div>`+
+      `<div><div class="k">Confidence</div><div class="v">${esc(f.confidence||"")}</div></div>`+
+      `<div><div class="k">Location</div><div class="v mono">${esc(f.file)}:${f.start_line}-${f.end_line}</div></div>`));
+    if (f.description) body.appendChild(el("p",null,esc(f.description)));
+    if (f.context_reasoning) body.appendChild(el("div","note","<b>Why context mattered:</b> "+esc(f.context_reasoning)));
+    if (f.data_flow_summary) body.appendChild(el("p","muted","Data flow: <span class='mono'>"+esc(f.data_flow_summary)+"</span>"));
+    if (f.suggested_fix) body.appendChild(el("p",null,"<b>Fix:</b> "+esc(f.suggested_fix)));
     const ctx = contexts[f.context_id];
-    if (ctx) {
-      const guards = ctx.guard_evidence || [];
-      body.appendChild(el("h3", null, `CPG context — ${escapeHtml(ctx.route_path || ctx.function || "")} · ${guards.length} guard(s) · ${(ctx.control_triggers||[]).length} trigger(s)`));
-      if (guards.length) {
-        const t = el("table");
-        t.innerHTML = "<tr><th>control</th><th>category</th><th class='num'>line</th><th class='num'>node id</th><th>code</th></tr>" +
-          guards.map(g => `<tr><td>${escapeHtml(g.control||"")}</td><td>${escapeHtml(g.category||"")}</td><td class='num'>${g.line}</td><td class='num'>${g.node_id}</td><td class='mono'>${escapeHtml((g.code||"").slice(0,90))}</td></tr>`).join("");
-        body.appendChild(t);
-      } else {
-        body.appendChild(el("p", "muted", "guard_evidence: (none) — this empty list is the candidate signal for absence mode"));
-      }
+    if (ctx){
+      const guards = ctx.guard_evidence||[];
+      body.appendChild(el("h3",null,`CPG context — ${esc(ctx.route_path||ctx.function||"")} · ${guards.length} guard(s) · ${(ctx.control_triggers||[]).length} trigger(s)`));
+      if (guards.length){
+        const w = el("div","tbl-wrap"); const t = el("table");
+        t.innerHTML = "<thead><tr><th>control</th><th>category</th><th class='num'>line</th><th class='num'>node</th><th>code</th></tr></thead><tbody>"+
+          guards.map(x=>`<tr><td>${esc(x.control||"")}</td><td>${esc(x.category||"")}</td><td class='num'>${x.line}</td><td class='num'>${x.node_id}</td><td class='mono'>${esc((x.code||"").slice(0,90))}</td></tr>`).join("")+"</tbody>";
+        w.appendChild(t); body.appendChild(w);
+      } else body.appendChild(el("p","muted","guard_evidence: (none) — this empty list is the candidate signal for absence mode"));
     }
-    d.appendChild(body);
-    fp.appendChild(d);
+    d.appendChild(body); fp.appendChild(d);
   });
   b.appendChild(fp);
 }
-function metric(n, k) { return el("div", "metric", `<div class="n">${n}</div><div class="k">${k}</div>`); }
-function escapeHtml(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 
-// ---- benchmark ----
-async function loadBenchmark() {
-  const b = $("#benchmark-body"); b.innerHTML = '<div class="empty">loading…</div>';
+/* ---------- benchmark ---------- */
+function tblWrap(html){ const w=el("div","tbl-wrap"); const t=el("table"); t.innerHTML=html; w.appendChild(t); return w; }
+async function loadBenchmark(){
+  const b = $("#benchmark-body"); b.innerHTML = '<div class="card"><div class="empty"><span class="spinner"></span> loading…</div></div>';
   const d = await (await fetch("/api/benchmark")).json();
   b.innerHTML = "";
-  if (!d.has_data) { b.innerHTML = '<div class="empty">No eval data yet. Run <span class="mono">cpgvd corpus eval corpus/labels</span>.</div>'; return; }
+  if (!d.has_data){ b.innerHTML='<div class="card"><div class="empty">No eval data yet — run <code>cpgvd corpus eval corpus/labels</code>.</div></div>'; return; }
 
-  if (d.overall.length) {
-    const p = el("div", "panel");
-    p.appendChild(el("h2", null, "Overall — control-absence detector (pooled)"));
-    const t = el("table");
-    t.innerHTML = "<tr><th>detector</th><th class='num'>apps</th><th class='num'>n</th><th class='num'>precision</th><th class='num'>recall</th><th class='num'>recall(raw)</th><th class='num'>F1</th><th class='num'>FP on clean</th></tr>" +
-      d.overall.map(r => `<tr><td>${r.detector}</td><td class='num'>${num(r.apps)}</td><td class='num'>${num(r.instances)}</td><td class='num'>${num(r.precision)}</td><td class='num'>${num(r.recall)}</td><td class='num'>${num(r.recall_raw)}</td><td class='num'>${num(r.f1)}</td><td class='num'>${num(r.fp_on_clean)}</td></tr>`).join("");
-    p.appendChild(t);
-    p.appendChild(barChart(d.overall.map(r => ({ label: r.detector, val: r.recall || 0 })), "recall"));
+  if (d.overall.length){
+    const p = el("div","card");
+    p.appendChild(el("h2",null,"Control-absence detector — pooled"));
+    p.appendChild(el("p","sub","Grounded (CPG slice) vs ungrounded (raw file, H2) vs the Semgrep rule-only baseline."));
+    p.appendChild(tblWrap(
+      "<thead><tr><th>detector</th><th class='num'>apps</th><th class='num'>n</th><th class='num'>precision</th><th class='num'>recall</th><th class='num'>recall·raw</th><th class='num'>F1</th><th class='num'>FP on clean</th></tr></thead><tbody>"+
+      d.overall.map(r=>`<tr><td>${r.detector}</td><td class='num'>${num(r.apps)}</td><td class='num'>${num(r.instances)}</td><td class='num'>${num(r.precision)}</td><td class='num'>${num(r.recall)}</td><td class='num'>${num(r.recall_raw)}</td><td class='num'>${num(r.f1)}</td><td class='num'>${num(r.fp_on_clean)}</td></tr>`).join("")+"</tbody>"));
+    p.appendChild(barChart(d.overall.map(r=>({label:r.detector,val:r.recall||0})),"recall"));
     b.appendChild(p);
   }
-  if (d.by_operator.length) {
-    const p = el("div", "panel");
-    p.appendChild(el("h2", null, "Recall by mutation operator"));
-    p.appendChild(el("p", "muted", "M1 route middleware · M2 ownership if · M3 role if · M4 session if · M5 validation-before-write"));
-    const cols = Object.keys(d.by_operator[0]).filter(k => k !== "operator");
-    const t = el("table");
-    t.innerHTML = `<tr><th>operator</th>${cols.map(c => `<th class='num'>${c}</th>`).join("")}</tr>` +
-      d.by_operator.map(r => `<tr><td>${r.operator}</td>${cols.map(c => `<td class='num'>${pct(r[c])}</td>`).join("")}</tr>`).join("");
-    p.appendChild(t);
+  if (d.by_operator.length){
+    const cols = Object.keys(d.by_operator[0]).filter(k=>k!=="operator");
+    const p = el("div","card");
+    p.appendChild(el("h2",null,"Recall by mutation operator"));
+    p.appendChild(el("p","sub","M1 route middleware · M2 ownership if · M3 role if · M4 session if · M5 validation-before-write"));
+    p.appendChild(tblWrap(
+      `<thead><tr><th>operator</th>${cols.map(c=>`<th class='num'>${c}</th>`).join("")}</tr></thead><tbody>`+
+      d.by_operator.map(r=>`<tr><td>${r.operator}</td>${cols.map(c=>`<td class='num'>${pct(r[c])}</td>`).join("")}</tr>`).join("")+"</tbody>"));
     b.appendChild(p);
   }
-  if (d.heldout.length) {
-    const p = el("div", "panel");
-    p.appendChild(el("h2", null, "Held-out — OWASP Juice Shop (externally-authored labels, never tuned against)"));
-    const t = el("table");
-    t.innerHTML = "<tr><th>run</th><th>grounding</th><th class='num'>labels</th><th class='num'>detected</th><th class='num'>recall</th><th class='num'>class-match</th><th class='num'>unmatched findings</th></tr>" +
-      d.heldout.map(r => `<tr><td>${r.run}</td><td>${r.grounding}</td><td class='num'>${r.labels}</td><td class='num'>${r.detected}</td><td class='num'>${num(r.recall)}</td><td class='num'>${num(r.class_match)}</td><td class='num'>${r.unmatched_findings}</td></tr>`).join("");
-    p.appendChild(t);
-    if (d.heldout_classes.length) {
-      const cols = Object.keys(d.heldout_classes[0]).filter(k => k !== "control_class");
-      const t2 = el("table"); t2.style.marginTop = "12px";
-      t2.innerHTML = `<tr><th>control class</th>${cols.map(c => `<th class='num'>${c}</th>`).join("")}</tr>` +
-        d.heldout_classes.map(r => `<tr><td>${r.control_class}</td>${cols.map(c => `<td class='num'>${pct(r[c])}</td>`).join("")}</tr>`).join("");
-      p.appendChild(t2);
+  if (d.heldout.length){
+    const p = el("div","card");
+    p.appendChild(el("h2",null,"Held-out — OWASP Juice Shop"));
+    p.appendChild(el("p","sub","Externally-authored labels (Juice Shop's own challenge list). Never tuned against."));
+    p.appendChild(tblWrap(
+      "<thead><tr><th>run</th><th>grounding</th><th class='num'>labels</th><th class='num'>detected</th><th class='num'>recall</th><th class='num'>class-match</th><th class='num'>unmatched</th></tr></thead><tbody>"+
+      d.heldout.map(r=>`<tr><td>${r.run}</td><td>${r.grounding}</td><td class='num'>${r.labels}</td><td class='num'>${r.detected}</td><td class='num'>${num(r.recall)}</td><td class='num'>${num(r.class_match)}</td><td class='num'>${r.unmatched_findings}</td></tr>`).join("")+"</tbody>"));
+    if (d.heldout_classes.length){
+      const cols = Object.keys(d.heldout_classes[0]).filter(k=>k!=="control_class");
+      const w = tblWrap(
+        `<thead><tr><th>control class</th>${cols.map(c=>`<th class='num'>${c}</th>`).join("")}</tr></thead><tbody>`+
+        d.heldout_classes.map(r=>`<tr><td>${r.control_class}</td>${cols.map(c=>`<td class='num'>${pct(r[c])}</td>`).join("")}</tr>`).join("")+"</tbody>");
+      w.style.marginTop = "12px"; p.appendChild(w);
     }
     b.appendChild(p);
   }
-  if (d.per_app.length) {
-    const p = el("div", "panel");
-    p.appendChild(el("h2", null, "Per app (grounded)"));
-    const keys = Object.keys(d.per_app[0]).filter(k => k !== "app");
-    const t = el("table");
-    t.innerHTML = `<tr><th>app</th>${keys.map(k => `<th class='num'>${k}</th>`).join("")}</tr>` +
-      d.per_app.map(r => `<tr><td class="mono">${r.app}</td>${keys.map(k => `<td class='num'>${num(r[k])}</td>`).join("")}</tr>`).join("");
-    p.appendChild(t);
+  if (d.per_app.length){
+    const keys = Object.keys(d.per_app[0]).filter(k=>k!=="app");
+    const p = el("div","card");
+    p.appendChild(el("h2",null,"Per app — grounded"));
+    p.appendChild(tblWrap(
+      `<thead><tr><th>app</th>${keys.map(k=>`<th class='num'>${k}</th>`).join("")}</tr></thead><tbody>`+
+      d.per_app.map(r=>`<tr><td class="mono">${r.app}</td>${keys.map(k=>`<td class='num'>${num(r[k])}</td>`).join("")}</tr>`).join("")+"</tbody>"));
     b.appendChild(p);
   }
-  if (d.results_md) {
-    const p = el("div", "panel");
-    const h = el("h2"); h.textContent = "RESULTS.md";
-    p.appendChild(h);
-    const pre = el("pre", "log"); pre.style.maxHeight = "500px"; pre.textContent = d.results_md;
-    p.appendChild(pre);
-    b.appendChild(p);
+  if (d.results_md){
+    const p = el("div","card"); p.appendChild(el("h2",null,"RESULTS.md"));
+    const pre = el("pre","log"); pre.style.maxHeight="520px"; pre.textContent = d.results_md;
+    p.appendChild(pre); b.appendChild(p);
   }
 }
-function barChart(rows, unit) {
-  const wrap = el("div"); wrap.style.marginTop = "12px";
-  const max = Math.max(0.001, ...rows.map(r => r.val));
-  rows.forEach(r => {
-    const line = el("div"); line.style.margin = "6px 0";
-    line.innerHTML = `<div class="muted" style="font-size:12px">${r.label} — ${(r.val*100).toFixed(0)}% ${unit}</div>`;
-    const bar = el("div", "bar"); const i = el("i"); i.style.width = (r.val / max * 100) + "%"; bar.appendChild(i);
+function barChart(rows,unit){
+  const wrap = el("div"); wrap.style.marginTop="16px";
+  const max = Math.max(.001, ...rows.map(r=>r.val));
+  rows.forEach(r=>{
+    const line = el("div"); line.style.margin="9px 0";
+    line.innerHTML = `<div class="dim" style="font-size:12px;margin-bottom:4px">${r.label} — <b>${(r.val*100).toFixed(0)}%</b> ${unit}</div>`;
+    const bar = el("div","bar"); const i = el("i"); i.style.width=(r.val/max*100)+"%"; bar.appendChild(i);
     line.appendChild(bar); wrap.appendChild(line);
   });
   return wrap;

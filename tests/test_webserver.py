@@ -107,3 +107,25 @@ def test_scan_lifecycle_with_fake_runner(client, monkeypatch):
 
 def test_scan_requires_repo(client):
     assert client.post("/api/scan", json={"repo": "   "}).status_code == 400
+
+
+def test_browse_lists_subdirectories(client, tmp_path):
+    (tmp_path / "myrepo" / ".git").mkdir(parents=True)
+    (tmp_path / "plain").mkdir()
+    (tmp_path / ".hidden").mkdir()
+    (tmp_path / "note.txt").write_text("x")
+
+    d = client.get("/api/browse", params={"path": str(tmp_path)}).json()
+    assert d["path"] == str(tmp_path.resolve())
+    assert d["parent"] == str(tmp_path.resolve().parent)
+    names = {x["name"]: x for x in d["dirs"]}
+    assert set(names) == {"myrepo", "plain"}  # file + hidden excluded
+    assert names["myrepo"]["is_repo"] is True and names["plain"]["is_repo"] is False
+
+    with_hidden = client.get("/api/browse", params={"path": str(tmp_path), "hidden": "true"}).json()
+    assert ".hidden" in {x["name"] for x in with_hidden["dirs"]}
+
+
+def test_browse_bad_path_falls_back_home(client):
+    d = client.get("/api/browse", params={"path": "/no/such/dir/anywhere"}).json()
+    assert d["path"] == d["home"]

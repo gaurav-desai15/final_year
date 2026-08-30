@@ -227,6 +227,44 @@ def _list_reports() -> list[dict]:
     return out
 
 
+def _looks_like_repo(p: Path) -> bool:
+    return (p / ".git").exists() or (p / "package.json").exists() or (p / "pyproject.toml").exists() or (p / "requirements.txt").exists()
+
+
+def _browse(raw: str | None, show_hidden: bool) -> dict:
+    """List sub-directories of `raw` (default: home). Localhost single-user
+    tool -- browsing the real filesystem is the point, so no sandboxing beyond
+    'must be an existing directory'."""
+    base = Path(raw).expanduser() if raw else Path.home()
+    try:
+        base = base.resolve()
+    except OSError:
+        base = Path.home()
+    if not base.is_dir():
+        base = Path.home()
+    dirs = []
+    try:
+        for child in sorted(base.iterdir(), key=lambda c: c.name.lower()):
+            if not child.is_dir():
+                continue
+            if not show_hidden and child.name.startswith("."):
+                continue
+            try:
+                is_repo = _looks_like_repo(child)
+            except OSError:
+                is_repo = False
+            dirs.append({"name": child.name, "path": str(child), "is_repo": is_repo})
+    except PermissionError:
+        pass
+    return {
+        "path": str(base),
+        "parent": None if base.parent == base else str(base.parent),
+        "is_repo": _looks_like_repo(base),
+        "dirs": dirs,
+        "home": str(Path.home()),
+    }
+
+
 def _resolve_report(rel: str) -> Path:
     p = (REPO_ROOT / rel).resolve()
     if not any(str(p).startswith(str(root)) for root in _ALLOWED_REPORT_ROOTS):
@@ -301,6 +339,10 @@ def create_app() -> FastAPI:
     @app.get("/api/benchmark")
     def benchmark() -> dict:
         return _benchmark()
+
+    @app.get("/api/browse")
+    def browse(path: str | None = None, hidden: bool = False) -> dict:
+        return _browse(path, hidden)
 
     @app.get("/api/health")
     def health() -> dict:
