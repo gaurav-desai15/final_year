@@ -1,0 +1,185 @@
+{
+  "generated_at": "2026-08-30T05:02:14.326466Z",
+  "model": "qwen2.5-coder:7b",
+  "mode": "absence",
+  "grounding": "raw",
+  "match_window": 20,
+  "summary": {
+    "app": "Shyam-Chen__Express-Starter",
+    "commit_sha": "90d73b02836c734c2256fe71b741cd3b0823dd19",
+    "n_mutations": 3,
+    "baseline_fp": 5,
+    "tp": 2,
+    "fp": 17,
+    "fn": 1,
+    "recall": 0.667,
+    "recall_raw": 0.667,
+    "precision": 0.105,
+    "f1": 0.182,
+    "by_operator": {
+      "M1": {
+        "tp": 2,
+        "fn": 1,
+        "recall": 0.667
+      }
+    },
+    "by_control_class": {
+      "authentication": {
+        "tp": 2,
+        "fn": 1,
+        "recall": 0.667
+      }
+    },
+    "compression": {
+      "contexts": 12,
+      "repo_source_loc": 1365,
+      "slice_loc_median": 170,
+      "slice_loc_mean": 156.7,
+      "file_loc_median": 170,
+      "slice_over_file_median": 1.0,
+      "slice_over_file_mean": 1.0,
+      "slice_over_repo_mean": 0.114774
+    },
+    "grounded_findings": {
+      "findings_checked": 19,
+      "grounded": 19,
+      "ratio": 1.0
+    }
+  },
+  "results": [
+    {
+      "record_id": "Shyam-Chen__Express-Starter::M1::src/authentication/controller.js::81",
+      "operator": "M1",
+      "control_class": "authentication",
+      "file": "src/authentication/controller.js",
+      "line": 81,
+      "route_path": "/token",
+      "detected": true,
+      "detected_raw": true,
+      "matched_title": "Missing access control for '/token' endpoint",
+      "matched_line": 81,
+      "matched_control_ok": true,
+      "n_findings": 5
+    },
+    {
+      "record_id": "Shyam-Chen__Express-Starter::M1::src/authentication/controller.js::126",
+      "operator": "M1",
+      "control_class": "authentication",
+      "file": "src/authentication/controller.js",
+      "line": 126,
+      "route_path": "/profile",
+      "detected": true,
+      "detected_raw": true,
+      "matched_title": "Missing authentication for /profile route",
+      "matched_line": 126,
+      "matched_control_ok": true,
+      "n_findings": 5
+    },
+    {
+      "record_id": "Shyam-Chen__Express-Starter::M1::src/authentication/controller.js::171",
+      "operator": "M1",
+      "control_class": "authentication",
+      "file": "src/authentication/controller.js",
+      "line": 171,
+      "route_path": "/facebook/callback",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 4
+    }
+  ],
+  "baseline_findings": [
+    {
+      "id": "132e8ee9-ca57-45ec-93a2-340f87e6e5a1",
+      "context_id": "absence-route:src/authentication/controller.js:/revoke:86",
+      "file": "src/authentication/controller.js",
+      "start_line": 86,
+      "end_line": 91,
+      "function": "src/authentication/controller.js::program:<lambda>0#/revoke",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing access control for '/revoke' endpoint",
+      "description": "The '/revoke' endpoint does not have any authentication or authorization checks. It is exposed to anyone who can make a request to it, which could lead to unauthorized revocation of tokens or other sensitive operations.",
+      "context_reasoning": "The '/revoke' endpoint does not have any authentication checks. It is exposed to anyone who can make a request to it, which could lead to unauthorized revocation of tokens or other sensitive operations.",
+      "data_flow_summary": "operation: route handler; required control: authentication",
+      "suggested_fix": "Add an authentication check to ensure that only authenticated users can access this endpoint. This could be done using middleware like 'passport.authenticate' or by checking for a valid session token in the request headers.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "0dcb75ef-7ff7-432c-85fe-143897336366",
+      "context_id": "absence-route:src/authentication/controller.js:/register:21",
+      "file": "src/authentication/controller.js",
+      "start_line": 107,
+      "end_line": 112,
+      "function": "src/authentication/controller.js::program:<lambda>0#/register",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "medium",
+      "title": "Missing authentication for /profile endpoint",
+      "description": "The /profile endpoint is exposed without any authentication checks. Any authenticated user can access this endpoint to retrieve another user's profile information.",
+      "context_reasoning": "The /profile endpoint does not have any authentication checks in place. It is exposed without requiring a valid JWT token, allowing any authenticated user to access another user's profile information.",
+      "data_flow_summary": "operation: GET /authentication/profile Header { Authorization: `Bearer ${token}` }; required control: authentication",
+      "suggested_fix": "Add authentication middleware to the /profile endpoint to ensure only authorized users can access it. For example: router.get('/profile', passport.authenticate('jwt', { session: false }), async (req, res) => { ... })",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "4482f032-3a0a-463b-8f4d-8343e651573c",
+      "context_id": "absence-route:src/authentication/controller.js:/login/2fa-verify:94",
+      "file": "src/authentication/controller.js",
+      "start_line": 94,
+      "end_line": 103,
+      "function": "src/authentication/controller.js::program:<lambda>0#/login/2fa-verify",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "medium",
+      "title": "Missing access control for /login/2fa-verify endpoint",
+      "description": "The /login/2fa-verify endpoint does not have any authentication or authorization checks. It is exposed to anyone who can make a request to it, which could lead to unauthorized access.",
+      "context_reasoning": "No authentication check (e.g., passport.authenticate) is present in the evidence or shown callers for the /login/2fa-verify endpoint. The operation requires authentication to ensure that only authenticated users can access it.",
+      "data_flow_summary": "operation: route handler; required control: authentication",
+      "suggested_fix": "Add an authentication check, such as `passport.authenticate('jwt', { session: false })`, before handling requests to the /login/2fa-verify endpoint.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "c39877f5-f1e2-443c-ae47-094a051982e7",
+      "context_id": "absence-route:src/authentication/controller.js:/2fa/setup-send:113",
+      "file": "src/authentication/controller.js",
+      "start_line": 113,
+      "end_line": 115,
+      "function": "src/authentication/controller.js::program:<lambda>0#/2fa/setup-send",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "medium",
+      "title": "Missing access control for 2FA setup send operation",
+      "description": "The `/2fa/setup-send` endpoint does not have any authentication or authorization checks. This could allow an attacker to send a 2FA code to any user's account, potentially compromising their account security.",
+      "context_reasoning": "The operation is a route handler that sends a 2FA code. It requires authentication to ensure that only the owner of the account can send a 2FA code, but no such check is present in the evidence or shown callers.",
+      "data_flow_summary": "operation: route handler; required control: authentication",
+      "suggested_fix": "Add an authentication check to ensure that only authenticated users can access this endpoint. This could be done using middleware like `passport.authenticate('jwt')` to verify the user's JWT token before allowing them to send a 2FA code.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "8c22124e-a4de-4eca-8f56-7298c0a6b784",
+      "context_id": "absence-route:src/authentication/controller.js:/2fa/setup-verify:117",
+      "file": "src/authentication/controller.js",
+      "start_line": 117,
+      "end_line": 120,
+      "function": "src/authentication/controller.js::program:<lambda>0#/2fa/setup-verify",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "medium",
+      "title": "Missing access control for /2fa/setup-verify endpoint",
+      "description": "The /2fa/setup-verify endpoint does not have any authentication or authorization checks. This could allow an attacker to bypass the two-factor authentication setup process and potentially gain unauthorized access.",
+      "context_reasoning": "No authentication check is present in the evidence or shown callers for the /2fa/setup-verify endpoint. The route registration middleware chain is not shown, so it's unclear if any authentication checks are applied there.",
+      "data_flow_summary": "operation: route handler; required control: authentication",
+      "suggested_fix": "Add an authentication check to ensure that only authenticated users can access the /2fa/setup-verify endpoint. This could be done using a middleware function like passport.authenticate('jwt') or a custom authentication function that verifies the user's session or token.",
+      "model": "qwen2.5-coder:7b"
+    }
+  ]
+}

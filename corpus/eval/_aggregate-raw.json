@@ -1,0 +1,156 @@
+{
+  "grounding": "raw",
+  "apps": 13,
+  "mutations": 39,
+  "tp": 10,
+  "fp": 127,
+  "fn": 29,
+  "baseline_fp_total": 34,
+  "precision": 0.073,
+  "recall": 0.256,
+  "f1": 0.114,
+  "recall_raw": 0.256,
+  "compression_slice_over_file_mean": 1.0,
+  "grounded_findings_ratio_mean": 1.0,
+  "by_operator": {
+    "M1": {
+      "tp": 7,
+      "fn": 9,
+      "recall": 0.438
+    },
+    "M2": {
+      "tp": 0,
+      "fn": 11,
+      "recall": 0.0
+    },
+    "M3": {
+      "tp": 0,
+      "fn": 6,
+      "recall": 0.0
+    },
+    "M5": {
+      "tp": 3,
+      "fn": 3,
+      "recall": 0.5
+    }
+  },
+  "per_app": {
+    "Shyam-Chen__Express-Starter": {
+      "precision": 0.105,
+      "recall": 0.667,
+      "recall_raw": 0.667,
+      "f1": 0.182,
+      "baseline_fp": 5,
+      "slice_over_file": 1.0,
+      "grounded_ratio": 1.0
+    },
+    "bradtraversy__storybooks": {
+      "precision": 0.091,
+      "recall": 0.333,
+      "recall_raw": 0.333,
+      "f1": 0.143,
+      "baseline_fp": 3,
+      "slice_over_file": 1.0,
+      "grounded_ratio": 1.0
+    },
+    "dmalvia__Express_MongoDB_Rest_API_Tutorial": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "recall_raw": 0.0,
+      "f1": 0.0,
+      "baseline_fp": 1,
+      "slice_over_file": 1.0,
+      "grounded_ratio": 1.0
+    },
+    "ealeksandrov__NodeAPI": {
+      "precision": 0.1,
+      "recall": 0.333,
+      "recall_raw": 0.333,
+      "f1": 0.154,
+      "baseline_fp": 2,
+      "slice_over_file": 1.0,
+      "grounded_ratio": 1.0
+    },
+    "hagopj13__node-express-boilerplate": {
+      "precision": 0.273,
+      "recall": 1.0,
+      "recall_raw": 1.0,
+      "f1": 0.429,
+      "baseline_fp": 2,
+      "slice_over_file": 1.0,
+      "grounded_ratio": 1.0
+    },
+    "ihtasham42__social-media-app": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "recall_raw": 0.0,
+      "f1": 0.0,
+      "baseline_fp": 2,
+      "slice_over_file": 1.0,
+      "grounded_ratio": 1.0
+    },
+    "jigar-sable__instagram-mern": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "recall_raw": 0.0,
+      "f1": 0.0,
+      "baseline_fp": 4,
+      "slice_over_file": 1.0,
+      "grounded_ratio": 1.0
+    },
+    "keystonejs__keystone-classic": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "recall_raw": 0.0,
+      "f1": 0.0,
+      "baseline_fp": 4,
+      "slice_over_file": 1.0,
+      "grounded_ratio": 1.0
+    },
+    "madhums__node-express-mongoose-demo": {
+      "precision": 0.125,
+      "recall": 0.333,
+      "recall_raw": 0.333,
+      "f1": 0.182,
+      "baseline_fp": 1,
+      "slice_over_file": 1.0,
+      "grounded_ratio": 1.0
+    },
+    "misa-j__social-network": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "recall_raw": 0.0,
+      "f1": 0.0,
+      "baseline_fp": 1,
+      "slice_over_file": 1.0,
+      "grounded_ratio": 1.0
+    },
+    "orifmilod__iCinema": {
+      "precision": 0.182,
+      "recall": 0.667,
+      "recall_raw": 0.667,
+      "f1": 0.286,
+      "baseline_fp": 2,
+      "slice_over_file": 1.0,
+      "grounded_ratio": 1.0
+    },
+    "sahat__hackathon-starter": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "recall_raw": 0.0,
+      "f1": 0.0,
+      "baseline_fp": 4,
+      "slice_over_file": 1.0,
+      "grounded_ratio": 1.0
+    },
+    "thomas4019__expressa": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "recall_raw": 0.0,
+      "f1": 0.0,
+      "baseline_fp": 3,
+      "slice_over_file": 1.0,
+      "grounded_ratio": 1.0
+    }
+  }
+}

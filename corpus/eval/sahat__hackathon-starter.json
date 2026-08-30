@@ -1,0 +1,113 @@
+{
+  "generated_at": "2026-08-30T03:20:35.224975Z",
+  "model": "qwen2.5-coder:7b",
+  "mode": "absence",
+  "grounding": "cpg",
+  "match_window": 20,
+  "summary": {
+    "app": "sahat__hackathon-starter",
+    "commit_sha": "73faf8c249d050da6d3ec6c7779fd2b6d3d88159",
+    "n_mutations": 3,
+    "baseline_fp": 1,
+    "tp": 0,
+    "fp": 4,
+    "fn": 3,
+    "recall": 0.0,
+    "recall_raw": 1.0,
+    "precision": 0.0,
+    "f1": 0.0,
+    "by_operator": {
+      "M1": {
+        "tp": 0,
+        "fn": 3,
+        "recall": 0.0
+      }
+    },
+    "by_control_class": {
+      "authentication": {
+        "tp": 0,
+        "fn": 3,
+        "recall": 0.0
+      }
+    },
+    "compression": {
+      "contexts": 12,
+      "repo_source_loc": 14700,
+      "slice_loc_median": 14,
+      "slice_loc_mean": 23.5,
+      "file_loc_median": 430,
+      "slice_over_file_median": 0.0337,
+      "slice_over_file_mean": 0.0547,
+      "slice_over_repo_mean": 0.001599
+    },
+    "grounded_findings": {
+      "findings_checked": 4,
+      "grounded": 4,
+      "ratio": 1.0
+    }
+  },
+  "results": [
+    {
+      "record_id": "sahat__hackathon-starter::M1::app.js::273",
+      "operator": "M1",
+      "control_class": "authentication",
+      "file": "app.js",
+      "line": 273,
+      "route_path": "/account/verify",
+      "detected": false,
+      "detected_raw": true,
+      "matched_title": "Missing authentication for login verification endpoint",
+      "matched_line": 255,
+      "matched_control_ok": true,
+      "n_findings": 1
+    },
+    {
+      "record_id": "sahat__hackathon-starter::M1::app.js::274",
+      "operator": "M1",
+      "control_class": "authentication",
+      "file": "app.js",
+      "line": 274,
+      "route_path": "/account/verify/:token",
+      "detected": false,
+      "detected_raw": true,
+      "matched_title": "Missing authentication for login verification endpoint",
+      "matched_line": 255,
+      "matched_control_ok": true,
+      "n_findings": 1
+    },
+    {
+      "record_id": "sahat__hackathon-starter::M1::app.js::275",
+      "operator": "M1",
+      "control_class": "authentication",
+      "file": "app.js",
+      "line": 275,
+      "route_path": "/account",
+      "detected": false,
+      "detected_raw": true,
+      "matched_title": "Missing authentication for login verification endpoint",
+      "matched_line": 255,
+      "matched_control_ok": true,
+      "n_findings": 1
+    }
+  ],
+  "baseline_findings": [
+    {
+      "id": "37c73c40-2973-4567-838c-7e08e3a8680b",
+      "context_id": "absence-route:app.js:/login/verify/:token:255",
+      "file": "app.js",
+      "start_line": 255,
+      "end_line": 255,
+      "function": "controllers/user.js::program:getLoginByEmail",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing authentication for login verification endpoint",
+      "description": "The /login/verify/:token route does not require any form of authentication or authorization. Any user can access this endpoint and attempt to verify their email by providing a valid token.",
+      "context_reasoning": "No authentication check is present in the function or its callers, allowing any user to access the login verification endpoint without proper authentication. The route should require authentication to ensure that only authorized users can verify their email addresses.",
+      "data_flow_summary": "operation: route; required control: authentication",
+      "suggested_fix": "Add an authentication check at the beginning of the function to ensure that only authenticated users can access this endpoint. This could be done by checking if `req.user` is present or by using a middleware like `passport.authenticate`. For example:\n\n```javascript\nexports.getLoginByEmail = async (req, res, next) => {\n  if (!req.isAuthenticated()) {\n    return res.redirect('/login');\n  }\n  // Existing code...\n};\n```\nThis will ensure that only authenticated users can access the login verification endpoint.",
+      "model": "qwen2.5-coder:7b"
+    }
+  ]
+}

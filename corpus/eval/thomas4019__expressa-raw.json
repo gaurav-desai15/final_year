@@ -1,0 +1,149 @@
+{
+  "generated_at": "2026-08-30T06:18:36.093009Z",
+  "model": "qwen2.5-coder:7b",
+  "mode": "absence",
+  "grounding": "raw",
+  "match_window": 20,
+  "summary": {
+    "app": "thomas4019__expressa",
+    "commit_sha": "016d5af3fc2fe8b5e1ab21093d00b9899bef4ec2",
+    "n_mutations": 3,
+    "baseline_fp": 3,
+    "tp": 0,
+    "fp": 12,
+    "fn": 3,
+    "recall": 0.0,
+    "recall_raw": 0.0,
+    "precision": 0.0,
+    "f1": 0.0,
+    "by_operator": {
+      "M3": {
+        "tp": 0,
+        "fn": 3,
+        "recall": 0.0
+      }
+    },
+    "by_control_class": {
+      "authorization": {
+        "tp": 0,
+        "fn": 3,
+        "recall": 0.0
+      }
+    },
+    "compression": {
+      "contexts": 12,
+      "repo_source_loc": 5544,
+      "slice_loc_median": 288,
+      "slice_loc_mean": 288.0,
+      "file_loc_median": 288,
+      "slice_over_file_median": 1.0,
+      "slice_over_file_mean": 1.0,
+      "slice_over_repo_mean": 0.051948
+    },
+    "grounded_findings": {
+      "findings_checked": 12,
+      "grounded": 12,
+      "ratio": 1.0
+    }
+  },
+  "results": [
+    {
+      "record_id": "thomas4019__expressa::M3::controllers/install.js::4",
+      "operator": "M3",
+      "control_class": "authorization",
+      "file": "controllers/install.js",
+      "line": 4,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 3
+    },
+    {
+      "record_id": "thomas4019__expressa::M3::controllers/status.js::5",
+      "operator": "M3",
+      "control_class": "authorization",
+      "file": "controllers/status.js",
+      "line": 5,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 3
+    },
+    {
+      "record_id": "thomas4019__expressa::M3::listeners_collection_permissions.js::24",
+      "operator": "M3",
+      "control_class": "authorization",
+      "file": "listeners_collection_permissions.js",
+      "line": 24,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 3
+    }
+  ],
+  "baseline_findings": [
+    {
+      "id": "81b9fade-fadd-4a92-b63b-f2a5200fa0d8",
+      "context_id": "absence-route:index.js:/:collection/:id:291",
+      "file": "index.js",
+      "start_line": 291,
+      "end_line": 305,
+      "function": "index.js::program:<lambda>2:addRoutesAndMiddleware#/:collection/:id",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing access control for resource retrieval",
+      "description": "The function at line 291 handles a GET request to retrieve a resource by ID. This operation requires ownership enforcement, as it allows any authenticated user to read another user's data if they know the correct ID.",
+      "context_reasoning": "The function does not check if the resource belongs to the current user. The presence of authentication middleware (auth.middleware) and permissions middleware (permissions.middleware) does not guarantee that only the owner can access their own data.",
+      "data_flow_summary": "operation: GET /:collection/:id; required control: ownership",
+      "suggested_fix": "Add an ownership check to ensure that the resource being accessed belongs to the authenticated user. This can be done by comparing the resource's owner ID with the current user's ID from the request context.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "aca2df7d-b9e4-48f7-ab44-f1543abff1e4",
+      "context_id": "absence-route:index.js:/install/settings/schema:268",
+      "file": "index.js",
+      "start_line": 268,
+      "end_line": 270,
+      "function": "index.js::program:<lambda>2:addRoutesAndMiddleware#/install/settings/schema",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "medium",
+      "confidence": "high",
+      "title": "Missing access control for route '/install/settings/schema'",
+      "description": "The route '/install/settings/schema' is exposed without any authentication or authorization checks. This could allow unauthorized users to read sensitive data.",
+      "context_reasoning": "No authentication check (e.g., isLoggedIn, requireAuth) is present in the route registration or its callers. The operation exposes a sensitive schema endpoint without any protection against unauthorized access.",
+      "data_flow_summary": "operation: route handler; required control: authentication",
+      "suggested_fix": "Add an authentication middleware to ensure that only authenticated users can access this route. For example:\n\nrouter.use(auth.middleware)\nrouter.get('/install/settings/schema', ph(async (req) => installApi.getSettingsSchema(req, router)))",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "a6c2a94b-03cd-4350-837b-4f37599f0361",
+      "context_id": "absence-route:index.js:/:collection/schema:288",
+      "file": "index.js",
+      "start_line": 288,
+      "end_line": 290,
+      "function": "index.js::program:<lambda>2:addRoutesAndMiddleware#/:collection/schema",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "medium",
+      "confidence": "high",
+      "title": "Missing access control for route '/:collection/schema'",
+      "description": "The route '/:collection/schema' is exposed without any authentication or authorization checks. This could allow unauthorized users to read sensitive schema information.",
+      "context_reasoning": "No authentication check (e.g., isLoggedIn, requireAuth) is present in the route registration or its callers. The operation exposes a resource that may be sensitive and should be protected with authentication to prevent unauthorized access.",
+      "data_flow_summary": "operation: route handler; required control: authentication",
+      "suggested_fix": "Add an authentication middleware to ensure only authenticated users can access this route. For example:\n\nrouter.use(auth.middleware)\nrouter.get('/:collection/schema', ph(collectionsApi.getSchema))",
+      "model": "qwen2.5-coder:7b"
+    }
+  ]
+}

@@ -1,0 +1,185 @@
+{
+  "generated_at": "2026-08-30T00:36:06.706256Z",
+  "model": "qwen2.5-coder:7b",
+  "mode": "absence",
+  "grounding": "cpg",
+  "match_window": 20,
+  "summary": {
+    "app": "keystonejs__keystone-classic",
+    "commit_sha": "6e5ba1142a0909c64a1a38e20f31fcf9bed6e4db",
+    "n_mutations": 3,
+    "baseline_fp": 5,
+    "tp": 0,
+    "fp": 20,
+    "fn": 3,
+    "recall": 0.0,
+    "recall_raw": 0.0,
+    "precision": 0.0,
+    "f1": 0.0,
+    "by_operator": {
+      "M5": {
+        "tp": 0,
+        "fn": 3,
+        "recall": 0.0
+      }
+    },
+    "by_control_class": {
+      "validation": {
+        "tp": 0,
+        "fn": 3,
+        "recall": 0.0
+      }
+    },
+    "compression": {
+      "contexts": 12,
+      "repo_source_loc": 127237,
+      "slice_loc_median": 30,
+      "slice_loc_mean": 32.9,
+      "file_loc_median": 92,
+      "slice_over_file_median": 0.3261,
+      "slice_over_file_mean": 0.3578,
+      "slice_over_repo_mean": 0.000259
+    },
+    "grounded_findings": {
+      "findings_checked": 20,
+      "grounded": 20,
+      "ratio": 1.0
+    }
+  },
+  "results": [
+    {
+      "record_id": "keystonejs__keystone-classic::M5::admin/server/api/list/delete.js::5",
+      "operator": "M5",
+      "control_class": "validation",
+      "file": "admin/server/api/list/delete.js",
+      "line": 5,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 5
+    },
+    {
+      "record_id": "keystonejs__keystone-classic::M5::lib/content/index.js::105",
+      "operator": "M5",
+      "control_class": "validation",
+      "file": "lib/content/index.js",
+      "line": 105,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 5
+    },
+    {
+      "record_id": "keystonejs__keystone-classic::M5::lib/list/updateItem.js::165",
+      "operator": "M5",
+      "control_class": "validation",
+      "file": "lib/list/updateItem.js",
+      "line": 165,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 5
+    }
+  ],
+  "baseline_findings": [
+    {
+      "id": "a7a54068-7706-4b16-8f04-f6b23e9a4d31",
+      "context_id": "absence-route:admin/server/app/createDynamicRouter.js:/api/session/signin:48",
+      "file": "admin/server/app/createDynamicRouter.js",
+      "start_line": 48,
+      "end_line": 48,
+      "function": "admin/server/app/createDynamicRouter.js::program:createDynamicRouter#/api/session/signin",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing authentication for /api/session/signin route",
+      "description": "The /api/session/signin route is exposed without any authentication checks. This could allow unauthenticated users to perform the sign-in operation, potentially leading to unauthorized access or privilege escalation.",
+      "context_reasoning": "No authentication check (e.g., requireAuth, passport.authenticate) is present in the guard_evidence or shown callers. The route handler requires authentication to ensure only authorized users can perform the sign-in operation.",
+      "data_flow_summary": "operation: route; required control: authentication",
+      "suggested_fix": "Add an authentication middleware (e.g., keystone.session.keystoneAuth) before the /api/session/signin route handler to enforce authentication.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "fc1e9af2-b20c-4250-9d7b-10f825a38bea",
+      "context_id": "absence-route:admin/server/app/createDynamicRouter.js:/api/session:47",
+      "file": "admin/server/app/createDynamicRouter.js",
+      "start_line": 47,
+      "end_line": 47,
+      "function": "admin/server/app/createDynamicRouter.js::program:createDynamicRouter#/api/session",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing access control for session route",
+      "description": "The '/api/session' route is exposed without any authentication or authorization checks. This allows any user to access this endpoint, which could potentially expose sensitive information about the session.",
+      "context_reasoning": "No authentication check (e.g., isLoggedIn, requireAuth) was found in the guard evidence or shown callers. The route is exposed without any control to ensure that only authenticated users can access it.",
+      "data_flow_summary": "operation: route; required control: authentication",
+      "suggested_fix": "Add an authentication middleware to the '/api/session' route to ensure that only authenticated users can access it. For example: router.get('/api/session', requireAuth, require('../api/session/get'));",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "e1379520-b3a5-4963-a0d1-fe02ca7aa052",
+      "context_id": "absence-route:admin/server/app/createDynamicRouter.js:/api/session/signout:49",
+      "file": "admin/server/app/createDynamicRouter.js",
+      "start_line": 49,
+      "end_line": 49,
+      "function": "admin/server/app/createDynamicRouter.js::program:createDynamicRouter#/api/session/signout",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing authentication for /api/session/signout route",
+      "description": "The /api/session/signout route is exposed without any authentication checks. This could allow an attacker to sign out of a user's session without proper authorization.",
+      "context_reasoning": "No authentication check (e.g., isLoggedIn, requireAuth) was found in the guard_evidence or shown callers. The route is exposed without any control to ensure that only authenticated users can access it.",
+      "data_flow_summary": "operation: route; required control: authentication",
+      "suggested_fix": "Add an authentication middleware to the /api/session/signout route to ensure that only authenticated users can sign out of their sessions.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "0b74c240-f8ff-4f1d-ae6f-d4f2b97545b2",
+      "context_id": "absence-route:admin/server/app/createDynamicRouter.js:/api/cloudinary/upload:80",
+      "file": "admin/server/app/createDynamicRouter.js",
+      "start_line": 80,
+      "end_line": 80,
+      "function": "admin/server/api/cloudinary.js::program:upload",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing access control for file upload endpoint",
+      "description": "The /api/cloudinary/upload route does not have any authentication, authorization, ownership, session, or input-validation checks. This allows any user to upload files without proper validation or restrictions.",
+      "context_reasoning": "No authentication check is present in the function or its callers. The route does not require any control as it is a public endpoint for file uploads, but it should at least ensure that only authenticated users can upload files to prevent unauthorized access and potential abuse.",
+      "data_flow_summary": "operation: route; required control: authentication",
+      "suggested_fix": "Implement authentication checks to ensure that only authenticated users can access this endpoint. This could involve requiring the user to be logged in or using an API key for authorization.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "6ae3d514-21d9-4bee-a961-fc7be8952302",
+      "context_id": "absence-route:admin/server/app/createDynamicRouter.js:/api/s3/upload:83",
+      "file": "admin/server/app/createDynamicRouter.js",
+      "start_line": 83,
+      "end_line": 102,
+      "function": "admin/server/api/cloudinary.js::program:upload",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing access control for file upload endpoint",
+      "description": "The /api/s3/upload endpoint allows any authenticated user to upload files without proper authorization or ownership checks. This can lead to unauthorized data uploads and potential security risks.",
+      "context_reasoning": "No authentication, authorization, ownership, session, or input-validation check was detected on this function or any shown caller. The endpoint allows any authenticated user to upload files without proper role-based access control.",
+      "data_flow_summary": "operation: route; required control: authorization (role)",
+      "suggested_fix": "Implement role-based access control to ensure that only authorized users can upload files. This may involve checking the user's role and ensuring they have permission to perform file uploads.",
+      "model": "qwen2.5-coder:7b"
+    }
+  ]
+}

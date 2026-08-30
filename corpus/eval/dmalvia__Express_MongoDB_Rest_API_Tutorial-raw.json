@@ -1,0 +1,113 @@
+{
+  "generated_at": "2026-08-29T22:25:43.905585Z",
+  "model": "qwen2.5-coder:7b",
+  "mode": "absence",
+  "grounding": "raw",
+  "match_window": 20,
+  "summary": {
+    "app": "dmalvia__Express_MongoDB_Rest_API_Tutorial",
+    "commit_sha": "4bb2cd80910fb4f643cd29807612b79dc06c3153",
+    "n_mutations": 3,
+    "baseline_fp": 1,
+    "tp": 0,
+    "fp": 4,
+    "fn": 3,
+    "recall": 0.0,
+    "recall_raw": 0.0,
+    "precision": 0.0,
+    "f1": 0.0,
+    "by_operator": {
+      "M2": {
+        "tp": 0,
+        "fn": 3,
+        "recall": 0.0
+      }
+    },
+    "by_control_class": {
+      "ownership": {
+        "tp": 0,
+        "fn": 3,
+        "recall": 0.0
+      }
+    },
+    "compression": {
+      "contexts": 12,
+      "repo_source_loc": 327,
+      "slice_loc_median": 78,
+      "slice_loc_mean": 63.2,
+      "file_loc_median": 78,
+      "slice_over_file_median": 1.0,
+      "slice_over_file_mean": 1.0,
+      "slice_over_repo_mean": 0.193425
+    },
+    "grounded_findings": {
+      "findings_checked": 4,
+      "grounded": 4,
+      "ratio": 1.0
+    }
+  },
+  "results": [
+    {
+      "record_id": "dmalvia__Express_MongoDB_Rest_API_Tutorial::M2::controllers/contactController.js::41",
+      "operator": "M2",
+      "control_class": "ownership",
+      "file": "controllers/contactController.js",
+      "line": 41,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 1
+    },
+    {
+      "record_id": "dmalvia__Express_MongoDB_Rest_API_Tutorial::M2::controllers/contactController.js::59",
+      "operator": "M2",
+      "control_class": "ownership",
+      "file": "controllers/contactController.js",
+      "line": 59,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 1
+    },
+    {
+      "record_id": "dmalvia__Express_MongoDB_Rest_API_Tutorial::M2::controllers/contactController.js::82",
+      "operator": "M2",
+      "control_class": "ownership",
+      "file": "controllers/contactController.js",
+      "line": 82,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 1
+    }
+  ],
+  "baseline_findings": [
+    {
+      "id": "517f6ec4-76d8-486e-8d09-8a06b2f5214b",
+      "context_id": "absence:controllers/userController.js:controllers/userController.js::program:<lambda>1:43",
+      "file": "controllers/userController.js",
+      "start_line": 43,
+      "end_line": 50,
+      "function": "controllers/userController.js::program:<lambda>1",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing authentication for retrieving current user info",
+      "description": "The 'currentUser' function at line 43 exposes a private resource (current user information) without proper authentication. The '@access private' decorator indicates that this endpoint should only be accessible to authenticated users, but there is no evidence of any authentication check in the provided code or its callers.",
+      "context_reasoning": "The 'currentUser' function does not perform any authentication checks. The '@access private' decorator suggests that this endpoint should only be accessible to authenticated users, but there is no evidence of any authentication check in the provided code or its callers.",
+      "data_flow_summary": "operation: route handler; required control: authentication",
+      "suggested_fix": "Add an authentication check before allowing access to the 'currentUser' function. This could involve checking if a user is logged in and authorized to view their own information.",
+      "model": "qwen2.5-coder:7b"
+    }
+  ]
+}

@@ -1,0 +1,131 @@
+{
+  "generated_at": "2026-08-29T23:35:08.713697Z",
+  "model": "qwen2.5-coder:7b",
+  "mode": "absence",
+  "grounding": "raw",
+  "match_window": 20,
+  "summary": {
+    "app": "ihtasham42__social-media-app",
+    "commit_sha": "ba000bd0a7e34c1c30eba0d879879da98816ea31",
+    "n_mutations": 3,
+    "baseline_fp": 2,
+    "tp": 0,
+    "fp": 8,
+    "fn": 3,
+    "recall": 0.0,
+    "recall_raw": 0.0,
+    "precision": 0.0,
+    "f1": 0.0,
+    "by_operator": {
+      "M3": {
+        "tp": 0,
+        "fn": 3,
+        "recall": 0.0
+      }
+    },
+    "by_control_class": {
+      "authorization": {
+        "tp": 0,
+        "fn": 3,
+        "recall": 0.0
+      }
+    },
+    "compression": {
+      "contexts": 12,
+      "repo_source_loc": 4439,
+      "slice_loc_median": 10,
+      "slice_loc_mean": 12.2,
+      "file_loc_median": 10,
+      "slice_over_file_median": 1.0,
+      "slice_over_file_mean": 1.0,
+      "slice_over_repo_mean": 0.002741
+    },
+    "grounded_findings": {
+      "findings_checked": 8,
+      "grounded": 8,
+      "ratio": 1.0
+    }
+  },
+  "results": [
+    {
+      "record_id": "ihtasham42__social-media-app::M3::controllers/commentControllers.js::114",
+      "operator": "M3",
+      "control_class": "authorization",
+      "file": "controllers/commentControllers.js",
+      "line": 114,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 2
+    },
+    {
+      "record_id": "ihtasham42__social-media-app::M3::controllers/commentControllers.js::139",
+      "operator": "M3",
+      "control_class": "authorization",
+      "file": "controllers/commentControllers.js",
+      "line": 139,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 2
+    },
+    {
+      "record_id": "ihtasham42__social-media-app::M3::controllers/postControllers.js::82",
+      "operator": "M3",
+      "control_class": "authorization",
+      "file": "controllers/postControllers.js",
+      "line": 82,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 2
+    }
+  ],
+  "baseline_findings": [
+    {
+      "id": "95686d76-9b3a-4702-a273-ce9e344501e2",
+      "context_id": "absence-route:routes/comments.js:/user/:id:10",
+      "file": "routes/comments.js",
+      "start_line": 10,
+      "end_line": 13,
+      "function": "client/src/api/posts.js::program:getUserComments",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing ownership check for user comments",
+      "description": "The route `/user/:id` allows any authenticated user to read another user's comments without proper authorization. The `verifyToken` middleware ensures authentication but does not enforce ownership.",
+      "context_reasoning": "The operation reads a resource (comments) that belongs to another user, and there is no check in the shown evidence or callers to ensure the authenticated user has permission to access this resource. The `verifyToken` middleware only ensures authentication but does not enforce ownership.",
+      "data_flow_summary": "operation: GET /user/:id; required control: ownership",
+      "suggested_fix": "Add an ownership check to ensure the authenticated user can only read their own comments. This could be done by comparing the comment owner with the authenticated user's ID in the controller function or a middleware before it.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "edbd0a6d-9dd9-421c-8192-567b65b50a17",
+      "context_id": "absence-route:routes/posts.js:/:id:9",
+      "file": "routes/posts.js",
+      "start_line": 9,
+      "end_line": 12,
+      "function": "client/src/api/posts.js::program:getPost",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "medium",
+      "title": "Missing ownership check for post deletion",
+      "description": "The route `/:id` (line 9) allows a user to delete any post, which is not secure. The operation requires an ownership check to ensure that only the owner of the post can delete it.",
+      "context_reasoning": "The route `/:id` (line 9) allows a user to delete any post without checking if they are the owner of the post. The required control is 'ownership' but it is not present in the evidence or shown callers.",
+      "data_flow_summary": "operation: delete; required control: ownership",
+      "suggested_fix": "Add an ownership check before deleting the post. For example, you can add `if (req.user.id !== post.ownerId) return res.status(403).send('Forbidden')` before the delete operation.",
+      "model": "qwen2.5-coder:7b"
+    }
+  ]
+}

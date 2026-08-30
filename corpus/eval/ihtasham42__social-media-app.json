@@ -1,0 +1,113 @@
+{
+  "generated_at": "2026-08-29T23:17:18.278298Z",
+  "model": "qwen2.5-coder:7b",
+  "mode": "absence",
+  "grounding": "cpg",
+  "match_window": 20,
+  "summary": {
+    "app": "ihtasham42__social-media-app",
+    "commit_sha": "ba000bd0a7e34c1c30eba0d879879da98816ea31",
+    "n_mutations": 3,
+    "baseline_fp": 1,
+    "tp": 0,
+    "fp": 5,
+    "fn": 3,
+    "recall": 0.0,
+    "recall_raw": 0.0,
+    "precision": 0.0,
+    "f1": 0.0,
+    "by_operator": {
+      "M3": {
+        "tp": 0,
+        "fn": 3,
+        "recall": 0.0
+      }
+    },
+    "by_control_class": {
+      "authorization": {
+        "tp": 0,
+        "fn": 3,
+        "recall": 0.0
+      }
+    },
+    "compression": {
+      "contexts": 12,
+      "repo_source_loc": 4439,
+      "slice_loc_median": 18,
+      "slice_loc_mean": 18.2,
+      "file_loc_median": 10,
+      "slice_over_file_median": 1.7375,
+      "slice_over_file_mean": 1.6558,
+      "slice_over_repo_mean": 0.004093
+    },
+    "grounded_findings": {
+      "findings_checked": 5,
+      "grounded": 0,
+      "ratio": 0.0
+    }
+  },
+  "results": [
+    {
+      "record_id": "ihtasham42__social-media-app::M3::controllers/commentControllers.js::114",
+      "operator": "M3",
+      "control_class": "authorization",
+      "file": "controllers/commentControllers.js",
+      "line": 114,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 1
+    },
+    {
+      "record_id": "ihtasham42__social-media-app::M3::controllers/commentControllers.js::139",
+      "operator": "M3",
+      "control_class": "authorization",
+      "file": "controllers/commentControllers.js",
+      "line": 139,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 2
+    },
+    {
+      "record_id": "ihtasham42__social-media-app::M3::controllers/postControllers.js::82",
+      "operator": "M3",
+      "control_class": "authorization",
+      "file": "controllers/postControllers.js",
+      "line": 82,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 1
+    }
+  ],
+  "baseline_findings": [
+    {
+      "id": "9819b022-b6e1-4d92-8aae-491f94c60fa1",
+      "context_id": "absence-route:routes/comments.js:/user/:id:10",
+      "file": "routes/comments.js",
+      "start_line": 128,
+      "end_line": 134,
+      "function": "client/src/api/posts.js::program:getUserComments",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing access control for retrieving user comments",
+      "description": "The function `getUserComments` is a route handler that retrieves comments for a specific user. This operation requires authorization to ensure that only the owner of the comments can access them.",
+      "context_reasoning": "No authentication or authorization checks are present in the function or its callers. The route is publicly accessible, and any authenticated user could potentially retrieve another user's comments if they know the user ID.",
+      "data_flow_summary": "operation: route; required control: authorization (role)",
+      "suggested_fix": "Implement an authorization check to ensure that only the owner of the comments can access them. This can be done by comparing the authenticated user's ID with the user ID in the request parameters.",
+      "model": "qwen2.5-coder:7b"
+    }
+  ]
+}

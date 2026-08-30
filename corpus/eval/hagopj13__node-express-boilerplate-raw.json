@@ -1,0 +1,131 @@
+{
+  "generated_at": "2026-08-29T23:08:59.618758Z",
+  "model": "qwen2.5-coder:7b",
+  "mode": "absence",
+  "grounding": "raw",
+  "match_window": 20,
+  "summary": {
+    "app": "hagopj13__node-express-boilerplate",
+    "commit_sha": "179ae84efec61b14206d0305d941daed6c6d07f9",
+    "n_mutations": 3,
+    "baseline_fp": 2,
+    "tp": 3,
+    "fp": 8,
+    "fn": 0,
+    "recall": 1.0,
+    "recall_raw": 1.0,
+    "precision": 0.273,
+    "f1": 0.429,
+    "by_operator": {
+      "M5": {
+        "tp": 3,
+        "fn": 0,
+        "recall": 1.0
+      }
+    },
+    "by_control_class": {
+      "validation": {
+        "tp": 3,
+        "fn": 0,
+        "recall": 1.0
+      }
+    },
+    "compression": {
+      "contexts": 12,
+      "repo_source_loc": 3217,
+      "slice_loc_median": 279,
+      "slice_loc_mean": 207.2,
+      "file_loc_median": 279,
+      "slice_over_file_median": 1.0,
+      "slice_over_file_mean": 1.0,
+      "slice_over_repo_mean": 0.064423
+    },
+    "grounded_findings": {
+      "findings_checked": 11,
+      "grounded": 11,
+      "ratio": 1.0
+    }
+  },
+  "results": [
+    {
+      "record_id": "hagopj13__node-express-boilerplate::M5::src/routes/v1/auth.route.js::9",
+      "operator": "M5",
+      "control_class": "validation",
+      "file": "src/routes/v1/auth.route.js",
+      "line": 9,
+      "route_path": "/register",
+      "detected": true,
+      "detected_raw": true,
+      "matched_title": "Missing access control for sending verification email",
+      "matched_line": 15,
+      "matched_control_ok": false,
+      "n_findings": 3
+    },
+    {
+      "record_id": "hagopj13__node-express-boilerplate::M5::src/routes/v1/auth.route.js::10",
+      "operator": "M5",
+      "control_class": "validation",
+      "file": "src/routes/v1/auth.route.js",
+      "line": 10,
+      "route_path": "/login",
+      "detected": true,
+      "detected_raw": true,
+      "matched_title": "Missing access control for '/auth/forgot-password'",
+      "matched_line": 13,
+      "matched_control_ok": false,
+      "n_findings": 4
+    },
+    {
+      "record_id": "hagopj13__node-express-boilerplate::M5::src/routes/v1/auth.route.js::11",
+      "operator": "M5",
+      "control_class": "validation",
+      "file": "src/routes/v1/auth.route.js",
+      "line": 11,
+      "route_path": "/logout",
+      "detected": true,
+      "detected_raw": true,
+      "matched_title": "Missing authentication for /auth/refresh-tokens endpoint",
+      "matched_line": 12,
+      "matched_control_ok": false,
+      "n_findings": 2
+    }
+  ],
+  "baseline_findings": [
+    {
+      "id": "7d60ff2b-2b9c-4c72-b359-b87ce9654db1",
+      "context_id": "absence-route:src/routes/v1/auth.route.js:/logout:11",
+      "file": "src/routes/v1/auth.route.js",
+      "start_line": 11,
+      "end_line": 11,
+      "function": "src/services/auth.service.js::program:logout",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "medium",
+      "confidence": "high",
+      "title": "Missing access control for /auth/logout endpoint",
+      "description": "The /auth/logout endpoint does not have any authentication or authorization checks. It allows any user to log out, which could potentially be used by an attacker to invalidate another user's session.",
+      "context_reasoning": "No authentication check is present in the evidence or shown callers for the /auth/logout endpoint. The operation requires authentication to ensure that only authenticated users can log out their own sessions, not another user's session.",
+      "data_flow_summary": "operation: logout; required control: authentication",
+      "suggested_fix": "Add an authentication middleware (e.g., `auth()`) to the /auth/logout route to ensure that only authenticated users can access this endpoint.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "9a12344a-be0b-4593-ab22-32fea381c416",
+      "context_id": "absence-route:src/routes/v1/auth.route.js:/verify-email:16",
+      "file": "src/routes/v1/auth.route.js",
+      "start_line": 16,
+      "end_line": 16,
+      "function": "src/services/auth.service.js::program:verifyEmail",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "medium",
+      "confidence": "high",
+      "title": "Missing access control for email verification endpoint",
+      "description": "The `/verify-email` endpoint does not have any authentication or authorization checks. It allows anyone to verify an email by providing a token, which could be used to bypass the need for user authentication.",
+      "context_reasoning": "No authentication check is present in the route registration or any of its callers. The endpoint allows anyone to verify an email by providing a token, which could be used to bypass the need for user authentication.",
+      "data_flow_summary": "operation: route handler; required control: authentication",
+      "suggested_fix": "Add an authentication check to ensure that only authenticated users can access this endpoint. This could involve checking if the user is logged in and has the necessary permissions to perform this action.",
+      "model": "qwen2.5-coder:7b"
+    }
+  ]
+}

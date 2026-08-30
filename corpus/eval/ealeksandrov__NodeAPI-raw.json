@@ -1,0 +1,131 @@
+{
+  "generated_at": "2026-08-29T22:47:44.184920Z",
+  "model": "qwen2.5-coder:7b",
+  "mode": "absence",
+  "grounding": "raw",
+  "match_window": 20,
+  "summary": {
+    "app": "ealeksandrov__NodeAPI",
+    "commit_sha": "cff6d1bf80ecb1659dfd805104c7ad70e13756fa",
+    "n_mutations": 3,
+    "baseline_fp": 2,
+    "tp": 1,
+    "fp": 9,
+    "fn": 2,
+    "recall": 0.333,
+    "recall_raw": 0.333,
+    "precision": 0.1,
+    "f1": 0.154,
+    "by_operator": {
+      "M1": {
+        "tp": 1,
+        "fn": 2,
+        "recall": 0.333
+      }
+    },
+    "by_control_class": {
+      "authentication": {
+        "tp": 1,
+        "fn": 2,
+        "recall": 0.333
+      }
+    },
+    "compression": {
+      "contexts": 12,
+      "repo_source_loc": 730,
+      "slice_loc_median": 85,
+      "slice_loc_mean": 73.7,
+      "file_loc_median": 85,
+      "slice_over_file_median": 1.0,
+      "slice_over_file_mean": 1.0,
+      "slice_over_repo_mean": 0.100913
+    },
+    "grounded_findings": {
+      "findings_checked": 10,
+      "grounded": 10,
+      "ratio": 1.0
+    }
+  },
+  "results": [
+    {
+      "record_id": "ealeksandrov__NodeAPI::M1::libs/routes/api.js::5",
+      "operator": "M1",
+      "control_class": "authentication",
+      "file": "libs/routes/api.js",
+      "line": 5,
+      "route_path": "/",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 2
+    },
+    {
+      "record_id": "ealeksandrov__NodeAPI::M1::libs/routes/articles.js::12",
+      "operator": "M1",
+      "control_class": "authentication",
+      "file": "libs/routes/articles.js",
+      "line": 12,
+      "route_path": "/",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 3
+    },
+    {
+      "record_id": "ealeksandrov__NodeAPI::M1::libs/routes/articles.js::30",
+      "operator": "M1",
+      "control_class": "authentication",
+      "file": "libs/routes/articles.js",
+      "line": 30,
+      "route_path": "/",
+      "detected": true,
+      "detected_raw": true,
+      "matched_title": "Missing ownership enforcement for article update operation",
+      "matched_line": 36,
+      "matched_control_ok": true,
+      "n_findings": 3
+    }
+  ],
+  "baseline_findings": [
+    {
+      "id": "a7bbd20c-58eb-4ab6-ad3f-08a51a491594",
+      "context_id": "absence:generateData.js:generateData.js::program:1",
+      "file": "generateData.js",
+      "start_line": 1,
+      "end_line": 27,
+      "function": "generateData.js::program",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing access control for database operations",
+      "description": "The function at line 1 is performing database operations without any authentication or authorization checks. This could allow an attacker to delete all users, clients, access tokens, and refresh tokens in the system.",
+      "context_reasoning": "No authentication check is present in the evidence or shown callers. The operations are deleting data from the database without any security checks, which could lead to unauthorized access and data loss.",
+      "data_flow_summary": "operation: data-access; required control: authentication",
+      "suggested_fix": "Add an authentication check before performing these operations. This could involve checking if a user is logged in or has appropriate permissions to perform these actions.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "3d3ebbca-b53b-4492-bdf1-ba52d6252134",
+      "context_id": "absence-route:libs/routes/oauth.js:/token:9",
+      "file": "libs/routes/oauth.js",
+      "start_line": 9,
+      "end_line": 9,
+      "function": "libs/routes/oauth.js::program#/token",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "medium",
+      "title": "Missing authentication for OAuth token endpoint",
+      "description": "The `/token` route at line 9 does not have any authentication checks. This exposes the OAuth token endpoint to anyone who can make a POST request, potentially allowing unauthorized access to generate tokens.",
+      "context_reasoning": "No authentication checks are present in the route registration or its middleware chain. The `oauth2.token` function is called directly without any prior authentication validation.",
+      "data_flow_summary": "operation: route handler; required control: authentication",
+      "suggested_fix": "Add an authentication check before calling `oauth2.token`. This could involve using a middleware like `passport.authenticate('local')` to ensure that only authenticated users can access this endpoint.",
+      "model": "qwen2.5-coder:7b"
+    }
+  ]
+}

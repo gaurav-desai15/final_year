@@ -1,0 +1,203 @@
+{
+  "generated_at": "2026-08-30T06:00:43.372209Z",
+  "model": "qwen2.5-coder:7b",
+  "mode": "absence",
+  "grounding": "cpg",
+  "match_window": 20,
+  "summary": {
+    "app": "thomas4019__expressa",
+    "commit_sha": "016d5af3fc2fe8b5e1ab21093d00b9899bef4ec2",
+    "n_mutations": 3,
+    "baseline_fp": 6,
+    "tp": 0,
+    "fp": 24,
+    "fn": 3,
+    "recall": 0.0,
+    "recall_raw": 0.0,
+    "precision": 0.0,
+    "f1": 0.0,
+    "by_operator": {
+      "M3": {
+        "tp": 0,
+        "fn": 3,
+        "recall": 0.0
+      }
+    },
+    "by_control_class": {
+      "authorization": {
+        "tp": 0,
+        "fn": 3,
+        "recall": 0.0
+      }
+    },
+    "compression": {
+      "contexts": 12,
+      "repo_source_loc": 5544,
+      "slice_loc_median": 37,
+      "slice_loc_mean": 37.2,
+      "file_loc_median": 288,
+      "slice_over_file_median": 0.1302,
+      "slice_over_file_mean": 0.1293,
+      "slice_over_repo_mean": 0.006719
+    },
+    "grounded_findings": {
+      "findings_checked": 24,
+      "grounded": 24,
+      "ratio": 1.0
+    }
+  },
+  "results": [
+    {
+      "record_id": "thomas4019__expressa::M3::controllers/install.js::4",
+      "operator": "M3",
+      "control_class": "authorization",
+      "file": "controllers/install.js",
+      "line": 4,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 6
+    },
+    {
+      "record_id": "thomas4019__expressa::M3::controllers/status.js::5",
+      "operator": "M3",
+      "control_class": "authorization",
+      "file": "controllers/status.js",
+      "line": 5,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 7
+    },
+    {
+      "record_id": "thomas4019__expressa::M3::listeners_collection_permissions.js::24",
+      "operator": "M3",
+      "control_class": "authorization",
+      "file": "listeners_collection_permissions.js",
+      "line": 24,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 5
+    }
+  ],
+  "baseline_findings": [
+    {
+      "id": "8ba1f9d2-2114-46b3-a17a-10d7145e1313",
+      "context_id": "absence-route:index.js:/install:267",
+      "file": "index.js",
+      "start_line": 267,
+      "end_line": 267,
+      "function": "index.js::program:<lambda>2:addRoutesAndMiddleware#/install",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing access control for '/install' route",
+      "description": "The '/install' route is a POST endpoint that does not have any authentication, authorization, ownership, session, or input-validation checks. This could allow unauthorized users to perform sensitive operations.",
+      "context_reasoning": "No authentication check (e.g., isLoggedIn, requireAuth) is present in the evidence or shown callers. The '/install' route does not have any control mechanism to ensure that only authenticated users can access it.",
+      "data_flow_summary": "operation: route; required control: authentication",
+      "suggested_fix": "Add an authentication middleware to the '/install' route to ensure that only authenticated users can perform this operation.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "75b6e7a9-ea28-401c-ae84-8f94a12f0e96",
+      "context_id": "absence-route:index.js:273:273",
+      "file": "index.js",
+      "start_line": 273,
+      "end_line": 273,
+      "function": "index.js::program:<lambda>2:addRoutesAndMiddleware#273",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing access control for login route",
+      "description": "The '/login' route is exposed without any authentication or authorization checks. This allows anyone to attempt a login, which could lead to unauthorized access.",
+      "context_reasoning": "No authentication check (e.g., isLoggedIn, requireAuth) was found in the evidence or shown callers. The '/login' route should be protected with an authentication mechanism to ensure only authorized users can access it.",
+      "data_flow_summary": "operation: route; required control: authentication",
+      "suggested_fix": "Add an authentication middleware before the '/login' route to ensure that only authenticated users can attempt a login.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "df36fccb-c8ce-4322-a719-b029462119d8",
+      "context_id": "absence-route:index.js:284:284",
+      "file": "index.js",
+      "start_line": 284,
+      "end_line": 284,
+      "function": "index.js::program:<lambda>2:addRoutesAndMiddleware#284",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing access control for user registration endpoint",
+      "description": "The '/register' endpoint is exposed without any authentication or authorization checks. This allows anyone to register a new user, which could lead to unauthorized access and potential abuse of the system.",
+      "context_reasoning": "No authentication check (e.g., isLoggedIn, requireAuth) is present in the guard evidence or shown callers. The '/register' endpoint should be protected with an authentication mechanism to ensure only authorized users can register new accounts.",
+      "data_flow_summary": "operation: route; required control: authentication",
+      "suggested_fix": "Add an authentication middleware before the '/register' route handler to ensure that only authenticated users can access this endpoint.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "d064de5d-a0b0-4714-aa96-65381af62a27",
+      "context_id": "absence-route:index.js:285:285",
+      "file": "index.js",
+      "start_line": 285,
+      "end_line": 285,
+      "function": "index.js::program:<lambda>2:addRoutesAndMiddleware#285",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing access control for route '/{name}/me'",
+      "description": "The route '/{name}/me' is a public endpoint that exposes user-specific data without any authentication or authorization checks. This can lead to unauthorized access to sensitive information.",
+      "context_reasoning": "No authentication check (e.g., isLoggedIn, requireAuth) was detected on this function or any shown caller. The route exposes user-specific data ('/me') without any control to ensure that only authenticated users can access it.",
+      "data_flow_summary": "operation: route; required control: authentication",
+      "suggested_fix": "Add an authentication middleware to the route to ensure that only authenticated users can access '/{name}/me'. For example, use 'requireAuth' or a similar middleware function to check if the user is logged in before allowing access to the route.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "75096fdb-171d-4eca-a54f-827d821a69d1",
+      "context_id": "absence-route:index.js:/:collection/:id:291",
+      "file": "index.js",
+      "start_line": 291,
+      "end_line": 291,
+      "function": "index.js::program:<lambda>2:addRoutesAndMiddleware#/:collection/:id",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing access control for route '/:collection/:id'",
+      "description": "The route '/:collection/:id' is a public endpoint that allows any authenticated user to read, update, replace, or delete resources. No authentication or authorization checks are present in the function or its callers.",
+      "context_reasoning": "The route '/:collection/:id' is a public endpoint that allows any authenticated user to perform sensitive operations on resources. The absence of an authentication check means that any authenticated user can access or modify another user's data, which is a significant security risk.",
+      "data_flow_summary": "operation: route; required control: authentication",
+      "suggested_fix": "Add authentication checks to ensure that only authorized users can access or modify the specified resource. This can be done by adding middleware that verifies the user's identity and permissions before allowing them to perform the requested operation.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "d6d52625-4776-46bc-88b5-b2ab87892ed0",
+      "context_id": "absence-route:index.js:/:collection/:id:292",
+      "file": "index.js",
+      "start_line": 292,
+      "end_line": 294,
+      "function": "index.js::program:<lambda>2:addRoutesAndMiddleware#/:collection/:id",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing access control for PUT /:collection/:id route",
+      "description": "The PUT /:collection/:id route is exposed without any authentication or authorization checks. This allows any authenticated user to replace, update, or delete any resource identified by the ':id' parameter.",
+      "context_reasoning": "No authentication or authorization checks are present in the route handler or its callers. The operation requires role-based access control to ensure that only authorized users can modify resources they own or have permission to modify.",
+      "data_flow_summary": "operation: route; required control: authorization (role)",
+      "suggested_fix": "Implement role-based access control to ensure that only authorized users can perform operations on specific resources. This may involve checking if the authenticated user has the necessary permissions before allowing them to replace, update, or delete a resource.",
+      "model": "qwen2.5-coder:7b"
+    }
+  ]
+}

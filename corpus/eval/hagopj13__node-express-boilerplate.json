@@ -1,0 +1,167 @@
+{
+  "generated_at": "2026-08-29T22:57:54.275591Z",
+  "model": "qwen2.5-coder:7b",
+  "mode": "absence",
+  "grounding": "cpg",
+  "match_window": 20,
+  "summary": {
+    "app": "hagopj13__node-express-boilerplate",
+    "commit_sha": "179ae84efec61b14206d0305d941daed6c6d07f9",
+    "n_mutations": 3,
+    "baseline_fp": 4,
+    "tp": 0,
+    "fp": 15,
+    "fn": 3,
+    "recall": 0.0,
+    "recall_raw": 1.0,
+    "precision": 0.0,
+    "f1": 0.0,
+    "by_operator": {
+      "M5": {
+        "tp": 0,
+        "fn": 3,
+        "recall": 0.0
+      }
+    },
+    "by_control_class": {
+      "validation": {
+        "tp": 0,
+        "fn": 3,
+        "recall": 0.0
+      }
+    },
+    "compression": {
+      "contexts": 12,
+      "repo_source_loc": 3217,
+      "slice_loc_median": 28,
+      "slice_loc_mean": 29.8,
+      "file_loc_median": 279,
+      "slice_over_file_median": 0.147,
+      "slice_over_file_mean": 0.258,
+      "slice_over_repo_mean": 0.009274
+    },
+    "grounded_findings": {
+      "findings_checked": 15,
+      "grounded": 15,
+      "ratio": 1.0
+    }
+  },
+  "results": [
+    {
+      "record_id": "hagopj13__node-express-boilerplate::M5::src/routes/v1/auth.route.js::9",
+      "operator": "M5",
+      "control_class": "validation",
+      "file": "src/routes/v1/auth.route.js",
+      "line": 9,
+      "route_path": "/register",
+      "detected": false,
+      "detected_raw": true,
+      "matched_title": "Missing authentication for refresh-tokens endpoint",
+      "matched_line": 12,
+      "matched_control_ok": false,
+      "n_findings": 4
+    },
+    {
+      "record_id": "hagopj13__node-express-boilerplate::M5::src/routes/v1/auth.route.js::10",
+      "operator": "M5",
+      "control_class": "validation",
+      "file": "src/routes/v1/auth.route.js",
+      "line": 10,
+      "route_path": "/login",
+      "detected": false,
+      "detected_raw": true,
+      "matched_title": "Missing authentication for refresh-tokens endpoint",
+      "matched_line": 12,
+      "matched_control_ok": false,
+      "n_findings": 4
+    },
+    {
+      "record_id": "hagopj13__node-express-boilerplate::M5::src/routes/v1/auth.route.js::11",
+      "operator": "M5",
+      "control_class": "validation",
+      "file": "src/routes/v1/auth.route.js",
+      "line": 11,
+      "route_path": "/logout",
+      "detected": false,
+      "detected_raw": true,
+      "matched_title": "Missing authentication for refresh-tokens endpoint",
+      "matched_line": 12,
+      "matched_control_ok": false,
+      "n_findings": 3
+    }
+  ],
+  "baseline_findings": [
+    {
+      "id": "f660c25f-cf81-4d26-9cf1-256e898bcda4",
+      "context_id": "absence-route:src/routes/v1/auth.route.js:/refresh-tokens:12",
+      "file": "src/routes/v1/auth.route.js",
+      "start_line": 12,
+      "end_line": 12,
+      "function": "src/routes/v1/auth.route.js::program#/refresh-tokens",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing authentication for refresh-tokens endpoint",
+      "description": "The /refresh-tokens endpoint is a public route that does not require any form of authentication. This can lead to unauthorized access and potential security vulnerabilities.",
+      "context_reasoning": "No authentication check (e.g., isLoggedIn, requireAuth) was found on this function or its callers. The route is registered without any middleware that enforces authentication, making it accessible to anyone who can make a request to the endpoint.",
+      "data_flow_summary": "operation: route; required control: authentication",
+      "suggested_fix": "Add an authentication middleware (e.g., auth()) before the refreshTokens controller method to ensure only authenticated users can access this endpoint.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "f79a07cd-3568-483b-92db-7c0d84b172ad",
+      "context_id": "absence-route:src/routes/v1/auth.route.js:/send-verification-email:15",
+      "file": "src/routes/v1/auth.route.js",
+      "start_line": 15,
+      "end_line": 15,
+      "function": "src/services/email.service.js::program:sendVerificationEmail",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing authentication for email verification endpoint",
+      "description": "The 'sendVerificationEmail' function is exposed via a public route ('/send-verification-email') and does not perform any authentication checks. This allows anyone to send a verification email, which could be used to bypass the need for user registration or verification.",
+      "context_reasoning": "The 'sendVerificationEmail' function is exposed via a public route and does not perform any authentication checks. This allows anyone to send a verification email, which could be used to bypass the need for user registration or verification.",
+      "data_flow_summary": "operation: route; required control: authentication",
+      "suggested_fix": "Add an authentication check to ensure that only authenticated users can access this endpoint. This can be done by adding middleware that verifies the user's identity before allowing them to proceed with sending the verification email.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "0eddd5ad-de89-4911-bf53-aace440a868b",
+      "context_id": "absence:src/services/user.service.js:src/services/user.service.js::program:1",
+      "file": "src/services/user.service.js",
+      "start_line": 10,
+      "end_line": 73,
+      "function": "src/services/user.service.js::program",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing access control for database write operations",
+      "description": "The function `createUser`, `updateUserById`, and `deleteUserById` perform database write operations without any authentication or authorization checks. This allows any authenticated user to create, update, or delete users, which could lead to unauthorized modifications of other users' data.",
+      "context_reasoning": "The function does not perform any access control checks to ensure that the current user has the necessary permissions to modify another user's data. The absence of authentication or authorization evidence in the shown context indicates a potential security vulnerability.",
+      "data_flow_summary": "operation: db_write; required control: authorization (role)",
+      "suggested_fix": "Implement role-based access control (RBAC) to ensure that only authorized users can create, update, and delete other users' data. This could involve checking if the current user has the appropriate permissions before performing these operations.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "65f78798-2d5d-4b71-8997-6c079201a98e",
+      "context_id": "absence-route:src/routes/v1/auth.route.js:/logout:11",
+      "file": "src/routes/v1/auth.route.js",
+      "start_line": 11,
+      "end_line": 11,
+      "function": "src/services/auth.service.js::program:logout",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "low",
+      "confidence": "high",
+      "title": "Missing access control in logout function",
+      "description": "The `/logout` endpoint is registered as a public route, and the handler does not perform any authentication or authorization checks. This could allow an attacker to log out another user's session if they have knowledge of their refresh token.",
+      "context_reasoning": "The `/logout` endpoint is registered as a public route, and the handler does not perform any authentication or authorization checks. This could allow an attacker to log out another user's session if they have knowledge of their refresh token.",
+      "data_flow_summary": "operation: route; required control: authentication",
+      "suggested_fix": "Ensure that the `/logout` endpoint requires authentication before allowing a logout operation. This can be done by adding an authentication middleware to the route registration, such as `requireAuth` or `passport.authenticate('jwt')`, which will verify the user's identity and ensure they are authorized to perform this action.",
+      "model": "qwen2.5-coder:7b"
+    }
+  ]
+}

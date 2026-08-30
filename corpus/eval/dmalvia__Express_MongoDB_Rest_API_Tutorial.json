@@ -1,0 +1,149 @@
+{
+  "generated_at": "2026-08-29T22:15:57.405995Z",
+  "model": "qwen2.5-coder:7b",
+  "mode": "absence",
+  "grounding": "cpg",
+  "match_window": 20,
+  "summary": {
+    "app": "dmalvia__Express_MongoDB_Rest_API_Tutorial",
+    "commit_sha": "4bb2cd80910fb4f643cd29807612b79dc06c3153",
+    "n_mutations": 3,
+    "baseline_fp": 3,
+    "tp": 0,
+    "fp": 12,
+    "fn": 3,
+    "recall": 0.0,
+    "recall_raw": 0.333,
+    "precision": 0.0,
+    "f1": 0.0,
+    "by_operator": {
+      "M2": {
+        "tp": 0,
+        "fn": 3,
+        "recall": 0.0
+      }
+    },
+    "by_control_class": {
+      "ownership": {
+        "tp": 0,
+        "fn": 3,
+        "recall": 0.0
+      }
+    },
+    "compression": {
+      "contexts": 12,
+      "repo_source_loc": 327,
+      "slice_loc_median": 14,
+      "slice_loc_mean": 24.1,
+      "file_loc_median": 78,
+      "slice_over_file_median": 0.3803,
+      "slice_over_file_mean": 0.4149,
+      "slice_over_repo_mean": 0.073649
+    },
+    "grounded_findings": {
+      "findings_checked": 12,
+      "grounded": 12,
+      "ratio": 1.0
+    }
+  },
+  "results": [
+    {
+      "record_id": "dmalvia__Express_MongoDB_Rest_API_Tutorial::M2::controllers/contactController.js::41",
+      "operator": "M2",
+      "control_class": "ownership",
+      "file": "controllers/contactController.js",
+      "line": 41,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 3
+    },
+    {
+      "record_id": "dmalvia__Express_MongoDB_Rest_API_Tutorial::M2::controllers/contactController.js::59",
+      "operator": "M2",
+      "control_class": "ownership",
+      "file": "controllers/contactController.js",
+      "line": 59,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 3
+    },
+    {
+      "record_id": "dmalvia__Express_MongoDB_Rest_API_Tutorial::M2::controllers/contactController.js::82",
+      "operator": "M2",
+      "control_class": "ownership",
+      "file": "controllers/contactController.js",
+      "line": 82,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": true,
+      "matched_title": "Missing Ownership Check for Database Read Operations",
+      "matched_line": 6,
+      "matched_control_ok": true,
+      "n_findings": 3
+    }
+  ],
+  "baseline_findings": [
+    {
+      "id": "5499b2c2-4f2c-46d2-8c29-740a6001c662",
+      "context_id": "absence-route:routes/userRoutes.js:/current:15",
+      "file": "routes/userRoutes.js",
+      "start_line": 15,
+      "end_line": 15,
+      "function": "routes/userRoutes.js::program#/current",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing authentication for '/current' route",
+      "description": "The '/current' route is exposed without any authentication checks. This allows unauthenticated users to access the endpoint, which could potentially expose sensitive user information.",
+      "context_reasoning": "No authentication check (e.g., validateToken) was found on this function or its callers. The route is exposed without any control, making it accessible to unauthenticated users.",
+      "data_flow_summary": "operation: route; required control: authentication",
+      "suggested_fix": "Add an authentication middleware (e.g., validateToken) to the '/current' route to ensure only authenticated users can access it.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "07f0ab4f-1962-4bc2-9551-ac8b2bc126e5",
+      "context_id": "absence:controllers/contactController.js:controllers/contactController.js::program:1",
+      "file": "controllers/contactController.js",
+      "start_line": 6,
+      "end_line": 97,
+      "function": "controllers/contactController.js::program",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing ownership enforcement for database read operations",
+      "description": "The function does not enforce ownership when reading contacts. Any authenticated user can access any contact, regardless of the owner.",
+      "context_reasoning": "No ownership check is present in the shown evidence or callers. Each operation reads a contact without verifying that the requesting user owns it.",
+      "data_flow_summary": "operation: [db_read]; required control: ownership",
+      "suggested_fix": "Add an ownership check to ensure that only the owner of a contact can read it. This can be done by comparing `req.user.id` with `contact.user_id` before returning the contact data.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "aa401634-9a66-4bf0-8115-d2044eafec66",
+      "context_id": "absence:controllers/userController.js:controllers/userController.js::program:<lambda>0:9",
+      "file": "controllers/userController.js",
+      "start_line": 9,
+      "end_line": 38,
+      "function": "controllers/userController.js::program:<lambda>0",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing authentication for user registration",
+      "description": "The function `registerUser` does not perform any authentication checks before allowing a new user to register. This exposes the system to unauthorized access, as anyone can create an account without proper credentials.",
+      "context_reasoning": "No authentication check (e.g., isLoggedIn, requireAuth) is present in the function or its callers. The operation requires authentication to ensure that only authorized users can register new accounts.",
+      "data_flow_summary": "operation: db_write; required control: authentication",
+      "suggested_fix": "Add an authentication check before allowing a user to register. This could involve checking if the user is already logged in or requiring them to provide valid credentials.",
+      "model": "qwen2.5-coder:7b"
+    }
+  ]
+}

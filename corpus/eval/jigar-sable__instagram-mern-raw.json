@@ -1,0 +1,167 @@
+{
+  "generated_at": "2026-08-30T00:20:50.071344Z",
+  "model": "qwen2.5-coder:7b",
+  "mode": "absence",
+  "grounding": "raw",
+  "match_window": 20,
+  "summary": {
+    "app": "jigar-sable__instagram-mern",
+    "commit_sha": "50e76f3c961553fd8ed5b09145c6063a75d8580b",
+    "n_mutations": 3,
+    "baseline_fp": 4,
+    "tp": 0,
+    "fp": 8,
+    "fn": 3,
+    "recall": 0.0,
+    "recall_raw": 0.0,
+    "precision": 0.0,
+    "f1": 0.0,
+    "by_operator": {
+      "M2": {
+        "tp": 0,
+        "fn": 3,
+        "recall": 0.0
+      }
+    },
+    "by_control_class": {
+      "ownership": {
+        "tp": 0,
+        "fn": 3,
+        "recall": 0.0
+      }
+    },
+    "compression": {
+      "contexts": 12,
+      "repo_source_loc": 5720,
+      "slice_loc_median": 246,
+      "slice_loc_mean": 229.5,
+      "file_loc_median": 246,
+      "slice_over_file_median": 1.0,
+      "slice_over_file_mean": 1.0,
+      "slice_over_repo_mean": 0.040122
+    },
+    "grounded_findings": {
+      "findings_checked": 8,
+      "grounded": 8,
+      "ratio": 1.0
+    }
+  },
+  "results": [
+    {
+      "record_id": "jigar-sable__instagram-mern::M2::backend/controllers/postController.js::68",
+      "operator": "M2",
+      "control_class": "ownership",
+      "file": "backend/controllers/postController.js",
+      "line": 68,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 2
+    },
+    {
+      "record_id": "jigar-sable__instagram-mern::M2::backend/controllers/postController.js::97",
+      "operator": "M2",
+      "control_class": "ownership",
+      "file": "backend/controllers/postController.js",
+      "line": 97,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 2
+    },
+    {
+      "record_id": "jigar-sable__instagram-mern::M2::backend/controllers/postController.js::120",
+      "operator": "M2",
+      "control_class": "ownership",
+      "file": "backend/controllers/postController.js",
+      "line": 120,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 0
+    }
+  ],
+  "baseline_findings": [
+    {
+      "id": "f56ae2c6-9ced-491f-a6cc-866cba0423d4",
+      "context_id": "absence:backend/controllers/postController.js:backend/controllers/postController.js::program:getPostsOfFollowing:138",
+      "file": "backend/controllers/postController.js",
+      "start_line": 107,
+      "end_line": 124,
+      "function": "backend/controllers/postController.js::program:getPostsOfFollowing",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing Ownership Check in 'deletePost'",
+      "description": "The function 'deletePost' does not perform an ownership check before deleting a post. An authenticated user can delete any post, which is a security risk.",
+      "context_reasoning": "The function 'deletePost' does not check if the post belongs to the current user (req.user._id) before deleting it. The ownership check is missing in this function, which could allow an attacker to delete another user's posts.",
+      "data_flow_summary": "operation: data-access; required control: ownership",
+      "suggested_fix": "Add an ownership check to ensure that only the owner of the post can delete it. This can be done by comparing the 'postedBy' field of the post with the current user's ID (req.user._id). If they do not match, return an error indicating that the user is unauthorized.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "48182cf7-d6c7-4517-a381-49fa3b6f2e68",
+      "context_id": "absence:backend/controllers/postController.js:backend/controllers/postController.js::program:getPostsOfFollowing:138",
+      "file": "backend/controllers/postController.js",
+      "start_line": 135,
+      "end_line": 148,
+      "function": "backend/controllers/postController.js::program:getPostsOfFollowing",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing Ownership Check in 'updateCaption'",
+      "description": "The function 'updateCaption' does not perform an ownership check before updating a post's caption. An authenticated user can update any post, which is a security risk.",
+      "context_reasoning": "The function 'updateCaption' does not check if the post belongs to the current user (req.user._id) before updating its caption. The ownership check is missing in this function, which could allow an attacker to update another user's posts.",
+      "data_flow_summary": "operation: data-access; required control: ownership",
+      "suggested_fix": "Add an ownership check to ensure that only the owner of the post can update it. This can be done by comparing the 'postedBy' field of the post with the current user's ID (req.user._id). If they do not match, return an error indicating that the user is unauthorized.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "0826f16c-41ab-4b34-91f8-3e5c053e23b5",
+      "context_id": "absence:backend/controllers/postController.js:backend/controllers/postController.js::program:deletePost:60",
+      "file": "backend/controllers/postController.js",
+      "start_line": 166,
+      "end_line": 184,
+      "function": "backend/controllers/postController.js::program:deletePost",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "medium",
+      "title": "Missing Ownership Check in 'updateCaption'",
+      "description": "The function 'updateCaption' allows any authenticated user to update the caption of a post, regardless of whether the post belongs to them. This is because there is no ownership check to ensure that only the owner of the post can perform this action.",
+      "context_reasoning": "The function does not check if the user who is updating the caption is the same as the owner of the post. This could allow any authenticated user to update another user's posts without proper authorization.",
+      "data_flow_summary": "operation: Update Caption; required control: ownership",
+      "suggested_fix": "Add an ownership check to ensure that only the owner of the post can update its caption. For example, add a condition to check if `post.postedBy.toString() === req.user._id.toString()` before allowing the action to proceed.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "46e99072-3adb-41b3-86ed-3433fdbe66ac",
+      "context_id": "absence:backend/controllers/postController.js:backend/controllers/postController.js::program:deletePost:60",
+      "file": "backend/controllers/postController.js",
+      "start_line": 196,
+      "end_line": 214,
+      "function": "backend/controllers/postController.js::program:deletePost",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "medium",
+      "title": "Missing Ownership Check in 'newComment'",
+      "description": "The function 'newComment' allows any authenticated user to comment on a post, regardless of whether the post belongs to them. This is because there is no ownership check to ensure that only the owner of the post can perform this action.",
+      "context_reasoning": "The function does not check if the user who is commenting on the post is the same as the owner of the post. This could allow any authenticated user to comment on another user's posts without proper authorization.",
+      "data_flow_summary": "operation: Add Comment; required control: ownership",
+      "suggested_fix": "Add an ownership check to ensure that only the owner of the post can add a comment. For example, add a condition to check if `post.postedBy.toString() === req.user._id.toString()` before allowing the action to proceed.",
+      "model": "qwen2.5-coder:7b"
+    }
+  ]
+}

@@ -1,0 +1,203 @@
+{
+  "generated_at": "2026-08-29T22:40:05.489566Z",
+  "model": "qwen2.5-coder:7b",
+  "mode": "absence",
+  "grounding": "cpg",
+  "match_window": 20,
+  "summary": {
+    "app": "ealeksandrov__NodeAPI",
+    "commit_sha": "cff6d1bf80ecb1659dfd805104c7ad70e13756fa",
+    "n_mutations": 3,
+    "baseline_fp": 6,
+    "tp": 1,
+    "fp": 24,
+    "fn": 2,
+    "recall": 0.333,
+    "recall_raw": 0.333,
+    "precision": 0.04,
+    "f1": 0.071,
+    "by_operator": {
+      "M1": {
+        "tp": 1,
+        "fn": 2,
+        "recall": 0.333
+      }
+    },
+    "by_control_class": {
+      "authentication": {
+        "tp": 1,
+        "fn": 2,
+        "recall": 0.333
+      }
+    },
+    "compression": {
+      "contexts": 12,
+      "repo_source_loc": 730,
+      "slice_loc_median": 36,
+      "slice_loc_mean": 37.8,
+      "file_loc_median": 85,
+      "slice_over_file_median": 0.5311,
+      "slice_over_file_mean": 0.6282,
+      "slice_over_repo_mean": 0.051712
+    },
+    "grounded_findings": {
+      "findings_checked": 25,
+      "grounded": 25,
+      "ratio": 1.0
+    }
+  },
+  "results": [
+    {
+      "record_id": "ealeksandrov__NodeAPI::M1::libs/routes/api.js::5",
+      "operator": "M1",
+      "control_class": "authentication",
+      "file": "libs/routes/api.js",
+      "line": 5,
+      "route_path": "/",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 6
+    },
+    {
+      "record_id": "ealeksandrov__NodeAPI::M1::libs/routes/articles.js::12",
+      "operator": "M1",
+      "control_class": "authentication",
+      "file": "libs/routes/articles.js",
+      "line": 12,
+      "route_path": "/",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 6
+    },
+    {
+      "record_id": "ealeksandrov__NodeAPI::M1::libs/routes/articles.js::30",
+      "operator": "M1",
+      "control_class": "authentication",
+      "file": "libs/routes/articles.js",
+      "line": 30,
+      "route_path": "/",
+      "detected": true,
+      "detected_raw": true,
+      "matched_title": "Missing access control for article creation",
+      "matched_line": 30,
+      "matched_control_ok": true,
+      "n_findings": 7
+    }
+  ],
+  "baseline_findings": [
+    {
+      "id": "42053703-f47d-4fcb-8092-8c06166ead60",
+      "context_id": "absence-route:libs/routes/oauth.js:/token:9",
+      "file": "libs/routes/oauth.js",
+      "start_line": 9,
+      "end_line": 10,
+      "function": "libs/routes/oauth.js::program#/token",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing access control for OAuth token endpoint",
+      "description": "The /token route is exposed without any authentication or authorization checks. This allows anyone to obtain an OAuth token, which could be used to access protected resources.",
+      "context_reasoning": "No authentication check (e.g., passport.authenticate) was found on this route or in any of its callers. The /token endpoint should require authentication to ensure that only authorized users can obtain OAuth tokens.",
+      "data_flow_summary": "operation: route; required control: authentication",
+      "suggested_fix": "Add an authentication middleware, such as passport.authenticate('local'), before the oauth2.token handler to ensure that only authenticated users can access this endpoint.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "fae7e8e6-1837-47d2-8f5a-2f8dd97076fd",
+      "context_id": "absence:libs/auth/auth.js:libs/auth/auth.js::program:1",
+      "file": "libs/auth/auth.js",
+      "start_line": 19,
+      "end_line": 40,
+      "function": "libs/auth/auth.js::program",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing authentication for database read operations",
+      "description": "The function `libs/auth/auth.js::program` contains multiple database read operations (CPG nodes 30064771335, 30064771339, 30064771340, and 30064771344) that do not have any authentication or authorization checks. This allows unauthenticated users to read sensitive data from the database.",
+      "context_reasoning": "The function does not contain any authentication checks (e.g., passport.authenticate, isLoggedIn) that would ensure only authenticated users can access the protected resources. The absence of such checks makes it possible for unauthenticated users to read sensitive data from the database.",
+      "data_flow_summary": "operation: db_read; required control: authentication",
+      "suggested_fix": "Add authentication checks using middleware like `passport.authenticate('basic')` or `passport.authenticate('client-password')` before the database read operations to ensure only authenticated users can access the protected resources.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "5e2cb1f3-3433-44ea-bc41-5fe374527dfa",
+      "context_id": "absence:libs/auth/auth.js:libs/auth/auth.js::program:1",
+      "file": "libs/auth/auth.js",
+      "start_line": 63,
+      "end_line": 74,
+      "function": "libs/auth/auth.js::program",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing authentication for database write operations",
+      "description": "The function `libs/auth/auth.js::program` contains multiple database write operations (CPG nodes 30064771345 and 30064771349) that do not have any authentication or authorization checks. This allows unauthenticated users to modify sensitive data in the database.",
+      "context_reasoning": "The function does not contain any authentication checks (e.g., passport.authenticate, isLoggedIn) that would ensure only authenticated users can access the protected resources. The absence of such checks makes it possible for unauthenticated users to modify sensitive data in the database.",
+      "data_flow_summary": "operation: db_write; required control: authentication",
+      "suggested_fix": "Add authentication checks using middleware like `passport.authenticate('basic')` or `passport.authenticate('client-password')` before the database write operations to ensure only authenticated users can access the protected resources.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "a3c0f561-a20a-434d-ad65-9f4bf1a22684",
+      "context_id": "absence:libs/auth/oauth2.js:libs/auth/oauth2.js::program:generateTokens:26",
+      "file": "libs/auth/oauth2.js",
+      "start_line": 26,
+      "end_line": 59,
+      "function": "libs/auth/oauth2.js::program:generateTokens",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing access control for database write operations in generateTokens function",
+      "description": "The `generateTokens` function performs several database write operations (deleting and saving tokens) without any authentication or authorization checks. This could allow an attacker to manipulate the system by deleting or creating tokens on behalf of other users.",
+      "context_reasoning": "The function does not perform any authentication check, such as verifying that the user is logged in or authorized to perform these operations. The operation requires authentication to ensure that only authorized users can modify tokens.",
+      "data_flow_summary": "operation: db_write; required control: authentication",
+      "suggested_fix": "Add an authentication check before performing database write operations. This could involve checking if the user is authenticated and has the necessary permissions to modify tokens.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "d69c1429-f0d0-4fe6-a1d9-96ea646ae8c4",
+      "context_id": "absence:libs/auth/auth.js:libs/auth/auth.js::program:<lambda>4:<lambda>5:65",
+      "file": "libs/auth/auth.js",
+      "start_line": 77,
+      "end_line": 82,
+      "function": "libs/auth/auth.js::program:<lambda>4:<lambda>5",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing access control for database write operation",
+      "description": "The function performs a database write operation to delete expired tokens. However, there is no authentication or authorization check to ensure that only authorized users can perform this action.",
+      "context_reasoning": "No authentication check (e.g., isLoggedIn, requireAuth) was found in the function or its callers. The operation is a database write and requires authentication to ensure that only authorized users can delete tokens.",
+      "data_flow_summary": "operation: [db_write] Database write; required control: authentication",
+      "suggested_fix": "Add an authentication check before performing the database write operation. For example, use `requireAuth` middleware to ensure that only authenticated users can access this endpoint.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "58ebf9f0-d418-41b2-9e03-d5ea1d567336",
+      "context_id": "absence:libs/auth/auth.js:libs/auth/auth.js::program:<lambda>4:<lambda>5:65",
+      "file": "libs/auth/auth.js",
+      "start_line": 86,
+      "end_line": 91,
+      "function": "libs/auth/auth.js::program:<lambda>4:<lambda>5",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing access control for database read operation",
+      "description": "The function performs a database read operation to retrieve user information based on the token. However, there is no authentication or authorization check to ensure that only authorized users can perform this action.",
+      "context_reasoning": "No authentication check (e.g., isLoggedIn, requireAuth) was found in the function or its callers. The operation is a database read and requires authentication to ensure that only authorized users can access user information.",
+      "data_flow_summary": "operation: [db_read] Database read; required control: authentication",
+      "suggested_fix": "Add an authentication check before performing the database read operation. For example, use `requireAuth` middleware to ensure that only authenticated users can access this endpoint.",
+      "model": "qwen2.5-coder:7b"
+    }
+  ]
+}

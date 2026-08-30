@@ -1,0 +1,185 @@
+{
+  "generated_at": "2026-08-29T23:54:10.812434Z",
+  "model": "qwen2.5-coder:7b",
+  "mode": "absence",
+  "grounding": "cpg",
+  "match_window": 20,
+  "summary": {
+    "app": "jigar-sable__instagram-mern",
+    "commit_sha": "50e76f3c961553fd8ed5b09145c6063a75d8580b",
+    "n_mutations": 3,
+    "baseline_fp": 5,
+    "tp": 1,
+    "fp": 21,
+    "fn": 2,
+    "recall": 0.333,
+    "recall_raw": 0.333,
+    "precision": 0.045,
+    "f1": 0.08,
+    "by_operator": {
+      "M2": {
+        "tp": 1,
+        "fn": 2,
+        "recall": 0.333
+      }
+    },
+    "by_control_class": {
+      "ownership": {
+        "tp": 1,
+        "fn": 2,
+        "recall": 0.333
+      }
+    },
+    "compression": {
+      "contexts": 12,
+      "repo_source_loc": 5720,
+      "slice_loc_median": 30,
+      "slice_loc_mean": 62.7,
+      "file_loc_median": 246,
+      "slice_over_file_median": 0.1257,
+      "slice_over_file_mean": 0.3102,
+      "slice_over_repo_mean": 0.010956
+    },
+    "grounded_findings": {
+      "findings_checked": 22,
+      "grounded": 22,
+      "ratio": 1.0
+    }
+  },
+  "results": [
+    {
+      "record_id": "jigar-sable__instagram-mern::M2::backend/controllers/postController.js::68",
+      "operator": "M2",
+      "control_class": "ownership",
+      "file": "backend/controllers/postController.js",
+      "line": 68,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 4
+    },
+    {
+      "record_id": "jigar-sable__instagram-mern::M2::backend/controllers/postController.js::97",
+      "operator": "M2",
+      "control_class": "ownership",
+      "file": "backend/controllers/postController.js",
+      "line": 97,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 4
+    },
+    {
+      "record_id": "jigar-sable__instagram-mern::M2::backend/controllers/postController.js::120",
+      "operator": "M2",
+      "control_class": "ownership",
+      "file": "backend/controllers/postController.js",
+      "line": 120,
+      "route_path": "",
+      "detected": true,
+      "detected_raw": true,
+      "matched_title": "Lack of Authentication and Authorization in Post Operations",
+      "matched_line": 112,
+      "matched_control_ok": true,
+      "n_findings": 9
+    }
+  ],
+  "baseline_findings": [
+    {
+      "id": "9cdf6af9-a3fe-4998-a2fa-140b946b3104",
+      "context_id": "absence:backend/controllers/userController.js:backend/controllers/userController.js::program:1",
+      "file": "backend/controllers/userController.js",
+      "start_line": 205,
+      "end_line": 348,
+      "function": "backend/controllers/userController.js::program",
+      "vulnerability_type": "Insecure API",
+      "cwe": "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Potential OS Command Injection via User Input",
+      "description": "The code does not sanitize or validate user input, which could lead to OS command injection if the input is used in a system call.",
+      "context_reasoning": "No validation or sanitization of user inputs is performed before using them in database operations.",
+      "data_flow_summary": "operation: db_write; required control: Input Validation and Sanitization",
+      "suggested_fix": "Implement proper input validation and sanitization for all user inputs used in database queries.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "cf3c80e7-ffc3-45c1-b04f-a45d33af3330",
+      "context_id": "absence:backend/controllers/userController.js:backend/controllers/userController.js::program:1",
+      "file": "backend/controllers/userController.js",
+      "start_line": 250,
+      "end_line": 348,
+      "function": "backend/controllers/userController.js::program",
+      "vulnerability_type": "Insecure API",
+      "cwe": "CWE-79: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Potential OS Command Injection via User Input",
+      "description": "The code does not sanitize or validate user input, which could lead to OS command injection if the input is used in a system call.",
+      "context_reasoning": "No validation or sanitization of user inputs is performed before using them in database operations.",
+      "data_flow_summary": "operation: db_write; required control: Input Validation and Sanitization",
+      "suggested_fix": "Implement proper input validation and sanitization for all user inputs used in database queries.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "7205a38e-ca43-478e-b32e-fa67a2925c8b",
+      "context_id": "absence:backend/controllers/postController.js:backend/controllers/postController.js::program:1",
+      "file": "backend/controllers/postController.js",
+      "start_line": 89,
+      "end_line": 171,
+      "function": "backend/controllers/postController.js::program",
+      "vulnerability_type": "Insecure API",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Lack of Authentication and Authorization in Post Controller Functions",
+      "description": "The post controller functions do not perform any authentication, authorization, ownership checks, or validation. This allows anyone to update captions, add comments, save/unsave posts, and retrieve all posts without proper authorization.",
+      "context_reasoning": "The functions lack any checks to ensure that only authorized users can perform actions on specific resources. This includes checking if the user is logged in, verifying ownership of posts, and ensuring that comments are not duplicated.",
+      "data_flow_summary": "operation: database_write; required control: Authentication, Authorization, Ownership, Session, Validation",
+      "suggested_fix": "Implement authentication middleware to check if a user is logged in before allowing access to these endpoints. Add authorization checks to ensure that only the owner of a post can update it or delete it. Implement validation to prevent duplicate comments and ensure that only valid data is saved to the database.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "c2131f49-4e56-492d-a3c3-132e5f6d45a5",
+      "context_id": "absence:backend/controllers/userController.js:backend/controllers/userController.js::program:followUser:250",
+      "file": "backend/controllers/userController.js",
+      "start_line": 250,
+      "end_line": 285,
+      "function": "backend/controllers/userController.js::program:followUser",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing Ownership Check for User Following/Unfollowing",
+      "description": "The function `followUser` allows any authenticated user to follow or unfollow another user without checking if the target user belongs to the same owner. This could lead to unauthorized access and manipulation of other users' data.",
+      "context_reasoning": "The function does not check if the `userToFollow` is owned by the same user who is performing the action (`loggedInUser`). This could allow an authenticated user to follow or unfollow another user's account without proper authorization.",
+      "data_flow_summary": "operation: db_write; required control: ownership",
+      "suggested_fix": "Add a check to ensure that the `userToFollow` belongs to the same owner as `loggedInUser`. For example, you can add a condition like `if (userToFollow.owner !== loggedInUser._id) { return next(new ErrorHandler('Unauthorized', 403)); }` before performing any database operations.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "91d9d92e-b9b1-4e04-9eb0-acbafd56f095",
+      "context_id": "absence:backend/controllers/userController.js:backend/controllers/userController.js::program:resetPassword:326",
+      "file": "backend/controllers/userController.js",
+      "start_line": 326,
+      "end_line": 345,
+      "function": "backend/controllers/userController.js::program:resetPassword",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing authentication for password reset operation",
+      "description": "The function `resetPassword` in `backend/controllers/userController.js` does not perform any authentication checks before allowing a user to reset their password. This exposes the system to unauthorized access, as anyone with a valid reset token can change another user's password.",
+      "context_reasoning": "The function `resetPassword` does not perform any authentication checks (e.g., checking if the user is logged in or has a valid session) before allowing a password reset. This makes it possible for anyone with a valid reset token to change another user's password, which is a significant security risk.",
+      "data_flow_summary": "operation: db_write; required control: authentication",
+      "suggested_fix": "Add an authentication check at the beginning of the function to ensure that only authenticated users can access this endpoint. This could involve checking if the user is logged in or has a valid session before proceeding with the password reset process.",
+      "model": "qwen2.5-coder:7b"
+    }
+  ]
+}

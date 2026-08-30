@@ -1,0 +1,113 @@
+{
+  "generated_at": "2026-08-30T02:46:05.840166Z",
+  "model": "qwen2.5-coder:7b",
+  "mode": "absence",
+  "grounding": "cpg",
+  "match_window": 20,
+  "summary": {
+    "app": "orifmilod__iCinema",
+    "commit_sha": "b0391fcd2b47d1ad24d2bbe6bf122bdec1219b5b",
+    "n_mutations": 3,
+    "baseline_fp": 1,
+    "tp": 2,
+    "fp": 4,
+    "fn": 1,
+    "recall": 0.667,
+    "recall_raw": 0.667,
+    "precision": 0.333,
+    "f1": 0.444,
+    "by_operator": {
+      "M1": {
+        "tp": 2,
+        "fn": 1,
+        "recall": 0.667
+      }
+    },
+    "by_control_class": {
+      "authentication": {
+        "tp": 2,
+        "fn": 1,
+        "recall": 0.667
+      }
+    },
+    "compression": {
+      "contexts": 12,
+      "repo_source_loc": 2844,
+      "slice_loc_median": 35,
+      "slice_loc_mean": 29.8,
+      "file_loc_median": 86,
+      "slice_over_file_median": 0.336,
+      "slice_over_file_mean": 0.4115,
+      "slice_over_repo_mean": 0.01049
+    },
+    "grounded_findings": {
+      "findings_checked": 6,
+      "grounded": 6,
+      "ratio": 1.0
+    }
+  },
+  "results": [
+    {
+      "record_id": "orifmilod__iCinema::M1::controller/genre.js::29",
+      "operator": "M1",
+      "control_class": "authentication",
+      "file": "controller/genre.js",
+      "line": 29,
+      "route_path": "/",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 1
+    },
+    {
+      "record_id": "orifmilod__iCinema::M1::controller/movie.js::66",
+      "operator": "M1",
+      "control_class": "authentication",
+      "file": "controller/movie.js",
+      "line": 66,
+      "route_path": "/addMovie",
+      "detected": true,
+      "detected_raw": true,
+      "matched_title": "Missing Authorization for Adding a Movie",
+      "matched_line": 66,
+      "matched_control_ok": true,
+      "n_findings": 2
+    },
+    {
+      "record_id": "orifmilod__iCinema::M1::controller/movie.js::122",
+      "operator": "M1",
+      "control_class": "authentication",
+      "file": "controller/movie.js",
+      "line": 122,
+      "route_path": "/:movieId",
+      "detected": true,
+      "detected_raw": true,
+      "matched_title": "Missing Authorization for Movie Update",
+      "matched_line": 122,
+      "matched_control_ok": true,
+      "n_findings": 2
+    }
+  ],
+  "baseline_findings": [
+    {
+      "id": "e9fdc750-c03f-4c2f-9cc7-33c1f09e0c59",
+      "context_id": "absence-route:controller/movie.js:/:movieId:39",
+      "file": "controller/movie.js",
+      "start_line": 39,
+      "end_line": 45,
+      "function": "controller/movie.js::program#/:movieId",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing access control for movie retrieval",
+      "description": "The function `program#/:movieId` is a route handler that retrieves a movie by ID. This operation requires authorization to ensure that only authorized users can access movies they are permitted to view.",
+      "context_reasoning": "The function does not perform any authentication or authorization checks. The route is accessible without any restrictions, which means any authenticated user could potentially access any movie by providing the correct ID. This exposes sensitive data and violates the principle of least privilege.",
+      "data_flow_summary": "operation: route; required control: authorization (role)",
+      "suggested_fix": "Implement role-based access control to ensure that only authorized users can access movies they are permitted to view. This could involve checking if the current user has permission to view the specified movie before returning it.",
+      "model": "qwen2.5-coder:7b"
+    }
+  ]
+}

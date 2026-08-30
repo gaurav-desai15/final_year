@@ -1,0 +1,149 @@
+{
+  "generated_at": "2026-08-29T21:32:44.607948Z",
+  "model": "qwen2.5-coder:7b",
+  "mode": "absence",
+  "grounding": "cpg",
+  "match_window": 20,
+  "summary": {
+    "app": "bradtraversy__storybooks",
+    "commit_sha": "865ff4eaefa62be01d4dd57fa2f2c617b73798c8",
+    "n_mutations": 3,
+    "baseline_fp": 3,
+    "tp": 1,
+    "fp": 12,
+    "fn": 2,
+    "recall": 0.333,
+    "recall_raw": 0.667,
+    "precision": 0.077,
+    "f1": 0.125,
+    "by_operator": {
+      "M1": {
+        "tp": 1,
+        "fn": 2,
+        "recall": 0.333
+      }
+    },
+    "by_control_class": {
+      "authentication": {
+        "tp": 1,
+        "fn": 2,
+        "recall": 0.333
+      }
+    },
+    "compression": {
+      "contexts": 12,
+      "repo_source_loc": 482,
+      "slice_loc_median": 38,
+      "slice_loc_mean": 30.1,
+      "file_loc_median": 153,
+      "slice_over_file_median": 0.2549,
+      "slice_over_file_mean": 0.4497,
+      "slice_over_repo_mean": 0.062414
+    },
+    "grounded_findings": {
+      "findings_checked": 13,
+      "grounded": 13,
+      "ratio": 1.0
+    }
+  },
+  "results": [
+    {
+      "record_id": "bradtraversy__storybooks::M1::routes/auth.js::11",
+      "operator": "M1",
+      "control_class": "authentication",
+      "file": "routes/auth.js",
+      "line": 11,
+      "route_path": "/google/callback",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 3
+    },
+    {
+      "record_id": "bradtraversy__storybooks::M1::routes/index.js::17",
+      "operator": "M1",
+      "control_class": "authentication",
+      "file": "routes/index.js",
+      "line": 17,
+      "route_path": "/dashboard",
+      "detected": false,
+      "detected_raw": true,
+      "matched_title": "Missing authentication for dashboard route",
+      "matched_line": 17,
+      "matched_control_ok": true,
+      "n_findings": 3
+    },
+    {
+      "record_id": "bradtraversy__storybooks::M1::routes/stories.js::9",
+      "operator": "M1",
+      "control_class": "authentication",
+      "file": "routes/stories.js",
+      "line": 9,
+      "route_path": "/add",
+      "detected": true,
+      "detected_raw": true,
+      "matched_title": "Missing access control for route handler",
+      "matched_line": 15,
+      "matched_control_ok": true,
+      "n_findings": 4
+    }
+  ],
+  "baseline_findings": [
+    {
+      "id": "fb442704-3ea0-40da-8cde-f1bd56741d28",
+      "context_id": "absence-route:routes/index.js:/dashboard:17",
+      "file": "routes/index.js",
+      "start_line": 17,
+      "end_line": 24,
+      "function": "routes/index.js::program#/dashboard",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing authentication for dashboard route",
+      "description": "The '/dashboard' route is accessible without any authentication checks. This allows unauthenticated users to access the dashboard, which may expose sensitive user data.",
+      "context_reasoning": "No authentication check (e.g., ensureAuth) was found on this function or its callers. The route is accessible without any authentication checks, allowing unauthenticated users to access the dashboard and potentially view sensitive user data.",
+      "data_flow_summary": "operation: route; required control: authentication",
+      "suggested_fix": "Add an authentication check (e.g., ensureAuth) to the '/dashboard' route registration to ensure only authenticated users can access it.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "af6222a6-02a0-42ad-86ae-097a5c1e511f",
+      "context_id": "absence-route:routes/stories.js:/add:9",
+      "file": "routes/stories.js",
+      "start_line": 9,
+      "end_line": 15,
+      "function": "routes/stories.js::program#/add",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing access control for route '/add'",
+      "description": "The route '/add' is registered with 'ensureAuth', which means it requires authentication. However, no further authorization or ownership checks are present in the function or its callers.",
+      "context_reasoning": "The operation class is a route that requires authentication. The control required is authorization (role). The shown evidence does not provide any authorization check, such as ensuring the user has permission to add stories or checking if the story belongs to the current user.",
+      "data_flow_summary": "operation: route; required control: authorization",
+      "suggested_fix": "Add an authorization check to ensure the authenticated user has permission to add stories. This could involve comparing the user's role or permissions against a list of allowed actions for adding stories.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "318471fb-80aa-4d87-86e6-e2fc8b7ab65e",
+      "context_id": "absence-route:routes/stories.js:/:id:46",
+      "file": "routes/stories.js",
+      "start_line": 46,
+      "end_line": 58,
+      "function": "routes/stories.js::program#/:id",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing Ownership Check for Story Resource",
+      "description": "The function at routes/stories.js:46 handles a GET request to retrieve a story by ID. The operation requires ownership enforcement because it checks if the story is private and only allows access if the user owns the story or the story is not private. However, no ownership check is present in the guard evidence or shown callers.",
+      "context_reasoning": "The function does not perform an ownership check to ensure that only the owner of a private story can access it. The presence of 'ensureAuth' middleware suggests authentication is in place, but without an explicit check for ownership, this control is missing.",
+      "data_flow_summary": "operation: route; required control: ownership",
+      "suggested_fix": "Add an ownership check to verify if the current user (req.user) is the owner of the story before rendering the show page or redirecting to a 404 error. For example: `if (story.user._id != req.user.id && story.status == 'private') { return res.render('error/404'); }`",
+      "model": "qwen2.5-coder:7b"
+    }
+  ]
+}

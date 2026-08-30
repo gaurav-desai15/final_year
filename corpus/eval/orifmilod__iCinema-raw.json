@@ -1,0 +1,131 @@
+{
+  "generated_at": "2026-08-30T03:07:40.131065Z",
+  "model": "qwen2.5-coder:7b",
+  "mode": "absence",
+  "grounding": "raw",
+  "match_window": 20,
+  "summary": {
+    "app": "orifmilod__iCinema",
+    "commit_sha": "b0391fcd2b47d1ad24d2bbe6bf122bdec1219b5b",
+    "n_mutations": 3,
+    "baseline_fp": 2,
+    "tp": 2,
+    "fp": 9,
+    "fn": 1,
+    "recall": 0.667,
+    "recall_raw": 0.667,
+    "precision": 0.182,
+    "f1": 0.286,
+    "by_operator": {
+      "M1": {
+        "tp": 2,
+        "fn": 1,
+        "recall": 0.667
+      }
+    },
+    "by_control_class": {
+      "authentication": {
+        "tp": 2,
+        "fn": 1,
+        "recall": 0.667
+      }
+    },
+    "compression": {
+      "contexts": 12,
+      "repo_source_loc": 2844,
+      "slice_loc_median": 86,
+      "slice_loc_mean": 82.3,
+      "file_loc_median": 86,
+      "slice_over_file_median": 1.0,
+      "slice_over_file_mean": 1.0,
+      "slice_over_repo_mean": 0.02895
+    },
+    "grounded_findings": {
+      "findings_checked": 11,
+      "grounded": 11,
+      "ratio": 1.0
+    }
+  },
+  "results": [
+    {
+      "record_id": "orifmilod__iCinema::M1::controller/genre.js::29",
+      "operator": "M1",
+      "control_class": "authentication",
+      "file": "controller/genre.js",
+      "line": 29,
+      "route_path": "/",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 3
+    },
+    {
+      "record_id": "orifmilod__iCinema::M1::controller/movie.js::66",
+      "operator": "M1",
+      "control_class": "authentication",
+      "file": "controller/movie.js",
+      "line": 66,
+      "route_path": "/addMovie",
+      "detected": true,
+      "detected_raw": true,
+      "matched_title": "Missing authorization for updating a movie",
+      "matched_line": 71,
+      "matched_control_ok": true,
+      "n_findings": 3
+    },
+    {
+      "record_id": "orifmilod__iCinema::M1::controller/movie.js::122",
+      "operator": "M1",
+      "control_class": "authentication",
+      "file": "controller/movie.js",
+      "line": 122,
+      "route_path": "/:movieId",
+      "detected": true,
+      "detected_raw": true,
+      "matched_title": "Missing ownership check for movie update operation",
+      "matched_line": 102,
+      "matched_control_ok": true,
+      "n_findings": 3
+    }
+  ],
+  "baseline_findings": [
+    {
+      "id": "21475dc3-ed3b-43a6-a942-627d10eaa68e",
+      "context_id": "absence-route:controller/movie.js:/addMovie:66",
+      "file": "controller/movie.js",
+      "start_line": 66,
+      "end_line": 78,
+      "function": "controller/movie.js::program#/addMovie",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing ownership enforcement for movie update operation",
+      "description": "The `/api/movies/:movieId` route allows any authenticated user to update a movie, even if it does not belong to them. This could lead to unauthorized modifications of other users' movies.",
+      "context_reasoning": "The `checkAuth` middleware ensures that the user is logged in, but there is no check to ensure that the authenticated user is the owner of the movie being updated. The route handler directly updates the movie without verifying ownership.",
+      "data_flow_summary": "operation: update; required control: ownership",
+      "suggested_fix": "Add an ownership check before updating the movie. For example: if (updateMovie.owner !== req.user._id) return res.status(403).json({ message: 'You are not authorized to update this movie' });",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "05fa7581-9ced-4241-a0af-f0880d87dd86",
+      "context_id": "absence-route:controller/movie.js:/:movieId:39",
+      "file": "controller/movie.js",
+      "start_line": 127,
+      "end_line": 156,
+      "function": "controller/movie.js::program#/:movieId",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284",
+      "severity": "medium",
+      "confidence": "high",
+      "title": "Missing ownership check for movie update operation",
+      "description": "The `PATCH /api/movies/:movieId` endpoint allows any authenticated user to update a movie, regardless of whether they own the movie. This could lead to unauthorized modifications of other users' movies.",
+      "context_reasoning": "The `checkAuth` middleware ensures that only authenticated users can access this endpoint, but it does not check if the user is the owner of the movie being updated. The absence of an ownership check means any authenticated user can update any movie.",
+      "data_flow_summary": "operation: update; required control: ownership",
+      "suggested_fix": "Add an ownership check to ensure the user updating the movie is the owner of the movie. This can be done by comparing `req.user._id` with `updateMovie.owner`. If they do not match, return a 403 Forbidden response.",
+      "model": "qwen2.5-coder:7b"
+    }
+  ]
+}

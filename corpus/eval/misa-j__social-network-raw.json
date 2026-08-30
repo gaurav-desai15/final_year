@@ -1,0 +1,113 @@
+{
+  "generated_at": "2026-08-30T02:29:23.661873Z",
+  "model": "qwen2.5-coder:7b",
+  "mode": "absence",
+  "grounding": "raw",
+  "match_window": 20,
+  "summary": {
+    "app": "misa-j__social-network",
+    "commit_sha": "d99ef7b3c56599e95db7b3d14bbcda76ec3e6714",
+    "n_mutations": 3,
+    "baseline_fp": 1,
+    "tp": 0,
+    "fp": 3,
+    "fn": 3,
+    "recall": 0.0,
+    "recall_raw": 0.0,
+    "precision": 0.0,
+    "f1": 0.0,
+    "by_operator": {
+      "M2": {
+        "tp": 0,
+        "fn": 3,
+        "recall": 0.0
+      }
+    },
+    "by_control_class": {
+      "ownership": {
+        "tp": 0,
+        "fn": 3,
+        "recall": 0.0
+      }
+    },
+    "compression": {
+      "contexts": 12,
+      "repo_source_loc": 14930,
+      "slice_loc_median": 62,
+      "slice_loc_mean": 72.7,
+      "file_loc_median": 62,
+      "slice_over_file_median": 1.0,
+      "slice_over_file_mean": 1.0,
+      "slice_over_repo_mean": 0.004867
+    },
+    "grounded_findings": {
+      "findings_checked": 3,
+      "grounded": 3,
+      "ratio": 1.0
+    }
+  },
+  "results": [
+    {
+      "record_id": "misa-j__social-network::M2::controllers/commentController.js::52",
+      "operator": "M2",
+      "control_class": "ownership",
+      "file": "controllers/commentController.js",
+      "line": 52,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 0
+    },
+    {
+      "record_id": "misa-j__social-network::M2::controllers/commentController.js::272",
+      "operator": "M2",
+      "control_class": "ownership",
+      "file": "controllers/commentController.js",
+      "line": 272,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 1
+    },
+    {
+      "record_id": "misa-j__social-network::M2::controllers/commentController.js::431",
+      "operator": "M2",
+      "control_class": "ownership",
+      "file": "controllers/commentController.js",
+      "line": 431,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 1
+    }
+  ],
+  "baseline_findings": [
+    {
+      "id": "24f47254-26bc-4e56-9dd5-895a226dea7a",
+      "context_id": "absence-route:app.js:/auth/reset/password/:jwt:115",
+      "file": "app.js",
+      "start_line": 115,
+      "end_line": 120,
+      "function": "app.js::program#/auth/reset/password/:jwt",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing authentication for password reset endpoint",
+      "description": "The `/auth/reset/password/:jwt` endpoint is publicly accessible and does not require any form of authentication. This allows anyone to access the endpoint, which could lead to unauthorized password resets.",
+      "context_reasoning": "No authentication checks are present in the route registration or within the function itself. The JWT token is not being verified before allowing access to the endpoint, making it publicly accessible and vulnerable to unauthorized password resets.",
+      "data_flow_summary": "operation: route handler; required control: authentication",
+      "suggested_fix": "Add an authentication check to ensure that only authenticated users can access this endpoint. This could be done by verifying the JWT token provided in the request query parameters or headers.",
+      "model": "qwen2.5-coder:7b"
+    }
+  ]
+}

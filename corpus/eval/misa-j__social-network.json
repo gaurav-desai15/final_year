@@ -1,0 +1,185 @@
+{
+  "generated_at": "2026-08-30T01:29:04.058445Z",
+  "model": "qwen2.5-coder:7b",
+  "mode": "absence",
+  "grounding": "cpg",
+  "match_window": 20,
+  "summary": {
+    "app": "misa-j__social-network",
+    "commit_sha": "d99ef7b3c56599e95db7b3d14bbcda76ec3e6714",
+    "n_mutations": 3,
+    "baseline_fp": 5,
+    "tp": 0,
+    "fp": 17,
+    "fn": 3,
+    "recall": 0.0,
+    "recall_raw": 0.0,
+    "precision": 0.0,
+    "f1": 0.0,
+    "by_operator": {
+      "M2": {
+        "tp": 0,
+        "fn": 3,
+        "recall": 0.0
+      }
+    },
+    "by_control_class": {
+      "ownership": {
+        "tp": 0,
+        "fn": 3,
+        "recall": 0.0
+      }
+    },
+    "compression": {
+      "contexts": 12,
+      "repo_source_loc": 14930,
+      "slice_loc_median": 35,
+      "slice_loc_mean": 30.3,
+      "file_loc_median": 62,
+      "slice_over_file_median": 0.5645,
+      "slice_over_file_mean": 0.4517,
+      "slice_over_repo_mean": 0.002032
+    },
+    "grounded_findings": {
+      "findings_checked": 17,
+      "grounded": 16,
+      "ratio": 0.941
+    }
+  },
+  "results": [
+    {
+      "record_id": "misa-j__social-network::M2::controllers/commentController.js::52",
+      "operator": "M2",
+      "control_class": "ownership",
+      "file": "controllers/commentController.js",
+      "line": 52,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 4
+    },
+    {
+      "record_id": "misa-j__social-network::M2::controllers/commentController.js::272",
+      "operator": "M2",
+      "control_class": "ownership",
+      "file": "controllers/commentController.js",
+      "line": 272,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 4
+    },
+    {
+      "record_id": "misa-j__social-network::M2::controllers/commentController.js::431",
+      "operator": "M2",
+      "control_class": "ownership",
+      "file": "controllers/commentController.js",
+      "line": 431,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 4
+    }
+  ],
+  "baseline_findings": [
+    {
+      "id": "72d13dc9-2c65-4595-b937-2d525131599b",
+      "context_id": "absence-route:handlers/messageHandler.js:socketio:11",
+      "file": "handlers/messageHandler.js",
+      "start_line": 11,
+      "end_line": 11,
+      "function": "handlers/messageHandler.js::program:sendReadMessage#socketio",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing access control for socket.io message sending operations",
+      "description": "The function `sendReadMessage`, `sendImageMessageRequest`, `sendImageMessage`, and `sendRoom` are responsible for emitting messages to specific users via socket.io. These operations expose the ability to send messages to any user without proper authentication or authorization checks.",
+      "context_reasoning": "No authentication check is present in the function or its callers. The operations allow any authenticated user to send messages to any other user, which could lead to unauthorized access and data leakage.",
+      "data_flow_summary": "operation: socketio; required control: authentication",
+      "suggested_fix": "Implement an authentication check to ensure that only authorized users can send messages to specific users. This may involve checking if the current user is logged in and has the necessary permissions to perform these actions.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "46f232ce-32cf-4c47-9db7-22faea2dd3d2",
+      "context_id": "absence-route:handlers/messageHandler.js:socketio:2",
+      "file": "handlers/messageHandler.js",
+      "start_line": 2,
+      "end_line": 10,
+      "function": "handlers/messageHandler.js::program:sendMessage#socketio",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing access control for socket.io message sending",
+      "description": "The function `sendMessage` in `handlers/messageHandler.js` sends a message to a specific receiver using socket.io. However, there is no authentication or authorization check to ensure that the sender has permission to send messages to the specified receiver.",
+      "context_reasoning": "The function does not perform any checks to verify that the sender has the necessary permissions to send a message to the specified receiver. This could allow an attacker to send messages to arbitrary users, potentially leading to unauthorized communication or data leakage.",
+      "data_flow_summary": "operation: socketio; required control: authorization (role)",
+      "suggested_fix": "Implement authentication and authorization checks before sending a message. Ensure that only authorized users can send messages to specific receivers.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "8aa8526c-d4de-4135-98ba-d7247aa69297",
+      "context_id": "absence-route:handlers/messageHandler.js:socketio:21",
+      "file": "handlers/messageHandler.js",
+      "start_line": 21,
+      "end_line": 40,
+      "function": "handlers/messageHandler.js::program:sendImageMessageRequest#socketio",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing access control for socket.io message sending",
+      "description": "The function `sendImageMessageRequest`, `sendImageMessage`, `sendRoom`, and `sendActivityStatus` are handling sensitive operations that involve emitting messages to specific users. However, there is no authentication or authorization check in place to ensure that only authorized users can perform these actions.",
+      "context_reasoning": "No authentication checks (e.g., isLoggedIn, requireAuth) are present in the function or its callers. This allows any authenticated user to send messages to any other user without proper authorization.",
+      "data_flow_summary": "operation: socketio; required control: authentication",
+      "suggested_fix": "Implement authentication checks before emitting messages. For example, ensure that only users with the necessary permissions can send messages to specific receivers.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "11a20e7c-c24c-4fa0-95d7-cd6375e0ce6e",
+      "context_id": "absence-route:handlers/messageHandler.js:socketio:58",
+      "file": "handlers/messageHandler.js",
+      "start_line": 58,
+      "end_line": 60,
+      "function": "handlers/messageHandler.js::program:handleCall#socketio",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing access control for socket.io message handling",
+      "description": "The function `handleCall` and `handleAnswer` in `handlers/messageHandler.js` are used to emit messages over a socket connection. These operations expose the ability to send messages to specific users based on their IDs, but there is no authentication or authorization check to ensure that only authorized users can perform these actions.",
+      "context_reasoning": "No authentication checks are present in the function or its callers. The operations expose the ability to send messages to specific users, which could be exploited if an attacker gains access to a user's ID. Authentication is required to ensure that only authorized users can perform these actions.",
+      "data_flow_summary": "operation: socketio; required control: authentication",
+      "suggested_fix": "Implement authentication checks to verify that the user making the request has permission to send messages to the specified user. This may involve checking session validity, user roles, or other relevant criteria.",
+      "model": "qwen2.5-coder:7b"
+    },
+    {
+      "id": "a53ad840-b641-4fc9-b5c2-884de7c61fa3",
+      "context_id": "absence-route:handlers/messageHandler.js:socketio:58",
+      "file": "handlers/messageHandler.js",
+      "start_line": 62,
+      "end_line": 64,
+      "function": "handlers/messageHandler.js::program:handleCall#socketio",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "high",
+      "title": "Missing access control for socket.io message handling",
+      "description": "The function `handleCall` and `handleAnswer` in `handlers/messageHandler.js` are used to emit messages over a socket connection. These operations expose the ability to send messages to specific users based on their IDs, but there is no authentication or authorization check to ensure that only authorized users can perform these actions.",
+      "context_reasoning": "No authentication checks are present in the function or its callers. The operations expose the ability to send messages to specific users, which could be exploited if an attacker gains access to a user's ID. Authentication is required to ensure that only authorized users can perform these actions.",
+      "data_flow_summary": "operation: socketio; required control: authentication",
+      "suggested_fix": "Implement authentication checks to verify that the user making the request has permission to send messages to the specified user. This may involve checking session validity, user roles, or other relevant criteria.",
+      "model": "qwen2.5-coder:7b"
+    }
+  ]
+}

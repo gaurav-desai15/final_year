@@ -1,0 +1,123 @@
+{
+  "generated_at": "2026-08-30T01:10:34.903031Z",
+  "model": "qwen2.5-coder:7b",
+  "mode": "absence",
+  "grounding": "raw",
+  "match_window": 20,
+  "summary": {
+    "app": "madhums__node-express-mongoose-demo",
+    "commit_sha": "8a134ab5deeef553d6de51d91d4ed8ee378acace",
+    "n_mutations": 3,
+    "baseline_fp": 1,
+    "tp": 1,
+    "fp": 7,
+    "fn": 2,
+    "recall": 0.333,
+    "recall_raw": 0.333,
+    "precision": 0.125,
+    "f1": 0.182,
+    "by_operator": {
+      "M1": {
+        "tp": 1,
+        "fn": 0,
+        "recall": 1.0
+      },
+      "M2": {
+        "tp": 0,
+        "fn": 2,
+        "recall": 0.0
+      }
+    },
+    "by_control_class": {
+      "authentication": {
+        "tp": 1,
+        "fn": 0,
+        "recall": 1.0
+      },
+      "ownership": {
+        "tp": 0,
+        "fn": 2,
+        "recall": 0.0
+      }
+    },
+    "compression": {
+      "contexts": 12,
+      "repo_source_loc": 1514,
+      "slice_loc_median": 118,
+      "slice_loc_mean": 118.0,
+      "file_loc_median": 118,
+      "slice_over_file_median": 1.0,
+      "slice_over_file_mean": 1.0,
+      "slice_over_repo_mean": 0.077939
+    },
+    "grounded_findings": {
+      "findings_checked": 8,
+      "grounded": 8,
+      "ratio": 1.0
+    }
+  },
+  "results": [
+    {
+      "record_id": "madhums__node-express-mongoose-demo::M2::config/middlewares/authorization.js::19",
+      "operator": "M2",
+      "control_class": "ownership",
+      "file": "config/middlewares/authorization.js",
+      "line": 19,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 2
+    },
+    {
+      "record_id": "madhums__node-express-mongoose-demo::M2::config/middlewares/authorization.js::33",
+      "operator": "M2",
+      "control_class": "ownership",
+      "file": "config/middlewares/authorization.js",
+      "line": 33,
+      "route_path": "",
+      "detected": false,
+      "detected_raw": false,
+      "matched_title": "",
+      "matched_line": 0,
+      "matched_control_ok": false,
+      "n_findings": 2
+    },
+    {
+      "record_id": "madhums__node-express-mongoose-demo::M1::config/routes.js::80",
+      "operator": "M1",
+      "control_class": "authentication",
+      "file": "config/routes.js",
+      "line": 80,
+      "route_path": "/articles/new",
+      "detected": true,
+      "detected_raw": true,
+      "matched_title": "Missing access control for Google OAuth callback route",
+      "matched_line": 60,
+      "matched_control_ok": true,
+      "n_findings": 3
+    }
+  ],
+  "baseline_findings": [
+    {
+      "id": "a055261b-8e98-4bb3-af74-bc61b3be1c37",
+      "context_id": "absence-route:config/routes.js:/users:35",
+      "file": "config/routes.js",
+      "start_line": 35,
+      "end_line": 40,
+      "function": "app/controllers/articles.js::program:create",
+      "vulnerability_type": "Missing Access Control",
+      "cwe": "CWE-284: Improper Access Control",
+      "severity": "high",
+      "confidence": "medium",
+      "title": "Missing access control for user routes",
+      "description": "The route `/users` is exposed without any authentication or authorization checks. This could allow an attacker to perform sensitive operations on other users' data.",
+      "context_reasoning": "No authentication middleware (e.g., `auth.requiresLogin`) is applied to the `/users` route, which exposes it to unauthorized access. The route should be protected with an authentication check to ensure only authenticated users can access it.",
+      "data_flow_summary": "operation: route handler; required control: authentication",
+      "suggested_fix": "Add authentication middleware to the `/users` route to protect it from unauthorized access. For example: `app.get('/users', auth.requiresLogin, users.show);`",
+      "model": "qwen2.5-coder:7b"
+    }
+  ]
+}
